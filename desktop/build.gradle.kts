@@ -35,9 +35,11 @@ compose.desktop {
             linux {
                 packageName = "blazbuds"
                 menuGroup = "AudioVideo"
+                iconFile.set(project.file("packaging/blazbuds.png"))
             }
             windows {
                 menuGroup = "Blazbuds"
+                iconFile.set(project.file("packaging/blazbuds.ico"))
                 shortcut = true
                 perUserInstall = true
                 upgradeUuid = "3f0a6b0e-6f0c-4d33-9a43-6a1c2e9b7d41"
