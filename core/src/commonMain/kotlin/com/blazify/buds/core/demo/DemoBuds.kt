@@ -22,8 +22,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 /** Earbuds that exist only in the app: for trying it without a pair, and for the screenshots. */
-class DemoBuds : Buds {
-    private val flow = MutableStateFlow(sample())
+class DemoBuds(connected: Boolean = true) : Buds {
+    private val flow = MutableStateFlow(sample().let { if (connected) it else it.copy(link = com.blazify.buds.core.model.Link.Lost) })
     override val state: StateFlow<BudsState> = flow
 
     override suspend fun apply(change: Change) {
