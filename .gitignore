@@ -1,0 +1,32 @@
+# Build output
+build/
+.gradle/
+.kotlin/
+out/
+local.properties
+captures/
+*.iml
+.idea/
+.DS_Store
+
+# Xcode
+ios/**/DerivedData/
+ios/**/xcuserdata/
+*.xcuserstate
+ios/*.xcodeproj/
+
+# Packages never live in git
+*.apk
+*.aab
+*.ipa
+*.exe
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.dmg
+
+# Signing secrets
+*.keystore
+*.jks
+keystore.properties
