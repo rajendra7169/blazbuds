@@ -49,6 +49,7 @@ object BudsIcons {
     val Support = line("M4.5 13v-1.5a7.5 7.5 0 0 1 15 0V13M4.5 13h2.5v5H5.5a1 1 0 0 1-1-1zM19.5 13H17v5h1.5a1 1 0 0 0 1-1zM18 18c0 2-2 3-5 3h-1")
     val Home = line("M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z")
     val Earbuds = line("M10 3a5 5 0 1 0 0 10h0v6.5a1.75 1.75 0 0 0 3.5 0V7.2A5 5 0 0 0 10 3z", filled = "M10.5 6.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z")
+    val Case = line("M5 9.5h14v5.5a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5zM5 9.5a4.5 4.5 0 0 1 4.5-4.5h5A4.5 4.5 0 0 1 19 9.5M11 13h2")
     val Trash = line("M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13M10.5 11v5.5M13.5 11v5.5")
     val Copy = line("M9 9h10v11H9zM5 15V4h10")
     val Battery = line("M4 7h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM21 10.5v3")

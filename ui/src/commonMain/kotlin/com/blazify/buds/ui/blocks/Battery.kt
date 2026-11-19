@@ -18,6 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
@@ -33,14 +37,14 @@ import com.blazify.buds.ui.theme.Motion
 @Composable
 fun BatteryRow(left: Battery?, case: Battery?, right: Battery?, modifier: Modifier = Modifier, ring: Dp = 56.dp) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-        BatteryRing("Left", left, ring)
-        BatteryRing("Case", case, ring)
-        BatteryRing("Right", right, ring)
+        BatteryRing("Left", left, ring, BudsIcons.Earbuds, mirrored = true)
+        BatteryRing("Case", case, ring, BudsIcons.Case)
+        BatteryRing("Right", right, ring, BudsIcons.Earbuds)
     }
 }
 
 @Composable
-fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp) {
+fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: androidx.compose.ui.graphics.vector.ImageVector? = null, mirrored: Boolean = false) {
     val palette = LocalPalette.current
     val level = battery?.percent ?: 0
     val fill by animateFloatAsState(level / 100f, spring(dampingRatio = 0.6f, stiffness = 140f), label = "fill")
@@ -66,7 +70,19 @@ fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp) {
                 drawArc(palette.raised, 0f, 360f, false, topLeft, arcSize, style = Stroke(width))
                 drawArc(color, -90f, 360f * fill, false, topLeft, arcSize, style = Stroke(width, cap = StrokeCap.Round))
             }
-            if (battery?.charging == true) {
+            if (picture != null) {
+                // A small picture of what this ring is for, as on the best earbud apps.
+                Icon(
+                    picture, null,
+                    tint = if (battery == null) palette.muted else palette.text,
+                    modifier = Modifier.size(ring * 0.42f).graphicsLayer { scaleX = if (mirrored) -1f else 1f },
+                )
+                if (battery?.charging == true) {
+                    Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.accent), contentAlignment = Alignment.Center) {
+                        Icon(BudsIcons.Bolt, null, tint = palette.onAccent, modifier = Modifier.size(12.dp))
+                    }
+                }
+            } else if (battery?.charging == true) {
                 Icon(BudsIcons.Bolt, null, tint = palette.accent, modifier = Modifier.size(18.dp))
             } else {
                 Text(
@@ -76,12 +92,21 @@ fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp) {
                 )
             }
         }
-        Text(
-            if (battery?.charging == true) "$label · ${battery.percent}%" else label,
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.muted,
-            modifier = Modifier.semantics { },
-        )
+        if (picture != null) {
+            Text(
+                if (battery == null) "–" else "${battery.percent}%",
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                color = palette.text,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(label, style = MaterialTheme.typography.labelSmall, color = palette.muted)
+        } else {
+            Text(
+                if (battery?.charging == true) "$label · ${battery.percent}%" else label,
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.muted,
+            )
+        }
     }
 }
 
