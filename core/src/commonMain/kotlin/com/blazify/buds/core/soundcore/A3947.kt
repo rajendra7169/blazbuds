@@ -166,7 +166,9 @@ object A3947 {
             link = Link.Connected,
             left = left,
             right = right,
-            case = Battery(level(raw[CASE_LEVEL])),
+            // The earbuds only hear from the case while one of them sits in it; until then they say 0, which means
+            // "don't know", not empty.
+            case = level(raw[CASE_LEVEL]).takeIf { it > 0 }?.let { Battery(it) },
             sound = sound(raw, SOUND, raw[CYCLE].u()),
             equalizer = equalizer(raw),
             controls = controls(raw, both),
