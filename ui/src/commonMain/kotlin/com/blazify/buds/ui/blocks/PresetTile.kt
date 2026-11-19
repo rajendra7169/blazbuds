@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.blazify.buds.ui.icons.BudsIcons
+import com.blazify.buds.ui.resources.*
 import com.blazify.buds.ui.theme.Motion
 
 /** Colour pairs for the preset tiles, each a soft diagonal gradient that reads well with white text. */
@@ -79,6 +80,14 @@ fun PresetTile(
             .semantics { contentDescription = "$name preset"; selected = chosen }
             .press(role = Role.RadioButton, onLongClick = onLongClick, onClick = onClick),
     ) {
+        val photo = presetPhoto(name)
+        if (photo != null) {
+            androidx.compose.foundation.Image(
+                org.jetbrains.compose.resources.painterResource(photo), null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         // The preset's own sound, drawn faintly across the tile.
         Canvas(Modifier.fillMaxSize()) {
             if (gains.size < 2 || !showCurve) return@Canvas
@@ -99,12 +108,14 @@ fun PresetTile(
             // A soft shine across the top.
             drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent), 0f, size.height * 0.5f))
         }
-        // What the sound is about, drawn large and dim on the right.
-        Icon(
-            art, null,
-            tint = Color.White.copy(alpha = 0.26f),
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).size(78.dp).graphicsLayer { rotationZ = -10f },
-        )
+        // What the sound is about, drawn large and dim on the right, when there's no picture for it.
+        if (photo == null) {
+            Icon(
+                art, null,
+                tint = Color.White.copy(alpha = 0.26f),
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).size(78.dp).graphicsLayer { rotationZ = -10f },
+            )
+        }
         Text(
             name,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -117,5 +128,38 @@ fun PresetTile(
                 Icon(BudsIcons.Check, "Chosen", tint = from, modifier = Modifier.size(16.dp))
             }
         }
+    }
+}
+
+/**
+ * A picture for each kind of sound: a free photo (CC0, from Wikimedia Commons) washed in the tile's colours, so the
+ * presets read at a glance. Matched by name, as every brand calls its presets a little differently.
+ */
+private fun presetPhoto(name: String): org.jetbrains.compose.resources.DrawableResource? {
+    val n = name.lowercase()
+    return when {
+        "signature" in n -> Res.drawable.preset_signature
+        "acoustic" in n -> Res.drawable.preset_acoustic
+        "bass boost" in n || "bass up" in n -> Res.drawable.preset_bass_booster
+        "bass reduc" in n || "less bass" in n -> Res.drawable.preset_bass_reducer
+        "classical" in n -> Res.drawable.preset_classical
+        "podcast" in n || "vocal" in n || "voice" in n -> Res.drawable.preset_podcast
+        "dance" in n -> Res.drawable.preset_dance
+        "deep" in n -> Res.drawable.preset_deep
+        "electronic" in n || "edm" in n -> Res.drawable.preset_electronic
+        "flat" in n || "balanced" in n -> Res.drawable.preset_flat
+        "hip" in n -> Res.drawable.preset_hip_hop
+        "jazz" in n -> Res.drawable.preset_jazz
+        "latin" in n -> Res.drawable.preset_latin
+        "lounge" in n -> Res.drawable.preset_lounge
+        "piano" in n -> Res.drawable.preset_piano
+        "r&b" in n || "rnb" in n -> Res.drawable.preset_rnb
+        "pop" in n -> Res.drawable.preset_pop
+        "rock" in n -> Res.drawable.preset_rock
+        "small speaker" in n -> Res.drawable.preset_small_speakers
+        "spoken" in n -> Res.drawable.preset_spoken_word
+        "treble boost" in n || "treble up" in n -> Res.drawable.preset_treble_booster
+        "treble reduc" in n -> Res.drawable.preset_treble_reducer
+        else -> null
     }
 }
