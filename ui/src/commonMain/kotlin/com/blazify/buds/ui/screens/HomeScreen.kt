@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.only
 import com.blazify.buds.core.catalog.Catalog
 import com.blazify.buds.core.catalog.Kind
 import com.blazify.buds.ui.blocks.CaseHero
-import com.blazify.buds.ui.blocks.ModelHero
-import com.blazify.buds.ui.blocks.pictures
+import com.blazify.buds.ui.blocks.ModelViewer
+import com.blazify.buds.ui.blocks.frames
 import com.blazify.buds.ui.blocks.DeviceArt
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -73,7 +73,7 @@ enum class Tab { Home, Sound, Controls, Device }
  * on a tablet or a computer window it splits in two.
  */
 @Composable
-fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit, goTab: (Tab) -> Unit, retry: () -> Unit) {
+fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit, goTab: (Tab) -> Unit, retry: () -> Unit, bluetoothOn: Boolean = true, turnOnBluetooth: (() -> Unit)? = null) {
     val palette = LocalPalette.current
     BoxWithConstraints(Modifier.fillMaxSize().background(palette.background)) {
         val wide = maxWidth >= 720.dp
@@ -85,7 +85,7 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
         ) {
             Column(Modifier.widthIn(max = if (wide) 1100.dp else 560.dp).fillMaxWidth()) {
                 TopBar(state, open)
-                LinkBanner(state, retry)
+                LinkBanner(state, retry, bluetoothOn, turnOnBluetooth)
                 if (wide) {
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -154,33 +154,43 @@ private fun TopBar(state: BudsState, open: (Place) -> Unit) {
 
 /** Says plainly what is wrong with the link and what to do, with one button to try again. */
 @Composable
-private fun LinkBanner(state: BudsState, retry: () -> Unit) {
+private fun LinkBanner(state: BudsState, retry: () -> Unit, bluetoothOn: Boolean, turnOnBluetooth: (() -> Unit)?) {
     val palette = LocalPalette.current
-    AnimatedVisibility(state.link != Link.Connected, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+    AnimatedVisibility(state.link != Link.Connected || !bluetoothOn, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         Panel(Modifier.padding(bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (state.link == Link.Connecting) LogoLoader(size = 28.dp) else Icon(BudsIcons.Info, null, tint = palette.warn)
+                if (state.link == Link.Connecting && bluetoothOn) LogoLoader(size = 28.dp) else Icon(if (bluetoothOn) BudsIcons.Info else BudsIcons.Bluetooth, null, tint = palette.warn)
                 Column(Modifier.weight(1f)) {
                     Text(
-                        when (state.link) {
+                        when {
+                            !bluetoothOn -> "Bluetooth is off"
+                            else -> when (state.link) {
                             Link.Connecting -> "Connecting to your earbuds"
                             Link.Busy -> "Another app is using your earbuds"
                             else -> "Your earbuds aren't connected"
+                            }
                         },
                         style = MaterialTheme.typography.titleMedium,
                         color = palette.text,
                     )
                     Text(
-                        when (state.link) {
+                        when {
+                            !bluetoothOn -> "Turn it on and your earbuds connect by themselves."
+                            else -> when (state.link) {
                             Link.Connecting -> "This takes a second or two."
                             Link.Busy -> "Only one app can control them at a time. Close the brand's own app on your phone, then try again."
                             else -> "Take them out of the case and check Bluetooth is on."
+                            }
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = palette.muted,
                     )
                 }
-                if (state.link != Link.Connecting) Choice("Try again", selected = true, onClick = retry)
+                if (!bluetoothOn && turnOnBluetooth != null) {
+                    Choice("Turn on", selected = true, onClick = turnOnBluetooth)
+                } else if (state.link != Link.Connecting) {
+                    Choice("Try again", selected = true, onClick = retry)
+                }
             }
         }
     }
@@ -189,9 +199,9 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit) {
 @Composable
 private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val pictures = pictures(Catalog.art(state.name))
-        if (pictures != null) {
-            ModelHero(pictures, connected = state.isReady, mode = state.sound?.mode, height = heroHeight)
+        val frames = frames(Catalog.art(state.name))
+        if (frames != null) {
+            ModelViewer(frames, connected = state.isReady, mode = state.sound?.mode, height = heroHeight)
         } else when (Catalog.kind(state.name)) {
             Kind.Headphones, Kind.Speaker -> Box(Modifier.fillMaxWidth().height(heroHeight), contentAlignment = Alignment.Center) {
                 DeviceArt(Catalog.kind(state.name), size = heroHeight * 0.8f, active = state.isReady)

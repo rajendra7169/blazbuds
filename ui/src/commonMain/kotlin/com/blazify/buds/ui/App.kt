@@ -68,6 +68,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null,
         CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
+            val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()
             var place by remember { mutableStateOf(start) }
             var tab by remember { mutableStateOf(startTab) }
@@ -96,7 +97,12 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null,
                                 AnimatedContent(tab, transitionSpec = { fadeIn(tween(Motion.NORMAL)) togetherWith fadeOut(tween(Motion.QUICK)) }, label = "tab") { t ->
                                     val change: (Change) -> Unit = { scope.launch { now.apply(it) } }
                                     when (t) {
-                                        Tab.Home -> HomeScreen(state, change, open = { place = it }, goTab = { tab = it }, retry = { scope.launch { now.refresh() } })
+                                        Tab.Home -> HomeScreen(
+                                            state, change, open = { place = it }, goTab = { tab = it },
+                                            retry = { scope.launch { hub.reload(); now.refresh() } },
+                                            bluetoothOn = bluetoothOn,
+                                            turnOnBluetooth = settingsAction(hub),
+                                        )
                                         Tab.Sound -> EqualizerScreen(state, change)
                                         Tab.Controls -> ControlsScreen(state, change)
                                         Tab.Device -> DeviceTab(state, change) { place = it }
@@ -116,6 +122,8 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null,
                             },
                             add = { place = Place.Add },
                             help = { place = Place.Support },
+                            bluetoothOn = bluetoothOn,
+                            openSettings = settingsAction(hub),
                             back = if (now != null) close else null,
                         )
                         Place.Add -> AddDeviceScreen(

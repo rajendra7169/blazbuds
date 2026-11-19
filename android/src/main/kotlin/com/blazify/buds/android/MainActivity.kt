@@ -1,6 +1,11 @@
 package com.blazify.buds.android
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -41,12 +46,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Bluetooth switched on or off, from the shade or settings: look again at once. */
+    private val bluetoothChanged = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            hub?.refresh()
+        }
+    }
+
     override fun onStart() {
         super.onStart()
+        registerReceiver(bluetoothChanged, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
         hub?.watch(true)
+        hub?.refresh()
     }
 
     override fun onStop() {
+        unregisterReceiver(bluetoothChanged)
         // In the background the earbuds aren't asked every few seconds.
         hub?.watch(false)
         super.onStop()

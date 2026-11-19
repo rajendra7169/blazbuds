@@ -20,6 +20,9 @@ interface Platform {
 
     fun open(device: Device, scope: CoroutineScope): Buds
 
+    /** Whether Bluetooth is switched on; when it is off the system lists no paired devices at all. */
+    fun bluetoothOn(): Boolean = true
+
     /** Whether this platform can open its Bluetooth settings for pairing. */
     val hasBluetoothSettings: Boolean get() = false
 
@@ -36,9 +39,13 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     private val chosen = MutableStateFlow<Buds?>(null)
     val current: StateFlow<Buds?> = chosen
     private var address: String? = store?.getStringOrNull(CHOSEN)
+    private var chosenName: String? = store?.getStringOrNull(CHOSEN_NAME)
+    private val bluetooth = MutableStateFlow(true)
+    val bluetoothOn: StateFlow<Boolean> = bluetooth
 
 
     suspend fun reload() {
+        bluetooth.value = platform.bluetoothOn()
         val found = platform.paired().map { device ->
             val (connected, battery) = platform.peek(device)
             Pair2(device.copy(connected = connected), Catalog.model(device).support, battery?.let { Battery(it) })
@@ -47,7 +54,12 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         if (chosen.value == null) {
             val pick = found.firstOrNull { it.device.address == address }
                 ?: found.firstOrNull { it.device.connected && it.support == Support.Full }
-            if (pick != null) choose(pick.device)
+            if (pick != null) {
+                choose(pick.device)
+            } else if (address != null && chosenName != null) {
+                // Bluetooth is off or the earbuds are away: keep them, and let them connect when they can.
+                choose(Device(chosenName!!, address!!, connected = false))
+            }
         }
     }
 
@@ -55,6 +67,8 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         chosen.value?.close()
         address = device.address
         store?.putString(CHOSEN, device.address)
+        chosenName = device.name
+        store?.putString(CHOSEN_NAME, device.name)
         chosen.value = platform.open(device, scope).also { it.watch(watching) }
     }
 
@@ -63,6 +77,7 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     /** Whether the app is on screen; the earbuds are asked often only while it is. */
     fun watch(on: Boolean) {
         watching = on
+        if (on) bluetooth.value = platform.bluetoothOn()
         chosen.value?.watch(on)
     }
 
@@ -78,5 +93,6 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
 
     private companion object {
         const val CHOSEN = "earbuds"
+        const val CHOSEN_NAME = "earbuds_name"
     }
 }

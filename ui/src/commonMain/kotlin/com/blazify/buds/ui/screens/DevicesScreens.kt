@@ -42,7 +42,7 @@ import com.blazify.buds.ui.blocks.AddArt
 import com.blazify.buds.ui.blocks.CardShape
 import com.blazify.buds.ui.blocks.Choice
 import com.blazify.buds.ui.blocks.DeviceArt
-import com.blazify.buds.ui.blocks.pictures
+import com.blazify.buds.ui.blocks.frames
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.graphicsLayer
 import org.jetbrains.compose.resources.painterResource
@@ -68,12 +68,21 @@ fun MyDevicesScreen(
     add: () -> Unit,
     help: () -> Unit,
     back: (() -> Unit)?,
+    bluetoothOn: Boolean = true,
+    openSettings: (() -> Unit)? = null,
 ) {
     LaunchedEffect(Unit) { reload() }
     val palette = LocalPalette.current
     PlaceFrame("My devices", back, actions = listOf(BudsIcons.Support to ("Help" to help))) {
         if (loading && earbuds.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { LogoLoader(size = 48.dp) }
+        } else if (earbuds.isEmpty() && !bluetoothOn) {
+            Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(BudsIcons.Bluetooth, null, tint = palette.warn, modifier = Modifier.size(48.dp))
+                Text("Bluetooth is off", style = MaterialTheme.typography.titleLarge, color = palette.text)
+                Hint("Turn it on to see your earbuds.", Modifier.padding(horizontal = 24.dp))
+                if (openSettings != null) Choice("Turn on Bluetooth", true, icon = BudsIcons.Bluetooth, onClick = openSettings)
+            }
         } else if (earbuds.isEmpty()) {
             Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AddArt(size = 140.dp)
@@ -116,10 +125,10 @@ private fun DeviceCard(row: Pair2, chosen: Boolean, modifier: Modifier, onClick:
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(Modifier.fillMaxWidth()) {
-            val pictures = pictures(Catalog.art(row.device.name))
-            if (pictures != null) {
+            val frames = frames(Catalog.art(row.device.name))
+            if (frames != null) {
                 Image(
-                    painterResource(if (row.device.connected) pictures.open else pictures.closed),
+                    painterResource(if (row.device.connected) frames.shown else frames.closed),
                     null,
                     Modifier.align(Alignment.Center).size(96.dp).graphicsLayer { alpha = if (row.device.connected) 1f else 0.7f },
                 )

@@ -49,6 +49,8 @@ class AndroidPlatform(private val context: Context) : Platform {
         }
     }
 
+    override fun bluetoothOn(): Boolean = adapter?.isEnabled == true
+
     override val hasBluetoothSettings: Boolean = true
 
     override fun bluetoothSettings() {
