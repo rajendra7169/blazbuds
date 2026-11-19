@@ -37,13 +37,13 @@ import kotlinx.coroutines.launch
  * with the few deeper pages sliding in from the side.
  */
 @Composable
-fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }) {
+fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null) {
     BudsTheme(prefs.theme) {
         CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
             val scope = rememberCoroutineScope()
-            var place by remember { mutableStateOf<Place?>(null) }
+            var place by remember { mutableStateOf(start) }
             var loading by remember { mutableStateOf(true) }
             val reload: suspend () -> Unit = {
                 loading = true
@@ -97,17 +97,23 @@ private fun settingsAction(hub: Hub): (() -> Unit)? = if (hub.canOpenSettings) (
 
 /** The app around one pair of earbuds that is already there, as for the demo and the screenshots. */
 @Composable
-fun BudsApp(buds: Buds, prefs: Prefs = remember { Prefs() }) {
+fun BudsApp(buds: Buds, prefs: Prefs = remember { Prefs() }, start: Place? = null) {
     val scope = rememberCoroutineScope()
     val hub = remember(buds) { Hub(OnePair(buds), scope, null).also { it.choose(OnePair.DEVICE) } }
-    BudsApp(hub, prefs)
+    BudsApp(hub, prefs, start)
 }
 
+/** One pair already there, beside a few others the device knows, as for the demo and the screenshots. */
 private class OnePair(private val buds: Buds) : Platform {
-    override suspend fun paired() = listOf(DEVICE)
+    override suspend fun paired() = listOf(DEVICE) + OTHERS
+    override suspend fun peek(device: Device): Pair<Boolean, Int?> = device.connected to if (device == DEVICE) 90 else null
     override fun open(device: Device, scope: CoroutineScope) = buds
 
     companion object {
         val DEVICE = Device("Liberty 4 NC", "00:00:00:00:00:00", connected = true)
+        val OTHERS = listOf(
+            Device("Galaxy Buds2 Pro", "00:00:00:00:00:01", connected = false),
+            Device("WF-1000XM5", "00:00:00:00:00:02", connected = false),
+        )
     }
 }

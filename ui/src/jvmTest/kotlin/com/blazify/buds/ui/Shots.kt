@@ -1,9 +1,14 @@
 package com.blazify.buds.ui
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.use
 import com.blazify.buds.core.demo.DemoBuds
+import com.blazify.buds.ui.screens.Place
+import com.blazify.buds.ui.screens.QuickPanel
+import com.blazify.buds.ui.theme.BudsTheme
 import com.blazify.buds.ui.theme.ThemeChoice
 import com.russhwolf.settings.MapSettings
 import org.jetbrains.skia.EncodedImageFormat
@@ -11,29 +16,35 @@ import java.io.File
 import kotlin.test.Test
 
 /**
- * Draws Home off screen in both looks, at phone and computer sizes, into the folder named by SHOTS_DIR.
- * Runs only when that is set: it makes pictures for the readme and for checking the design by eye.
+ * Draws the app off screen, with the demo earbuds, into the folder named by SHOTS_DIR: the pictures in the readme.
+ * Runs only when that is set.
  */
 class Shots {
+    private fun shot(dir: File, name: String, width: Int, height: Int, content: @Composable () -> Unit) {
+        val scale = 2f
+        ImageComposeScene((width * scale).toInt(), (height * scale).toInt(), Density(scale), content = content).use { scene ->
+            var time = 0L
+            repeat(60) { scene.render(time); time += 50_000_000L }
+            File(dir, "$name.png").writeBytes(scene.render(time).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+    }
+
+    private fun prefs(theme: ThemeChoice) = Prefs(MapSettings()).apply { theme(theme) }
+
     @Test
-    fun drawHome() {
+    fun drawScreens() {
         val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
         dir.mkdirs()
-        val sizes = listOf("phone" to (412 to 915), "desktop" to (1180 to 820))
-        for ((sizeName, size) in sizes) {
-            for (theme in listOf(ThemeChoice.Light, ThemeChoice.Dark)) {
-                val prefs = Prefs(MapSettings()).apply { theme(theme) }
-                val scale = 2f
-                ImageComposeScene((size.first * scale).toInt(), (size.second * scale).toInt(), Density(scale)) {
-                    BudsApp(DemoBuds(), prefs)
-                }.use { scene ->
-                    // Several frames, so entrance animations have settled.
-                    var time = 0L
-                    repeat(40) { scene.render(time); time += 50_000_000L }
-                    val image = scene.render(time)
-                    val bytes = image.encodeToData(EncodedImageFormat.PNG)!!.bytes
-                    File(dir, "home-$sizeName-${theme.name.lowercase()}.png").writeBytes(bytes)
-                }
+        for (theme in listOf(ThemeChoice.Light, ThemeChoice.Dark)) {
+            val look = theme.name.lowercase()
+            shot(dir, "home-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme)) }
+            shot(dir, "home-desktop-$look", 1180, 820) { BudsApp(DemoBuds(), prefs(theme)) }
+            shot(dir, "sound-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Equalizer) }
+            shot(dir, "earbuds-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Earbuds) }
+            shot(dir, "controls-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Controls) }
+            shot(dir, "panel-$look", 360, 330) {
+                val buds = remember { DemoBuds() }
+                BudsTheme(theme) { QuickPanel(buds.state.value, {}, {}) }
             }
         }
     }
