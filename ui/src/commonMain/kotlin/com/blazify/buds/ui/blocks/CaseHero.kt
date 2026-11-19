@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -54,6 +55,7 @@ fun CaseHero(
     modifier: Modifier = Modifier,
     height: Dp = 230.dp,
     still: Boolean = false,
+    soft: Boolean = false,
 ) {
     val palette = LocalPalette.current
     val reduce = LocalReduceMotion.current || still
@@ -110,16 +112,33 @@ fun CaseHero(
             bottomLeft = CornerRadius(w * 0.02f), bottomRight = CornerRadius(w * 0.02f),
         )
         val pastUpright = angle > PI.toFloat() / 2
-        drawPath(Path().apply { addRoundRect(lid) }, if (pastUpright) shellLight else shell)
-        drawPath(Path().apply { addRoundRect(lid) }, edge, style = Stroke(w * 0.006f))
+        val lidPath = Path().apply { addRoundRect(lid) }
+        if (soft) {
+            // Rounded light: bright along the top, falling off towards the seam, darker at the sides.
+            drawPath(lidPath, Brush.verticalGradient(if (pastUpright) listOf(shell, shellLight) else listOf(shellLight, shell), lid.top, lid.bottom))
+            clipPath(lidPath) {
+                drawRect(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.14f), Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.2f)), lid.left, lid.right))
+                if (!pastUpright) drawOval(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (palette.dark) 0.16f else 0.55f), Color.Transparent), lid.top, lid.top + shown * 0.6f), Offset(cx - caseW * 0.38f, lid.top + shown * 0.08f), Size(caseW * 0.5f, shown * 0.5f))
+            }
+        } else {
+            drawPath(lidPath, if (pastUpright) shellLight else shell)
+        }
+        drawPath(lidPath, edge, style = Stroke(w * 0.006f))
         if (pastUpright) {
             // The inside of the lid, with its magnets' seat.
-            drawRoundRect(inner.copy(alpha = 0.25f), Offset(cx - caseW * 0.36f, lidBottom - shown * 0.7f), Size(caseW * 0.72f, shown * 0.4f), CornerRadius(shown * 0.2f))
+            if (soft) {
+                drawRoundRect(
+                    Brush.verticalGradient(listOf(inner.copy(alpha = 0.45f), inner.copy(alpha = 0.12f)), lidBottom - shown * 0.75f, lidBottom - shown * 0.2f),
+                    Offset(cx - caseW * 0.38f, lidBottom - shown * 0.75f), Size(caseW * 0.76f, shown * 0.55f), CornerRadius(shown * 0.25f),
+                )
+            } else {
+                drawRoundRect(inner.copy(alpha = 0.25f), Offset(cx - caseW * 0.36f, lidBottom - shown * 0.7f), Size(caseW * 0.72f, shown * 0.4f), CornerRadius(shown * 0.2f))
+            }
         }
         // The opening of the case, seen as it opens.
         if (open > 0.02f) {
             drawRoundRect(
-                inner,
+                if (soft) Brush.verticalGradient(listOf(inner.copy(alpha = 1f), inner.copy(alpha = 0.55f)), seam - baseH * 0.12f * open, seam + baseH * 0.08f * open) else androidx.compose.ui.graphics.SolidColor(inner),
                 Offset(cx - caseW * 0.44f, seam - baseH * 0.12f * open),
                 Size(caseW * 0.88f, baseH * 0.2f * open + 1f),
                 CornerRadius(baseH * 0.1f),
@@ -132,7 +151,7 @@ fun CaseHero(
             val side = w * 0.3f
             val x = cx + dir * caseW * 0.2f
             val y = seam - up
-            if (open > 0.05f) budAt(Offset(x, y), side, dir < 0, bud, edge, tint, (open * 1.4f).coerceAtMost(1f))
+            if (open > 0.05f) budAt(Offset(x, y), side, dir < 0, bud, edge, tint, (open * 1.4f).coerceAtMost(1f), soft, shellLight, shell)
         }
         // The front of the case covers the earbuds' stems while they are inside.
         val base = RoundRect(
@@ -140,26 +159,61 @@ fun CaseHero(
             topLeft = CornerRadius(w * 0.02f), topRight = CornerRadius(w * 0.02f),
             bottomLeft = CornerRadius(baseH * 0.95f), bottomRight = CornerRadius(baseH * 0.95f),
         )
-        drawPath(Path().apply { addRoundRect(base) }, Brush.verticalGradient(listOf(shellLight, shell), seam, seam + baseH))
-        drawPath(Path().apply { addRoundRect(base) }, edge, style = Stroke(w * 0.006f))
+        val basePath = Path().apply { addRoundRect(base) }
+        drawPath(basePath, Brush.verticalGradient(listOf(shellLight, shell), seam, seam + baseH))
+        if (soft) {
+            clipPath(basePath) {
+                // Round across: shade at both sides; a long soft highlight on the left; a lighter lip at the top.
+                drawRect(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.16f), Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.24f)), base.left, base.right))
+                drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.12f)), seam + baseH * 0.4f, seam + baseH))
+                drawOval(
+                    Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = if (palette.dark) 0.2f else 0.45f), Color.Transparent), cx - caseW * 0.42f, cx - caseW * 0.24f),
+                    Offset(cx - caseW * 0.42f, seam - baseH * 0.1f), Size(caseW * 0.18f, baseH * 0.85f),
+                )
+                drawLine(Color.White.copy(alpha = if (palette.dark) 0.25f else 0.6f), Offset(base.left + w * 0.03f, seam + w * 0.004f), Offset(base.right - w * 0.03f, seam + w * 0.004f), strokeWidth = w * 0.004f)
+            }
+        }
+        drawPath(basePath, edge, style = Stroke(w * 0.006f))
         // The status light.
         drawCircle(tint, w * 0.011f, Offset(cx, seam + baseH * 0.62f))
         drawCircle(tint.copy(alpha = 0.25f), w * 0.024f, Offset(cx, seam + baseH * 0.62f))
         // A soft shadow under the case.
-        drawOval(Color.Black.copy(alpha = if (palette.dark) 0.35f else 0.08f), Offset(cx - caseW * 0.42f, seam + baseH + w * 0.015f), Size(caseW * 0.84f, w * 0.03f))
+        if (soft) {
+            val sw = caseW * 1.15f
+            drawOval(
+                Brush.radialGradient(listOf(Color.Black.copy(alpha = if (palette.dark) 0.55f else 0.16f), Color.Transparent), Offset(cx, seam + baseH + w * 0.03f), sw / 2),
+                Offset(cx - sw / 2, seam + baseH + w * 0.005f), Size(sw, w * 0.05f),
+            )
+        } else {
+            drawOval(Color.Black.copy(alpha = if (palette.dark) 0.35f else 0.08f), Offset(cx - caseW * 0.42f, seam + baseH + w * 0.015f), Size(caseW * 0.84f, w * 0.03f))
+        }
     }
 }
 
-private fun DrawScope.budAt(at: Offset, side: Float, mirrored: Boolean, fill: Color, edge: Color, tint: Color, alpha: Float) {
+private fun DrawScope.budAt(at: Offset, side: Float, mirrored: Boolean, fill: Color, edge: Color, tint: Color, alpha: Float, soft: Boolean = false, light: Color = fill, dark: Color = fill) {
     val box = Size(side, side)
     // Placed so the head sits at [at] and the stem hangs below it.
     translate(at.x - side * 0.435f, at.y - side * 0.39f) {
         scale(if (mirrored) -1f else 1f, 1f, pivot = Offset(side * 0.435f, side * 0.39f)) {
             rotate(-14f, pivot = Offset(side * 0.435f, side * 0.39f)) {
                 val shape = LogoShape.path(LogoShape.OUTLINE, box)
-                drawPath(shape, fill.copy(alpha = fill.alpha * alpha))
-                drawPath(shape, edge.copy(alpha = edge.alpha * alpha), style = Stroke(side * 0.02f))
-                drawPath(LogoShape.path(LogoShape.OPENING, box), tint.copy(alpha = 0.9f * alpha))
+                if (soft) {
+                    // Lit from the upper left, like a soft clay model: bright head, the stem rounding into shade.
+                    drawPath(shape, Brush.radialGradient(listOf(light, fill, dark), Offset(side * 0.36f, side * 0.28f), side * 0.75f), alpha = alpha)
+                    clipPath(shape) {
+                        drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.16f)), side * 0.25f, side * 0.38f), Offset(side * 0.25f, side * 0.6f), Size(side * 0.15f, side * 0.4f), alpha = alpha)
+                    }
+                    drawPath(shape, edge.copy(alpha = edge.alpha * alpha), style = Stroke(side * 0.014f))
+                    // The speaker opening, set in, with the mode's light inside it.
+                    drawPath(LogoShape.path(LogoShape.OPENING, box), Brush.radialGradient(listOf(tint, tint.copy(alpha = tint.alpha * 0.6f)), Offset(side * 0.42f, side * 0.37f), side * 0.11f), alpha = 0.95f * alpha)
+                    drawCircle(Color.Black.copy(alpha = 0.18f * alpha), side * 0.092f, Offset(side * 0.435f, side * 0.39f), style = Stroke(side * 0.012f))
+                    // The gloss on the head.
+                    drawOval(Color.White.copy(alpha = 0.7f * alpha), Offset(side * 0.29f, side * 0.2f), Size(side * 0.12f, side * 0.06f))
+                } else {
+                    drawPath(shape, fill.copy(alpha = fill.alpha * alpha))
+                    drawPath(shape, edge.copy(alpha = edge.alpha * alpha), style = Stroke(side * 0.02f))
+                    drawPath(LogoShape.path(LogoShape.OPENING, box), tint.copy(alpha = 0.9f * alpha))
+                }
             }
         }
     }

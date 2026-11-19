@@ -21,6 +21,32 @@ import kotlin.test.Test
 /** The drawn devices at each step of opening, in both looks, for checking them by eye. Only with SHOTS_DIR set. */
 class ArtShots {
     @Test
+    fun compareCase() {
+        val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
+        dir.mkdirs()
+        ImageComposeScene(1200 * 2, 640 * 2, Density(2f)) {
+            Column {
+                for (theme in listOf(com.blazify.buds.ui.theme.ThemeChoice.Light, com.blazify.buds.ui.theme.ThemeChoice.Dark)) {
+                    com.blazify.buds.ui.theme.BudsTheme(theme) {
+                        Row(Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background)) {
+                            for (soft in listOf(false, true)) for (connected in listOf(false, true)) {
+                                com.blazify.buds.ui.blocks.CaseHero(
+                                    connected, com.blazify.buds.core.model.ListeningMode.NoiseCancelling, leftOut = true, rightOut = true,
+                                    modifier = Modifier.size(300.dp, 320.dp), height = 320.dp, still = true, soft = soft,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            var t = 0L
+            repeat(30) { scene.render(t); t += 100_000_000L }
+            File(dir, "compare.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+    }
+
+    @Test
     fun drawDevices() {
         val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
         dir.mkdirs()
