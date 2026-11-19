@@ -51,6 +51,8 @@ fun FingerprintEar(
     listening: Boolean = false,
     done: Boolean = false,
     ring: Boolean = true,
+    segments: Int = 8,
+    group: Int = 1,
 ) {
     val palette = LocalPalette.current
     val reduce = LocalReduceMotion.current
@@ -80,13 +82,13 @@ fun FingerprintEar(
                 drawCircle(bright.copy(alpha = (0.18f + 0.12f * glow) * (1f - drift * 0.8f)), r, c, style = Stroke(1.dp.toPx()))
             }
             // Eight thick segments; the one under way fills partly.
-            val segments = 8
-            val stroke = ringR * 0.11f
-            val capDeg = (stroke / ringR) * (180f / PI.toFloat())
             val sweep = 360f / segments
-            val gap = 5f + capDeg
+            val stroke = ringR * minOf(0.11f, sweep * (PI.toFloat() / 180f) * 0.34f)
+            val capDeg = (stroke / ringR) * (180f / PI.toFloat())
             val track = if (palette.background.luminance() < 0.5f) deep.copy(alpha = 0.22f) else deep.copy(alpha = 0.14f)
             for (i in 0 until segments) {
+                // A wider gap where one group of blocks ends and the next begins.
+                val gap = capDeg + if (group > 1 && i % group == 0) 7f else if (group > 1) 2.5f else 5f
                 val start = -90f + i * sweep + gap / 2
                 val length = sweep - gap
                 val topLeft = Offset(c.x - ringR, c.y - ringR)
@@ -94,7 +96,7 @@ fun FingerprintEar(
                 drawArc(track, start, length, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
                 val fill = if (done) 1f else (shown * segments - i).coerceIn(0f, 1f)
                 if (fill > 0f) {
-                    drawArc(lerp(bright, deep, i / (segments - 1f)), start, length * fill, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
+                    drawArc(lerp(bright, deep, i / maxOf(1f, segments - 1f)), start, length * fill, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
                 }
             }
         }

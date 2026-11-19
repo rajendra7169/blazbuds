@@ -79,6 +79,15 @@ class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
     private var heardAny = false
     private var quietestHeard = EarPrint.LOUDEST
     private var answers = 0
+
+    /** Answers given on the pitch being tested now. */
+    var answersOnPitch = 0
+        private set
+
+    /** How many pitches of the ear being tested are done. */
+    val pitchesDone: Int get() = pitchIndex
+
+    val pitchCount: Int get() = pitches.size
     private val results = mutableMapOf<Ear, MutableMap<Int, Double>>()
 
     val done: Boolean get() = earIndex >= ears.size
@@ -94,6 +103,7 @@ class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
     fun answer(heard: Boolean) {
         if (done) return
         answers++
+        answersOnPitch++
         if (heard) {
             heardAny = true
             quietestHeard = level
@@ -110,6 +120,7 @@ class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
     private fun finishPitch(threshold: Double) {
         results.getOrPut(ears[earIndex]) { mutableMapOf() }[pitches[pitchIndex]] = threshold
         heardAny = false
+        answersOnPitch = 0
         level = START
         pitchIndex++
         if (pitchIndex >= pitches.size) {

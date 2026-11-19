@@ -104,7 +104,7 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
         if (preview >= 1) {
             stage = Stage.Hearing
             var n = 0
-            while (!hearing.done && (preview > 1 || n < 9)) { hearing.answer(n % 3 != 2); n++ }
+            while (!hearing.done && (preview > 1 || n < 10)) { hearing.answer(n % 3 != 2); n++ }
         }
         if (preview >= 2) {
             left = EarPrint.curve(hearing.thresholds(Ear.Left), age)
@@ -175,7 +175,19 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                         if (step != null) {
                             Text(if (step.ear == Ear.Left) "Left ear" else "Right ear", style = MaterialTheme.typography.titleLarge, color = palette.text)
                             Text("Pitch ${(step.number - 1) % EarPrint.TEST_PITCHES.size + 1} of ${EarPrint.TEST_PITCHES.size}", style = MaterialTheme.typography.labelMedium, color = palette.muted)
-                            FingerprintEar(hearing.progress, size = 270.dp, mirrored = step.ear == Ear.Right, listening = listening)
+                            // Every answer lights a block; a pitch that is done fills its group of four.
+                            val blocks = 4
+                            val lit = hearing.pitchesDone * blocks + minOf(hearing.answersOnPitch, blocks - 1)
+                            androidx.compose.runtime.key(step.ear) {
+                                FingerprintEar(
+                                    lit / (hearing.pitchCount * blocks).toFloat(),
+                                    size = 270.dp,
+                                    mirrored = step.ear == Ear.Right,
+                                    listening = listening,
+                                    segments = hearing.pitchCount * blocks,
+                                    group = blocks,
+                                )
+                            }
                             Text(
                                 if (listening) "Listen…" else "Did you hear the beeps?",
                                 style = MaterialTheme.typography.titleMedium,
