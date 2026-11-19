@@ -42,6 +42,10 @@ import com.blazify.buds.ui.blocks.AddArt
 import com.blazify.buds.ui.blocks.CardShape
 import com.blazify.buds.ui.blocks.Choice
 import com.blazify.buds.ui.blocks.DeviceArt
+import com.blazify.buds.ui.blocks.pictures
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.graphicsLayer
+import org.jetbrains.compose.resources.painterResource
 import com.blazify.buds.ui.blocks.Hint
 import com.blazify.buds.ui.blocks.LogoLoader
 import com.blazify.buds.ui.blocks.Panel
@@ -112,7 +116,16 @@ private fun DeviceCard(row: Pair2, chosen: Boolean, modifier: Modifier, onClick:
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(Modifier.fillMaxWidth()) {
-            DeviceArt(Catalog.kind(row.device.name), Modifier.align(Alignment.Center), size = 84.dp, active = row.device.connected)
+            val pictures = pictures(Catalog.art(row.device.name))
+            if (pictures != null) {
+                Image(
+                    painterResource(if (row.device.connected) pictures.open else pictures.closed),
+                    null,
+                    Modifier.align(Alignment.Center).size(96.dp).graphicsLayer { alpha = if (row.device.connected) 1f else 0.7f },
+                )
+            } else {
+                DeviceArt(Catalog.kind(row.device.name), Modifier.align(Alignment.Center), size = 84.dp, active = row.device.connected)
+            }
             if (chosen) {
                 Box(Modifier.align(Alignment.TopEnd).size(22.dp).clip(CircleShape).background(palette.accent), contentAlignment = Alignment.Center) {
                     Icon(BudsIcons.Check, "In use", tint = palette.onAccent, modifier = Modifier.size(14.dp))
