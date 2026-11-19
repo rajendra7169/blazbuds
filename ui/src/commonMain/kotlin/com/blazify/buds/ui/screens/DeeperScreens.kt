@@ -71,10 +71,20 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         Spacer(Modifier.height(12.dp))
         Text(eq.preset?.name ?: "Custom", style = MaterialTheme.typography.titleMedium, color = palette.text)
     }
-    Panel {
-        SectionTitle("Presets")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            eq.presets.forEach { preset -> Choice(preset.name, preset.id == eq.presetId) { change(Change.Preset(preset.id)) } }
+    SectionTitle("Presets")
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = if (maxWidth >= 520.dp) 3 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            eq.presets.chunked(columns).forEachIndexed { row, group ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    group.forEachIndexed { i, preset ->
+                        com.blazify.buds.ui.blocks.PresetTile(row * columns + i, preset.name, preset.gains, preset.id == eq.presetId, Modifier.weight(1f)) {
+                            change(Change.Preset(preset.id))
+                        }
+                    }
+                    repeat(columns - group.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
         }
     }
     Panel {
