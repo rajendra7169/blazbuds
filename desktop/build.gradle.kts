@@ -15,6 +15,7 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.swing)
+    implementation(libs.settings)
 }
 
 val appVersion = "0.1.0"
@@ -46,4 +47,11 @@ compose.desktop {
             isEnabled.set(false)
         }
     }
+}
+
+// Draws the app with the real earbuds, off screen: ./gradlew :desktop:shot -Pargs="folder 412 915 dark 6"
+tasks.register<JavaExec>("shot") {
+    mainClass.set("com.blazify.buds.desktop.ShotKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    args = (project.findProperty("args") as String? ?: "").split(" ").filter { it.isNotBlank() }
 }
