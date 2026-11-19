@@ -78,16 +78,34 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     // The bands move under the finger and are sent once the finger lifts, so the earbuds aren't flooded.
     var draft by remember { mutableStateOf(eq.left) }
     LaunchedEffect(eq.left) { draft = eq.left }
-    var saving by remember { mutableStateOf(false) }
+    var naming by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
-    val mine = if (eq.preset == null) prefs.sounds.firstOrNull { same(it.gains, eq.left) } else null
+    var deleting by remember { mutableStateOf<com.blazify.buds.ui.SavedSound?>(null) }
+    // Built-in presets stay as they are; only the person's own sounds can be reshaped. The one being shaped is
+    // remembered by name, as its bands change under the finger.
+    var editing by remember { mutableStateOf<String?>(null) }
+    val matching = if (eq.preset == null) prefs.sounds.firstOrNull { same(it.gains, eq.left) } else null
+    LaunchedEffect(eq.preset, matching?.name) {
+        if (eq.preset != null) editing = null else if (matching != null) editing = matching.name
+    }
+    val mine = editing?.takeIf { eq.preset == null }?.let { n -> prefs.sounds.firstOrNull { it.name == n } }
     val name = eq.preset?.name ?: mine?.name ?: "Custom"
+    fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
+        share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Add a code and paste:\n${sound.code()}")
     Panel(padding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleLarge, color = palette.text)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(name, style = MaterialTheme.typography.titleLarge, color = palette.text)
+                    if (mine == null) Icon(BudsIcons.Lock, "Can't be changed", tint = palette.muted, modifier = Modifier.size(16.dp))
+                }
                 Text(
-                    if (state.bothConnected) "Drag a point, or tap where you want it" else "Take both earbuds out of the case to change it",
+                    when {
+                        !state.bothConnected -> "Take both earbuds out of the case to change it"
+                        mine != null -> "Drag a point, or tap where you want it. Changes are kept in ${mine.name}."
+                        eq.preset != null -> "A built-in sound. Tap New sound to make your own from it."
+                        else -> "Tap New sound to keep this one and shape it."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = palette.muted,
                 )
@@ -96,50 +114,74 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         com.blazify.buds.ui.blocks.EqEditor(
             draft,
             eq.frequencies,
-            editable = state.bothConnected,
+            editable = state.bothConnected && mine != null,
             onChange = { draft = it },
-            onDone = { change(Change.Bands(draft)) },
+            onDone = {
+                mine?.let { prefs.saveSound(it.name, draft) }
+                change(Change.Bands(draft))
+            },
         )
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("Save", false, icon = BudsIcons.Plus) { saving = true }
-            Choice("Share", false, icon = BudsIcons.Copy) {
-                val sound = com.blazify.buds.ui.SavedSound(name, draft)
-                share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Add a code and paste:\n${sound.code()}")
-            }
-            Choice("Flat", false) { change(Change.Bands(List(draft.size) { 0.0 })) }
+            Choice("New sound", false, icon = BudsIcons.Plus) { naming = true }
+            Choice("Share", false, icon = BudsIcons.Copy) { shareSound(com.blazify.buds.ui.SavedSound(name, draft)) }
         }
     }
     SectionTitle("My sounds", action = "Add a code") { importing = true }
     if (prefs.sounds.isEmpty()) {
-        Hint("Shape a sound above and tap Save to keep it here. A friend's sound comes in with Add a code.")
+        Hint("Tap New sound to make your own, starting from the one playing. A friend's sound comes in with Add a code.")
     } else {
         TileGrid(prefs.sounds) { i, sound, modifier ->
             com.blazify.buds.ui.blocks.PresetTile(
-                i + 3, sound.name, sound.gains, chosen = eq.preset == null && same(sound.gains, eq.left), modifier = modifier,
+                i + 3, sound.name, sound.gains, chosen = mine?.name == sound.name, modifier = modifier,
                 art = com.blazify.buds.ui.icons.SoundArt.Sparkle,
-                corner = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        TileAction(BudsIcons.Copy, "Share ${sound.name}") { share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Add a code and paste:\n${sound.code()}") }
-                        TileAction(BudsIcons.Trash, "Delete ${sound.name}") { prefs.deleteSound(sound.name) }
-                    }
-                },
-            ) { change(Change.Bands(sound.gains)) }
+                corner = { TileAction(BudsIcons.Copy, "Share ${sound.name}") { shareSound(sound) } },
+                onLongClick = { deleting = sound },
+            ) {
+                editing = sound.name
+                change(Change.Bands(sound.gains))
+            }
         }
+        Hint("Press and hold one of your sounds to delete it.")
     }
     SectionTitle("Presets")
     TileGrid(eq.presets) { i, preset, modifier ->
         com.blazify.buds.ui.blocks.PresetTile(i, preset.name, preset.gains, preset.id == eq.presetId, modifier) { change(Change.Preset(preset.id)) }
     }
-    if (saving) {
+    if (naming) {
         NameDialog(
-            title = "Save this sound",
-            start = if (eq.preset == null && mine == null) "" else "",
+            title = "New sound",
+            start = "",
             hint = "Name, like Gym or Late night",
             confirm = "Save",
             onDone = { text ->
-                if (text.isNotBlank()) prefs.saveSound(text, draft)
-                saving = false
+                val base = text.trim()
+                if (base.isNotEmpty()) {
+                    // A new name each time, so an earlier sound is never written over.
+                    var n = 1
+                    var unique = base
+                    while (prefs.sounds.any { it.name.equals(unique, ignoreCase = true) }) unique = "$base ${++n}"
+                    prefs.saveSound(unique, draft)
+                    editing = unique
+                    change(Change.Bands(draft))
+                }
+                naming = false
             },
+        )
+    }
+    deleting?.let { sound ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleting = null },
+            containerColor = palette.card,
+            title = { Text("Delete ${sound.name}?", color = palette.text) },
+            text = { Text("It goes from My sounds. If it's playing now, the earbuds keep it until you choose another.", color = palette.muted) },
+            confirmButton = {
+                Choice("Delete", true) {
+                    prefs.deleteSound(sound.name)
+                    if (editing == sound.name) editing = null
+                    deleting = null
+                }
+            },
+            dismissButton = { Choice("Cancel", false) { deleting = null } },
         )
     }
     if (importing) {
@@ -151,6 +193,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
             onDone = { text ->
                 com.blazify.buds.ui.SavedSound.fromCode(text)?.let { sound ->
                     prefs.saveSound(sound.name, sound.gains)
+                    editing = sound.name
                     change(Change.Bands(sound.gains))
                 }
                 importing = false

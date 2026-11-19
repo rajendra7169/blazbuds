@@ -145,8 +145,13 @@ fun EqEditor(
             close()
         }
         drawPath(area, Brush.verticalGradient(listOf(palette.accent.copy(alpha = 0.30f), palette.accent.copy(alpha = 0.04f), palette.cancelling.copy(alpha = 0.18f)), top, bottom))
-        val ink = if (editable) Brush.horizontalGradient(listOf(palette.accent, palette.cancelling), l, r) else Brush.horizontalGradient(listOf(palette.muted, palette.muted))
+        val ink = Brush.horizontalGradient(listOf(palette.accent, palette.cancelling), l, r)
         drawPath(curve, ink, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+        // A sound that can't be reshaped shows small dots at the bands instead of handles to drag.
+        if (!editable) {
+            points.forEach { p -> drawCircle(palette.card, 4.dp.toPx(), p); drawCircle(palette.muted, 2.5.dp.toPx(), p) }
+            return@Canvas
+        }
         // The handles.
         points.forEachIndexed { i, p ->
             val big = i == held
