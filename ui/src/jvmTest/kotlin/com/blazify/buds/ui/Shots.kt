@@ -71,6 +71,18 @@ class Shots {
             shot(dir, "help-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
             shot(dir, "find-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Find) }
             shot(dir, "fit-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Fit) }
+            shot(dir, "sound-custom-$look", 412, 915) {
+                val night = listOf(3.0, 2.0, 0.5, -1.0, -0.5, 1.0, 2.5, 2.0)
+                val buds = remember { DemoBuds().also { kotlinx.coroutines.runBlocking { it.apply(com.blazify.buds.core.model.Change.Bands(night)) } } }
+                val mine = remember {
+                    prefs(theme).apply {
+                        saveSound("Late night", night)
+                        saveSound("Gym", listOf(5.0, 4.0, 1.0, 0.0, 0.0, 1.0, 2.0, 3.0))
+                        saveSound("Podcast", listOf(-2.0, 0.0, 2.0, 3.0, 2.0, 0.0, -1.0, -2.0))
+                    }
+                }
+                BudsApp(buds, mine, startTab = Tab.Sound)
+            }
             listOf("intro", "hearing", "taste", "result").forEachIndexed { step, name ->
                 shot(dir, "earprint-$name-$look", 412, 915) {
                     val buds = remember { DemoBuds() }

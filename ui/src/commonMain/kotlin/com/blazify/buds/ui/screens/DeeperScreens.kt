@@ -1,5 +1,9 @@
 package com.blazify.buds.ui.screens
 
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -89,63 +93,76 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         if (eq.preset != null) editing = null else if (matching != null) editing = matching.name
     }
     val mine = editing?.takeIf { eq.preset == null }?.let { n -> prefs.sounds.firstOrNull { it.name == n } }
-    val name = eq.preset?.name ?: mine?.name ?: "Custom"
+    var custom by remember { mutableStateOf(eq.preset == null) }
     fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
-        share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Add a code and paste:\n${sound.code()}")
-    Panel(padding = 14.dp) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Custom › Add a code and paste:\n${sound.code()}")
+
+    TwoWay("Presets", "Custom", onSecond = custom) { custom = it }
+    Spacer(Modifier.height(14.dp))
+    if (!custom) {
+        // Presets: just the sounds to pick from, each with its picture.
+        TileGrid(eq.presets) { i, preset, modifier ->
+            com.blazify.buds.ui.blocks.PresetTile(i, preset.name, preset.gains, preset.id == eq.presetId, modifier, showCurve = false) { change(Change.Preset(preset.id)) }
+        }
+    } else {
+        // Custom: the curve big, the person's own sounds underneath.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(name, style = MaterialTheme.typography.titleLarge, color = palette.text)
-                    if (mine == null) Icon(BudsIcons.Lock, "Can't be changed", tint = palette.muted, modifier = Modifier.size(16.dp))
-                }
+                Text(mine?.name ?: "Custom", style = MaterialTheme.typography.titleLarge, color = palette.text)
                 Text(
                     when {
                         !state.bothConnected -> "Take both earbuds out of the case to change it"
-                        mine != null -> "Drag a point, or tap where you want it. Changes are kept in ${mine.name}."
-                        eq.preset != null -> "A built-in sound. Tap New sound to make your own from it."
-                        else -> "Tap New sound to keep this one and shape it."
+                        mine != null -> "Drag a point, or tap where you want it"
+                        else -> "Tap + to make your own sound"
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = palette.muted,
                 )
+            }
+            if (mine != null) {
+                IconButton(BudsIcons.Undo, "Back to flat") {
+                    val flat = List(draft.size) { 0.0 }
+                    draft = flat
+                    prefs.saveSound(mine.name, flat)
+                    change(Change.Bands(flat))
+                }
+                IconButton(BudsIcons.Share, "Share ${mine.name}") { shareSound(mine.copy(gains = draft)) }
             }
         }
         com.blazify.buds.ui.blocks.EqEditor(
             draft,
             eq.frequencies,
             editable = state.bothConnected && mine != null,
+            height = 320.dp,
             onChange = { draft = it },
             onDone = {
                 mine?.let { prefs.saveSound(it.name, draft) }
                 change(Change.Bands(draft))
             },
         )
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("New sound", false, icon = BudsIcons.Plus) { naming = true }
-            Choice("Share", false, icon = BudsIcons.Copy) { shareSound(com.blazify.buds.ui.SavedSound(name, draft)) }
-        }
-    }
-    SectionTitle("My sounds", action = "Add a code") { importing = true }
-    if (prefs.sounds.isEmpty()) {
-        Hint("Tap New sound to make your own, starting from the one playing. A friend's sound comes in with Add a code.")
-    } else {
-        TileGrid(prefs.sounds) { i, sound, modifier ->
-            com.blazify.buds.ui.blocks.PresetTile(
-                i + 3, sound.name, sound.gains, chosen = mine?.name == sound.name, modifier = modifier,
-                art = com.blazify.buds.ui.icons.SoundArt.Sparkle,
-                corner = { TileAction(BudsIcons.Copy, "Share ${sound.name}") { shareSound(sound) } },
-                onLongClick = { deleting = sound },
-            ) {
-                editing = sound.name
-                change(Change.Bands(sound.gains))
+        Spacer(Modifier.height(10.dp))
+        // Two rows that scroll sideways: + first, then a shared code, then the person's sounds.
+        val cards = buildList<@Composable () -> Unit> {
+            add { SoundSquare("New", icon = BudsIcons.Plus, dashed = true) { naming = true } }
+            add { SoundSquare("Add a code", icon = BudsIcons.Download, dashed = true) { importing = true } }
+            prefs.sounds.forEach { sound ->
+                add {
+                    SoundSquare(sound.name, gains = sound.gains, chosen = mine?.name == sound.name, onLongClick = { deleting = sound }) {
+                        editing = sound.name
+                        change(Change.Bands(sound.gains))
+                    }
+                }
             }
         }
-        Hint("Press and hold one of your sounds to delete it.")
-    }
-    SectionTitle("Presets")
-    TileGrid(eq.presets) { i, preset, modifier ->
-        com.blazify.buds.ui.blocks.PresetTile(i, preset.name, preset.gains, preset.id == eq.presetId, modifier) { change(Change.Preset(preset.id)) }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            cards.chunked(2).forEach { pair ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { pair.forEach { it() } }
+            }
+        }
+        if (prefs.sounds.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Hint("Press and hold one of your sounds to delete it.")
+        }
     }
     if (naming) {
         NameDialog(
@@ -156,7 +173,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
             onDone = { text ->
                 val base = text.trim()
                 if (base.isNotEmpty()) {
-                    // A new name each time, so an earlier sound is never written over.
+                    // A new name each time, so an earlier sound is never written over. It starts from what's playing.
                     var n = 1
                     var unique = base
                     while (prefs.sounds.any { it.name.equals(unique, ignoreCase = true) }) unique = "$base ${++n}"
@@ -173,7 +190,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
             onDismissRequest = { deleting = null },
             containerColor = palette.card,
             title = { Text("Delete ${sound.name}?", color = palette.text) },
-            text = { Text("It goes from My sounds. If it's playing now, the earbuds keep it until you choose another.", color = palette.muted) },
+            text = { Text("It goes from your sounds. If it's playing now, the earbuds keep it until you choose another.", color = palette.muted) },
             confirmButton = {
                 Choice("Delete", true) {
                     prefs.deleteSound(sound.name)
@@ -199,6 +216,96 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                 importing = false
             },
         )
+    }
+}
+
+/** Two choices as one pill that slides between them; [onSecond] is true when the second one is picked. */
+@Composable
+private fun TwoWay(first: String, second: String, onSecond: Boolean, onPick: (Boolean) -> Unit) {
+    val palette = LocalPalette.current
+    val x by androidx.compose.animation.core.animateFloatAsState(if (onSecond) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.75f, stiffness = 420f), label = "two")
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        Modifier.fillMaxWidth().height(48.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp)).background(palette.raised).padding(4.dp),
+    ) {
+        val half = maxWidth / 2
+        Box(Modifier.offset(x = half * x).width(half).fillMaxHeight().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(palette.accent))
+        Row(Modifier.fillMaxSize()) {
+            listOf(false to first, true to second).forEach { (which, name) ->
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).press(role = androidx.compose.ui.semantics.Role.Tab) { onPick(which) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(name, style = MaterialTheme.typography.labelLarge, color = if (which == onSecond) palette.onAccent else palette.muted)
+                }
+            }
+        }
+    }
+}
+
+/** A square card for one of the person's sounds, or for making one: its name, and its shape drawn small. */
+@Composable
+private fun SoundSquare(
+    name: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    gains: List<Double>? = null,
+    chosen: Boolean = false,
+    dashed: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val palette = LocalPalette.current
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+    val ink = if (chosen) androidx.compose.ui.graphics.Color.White else palette.text
+    Box(
+        Modifier.size(104.dp).clip(shape)
+            .background(
+                if (chosen) androidx.compose.ui.graphics.Brush.linearGradient(listOf(palette.accent, palette.cancelling))
+                else androidx.compose.ui.graphics.SolidColor(if (dashed) androidx.compose.ui.graphics.Color.Transparent else palette.raised),
+            )
+            .then(
+                if (dashed) Modifier.drawBehind {
+                    drawRoundRect(
+                        palette.line,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            2.dp.toPx(),
+                            pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
+                        ),
+                    )
+                } else Modifier,
+            )
+            .semantics { contentDescription = name; selected = chosen }
+            .press(onLongClick = onLongClick, onClick = onClick),
+    ) {
+        if (gains != null && gains.size > 1) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(46.dp).align(Alignment.TopCenter).padding(horizontal = 12.dp, vertical = 12.dp)) {
+                val step = size.width / (gains.size - 1)
+                val points = gains.mapIndexed { i, g -> androidx.compose.ui.geometry.Offset(i * step, size.height / 2 - (g / 6.0).toFloat() * size.height / 2) }
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(points[0].x, points[0].y)
+                    for (i in 0 until points.size - 1) {
+                        val p0 = points.getOrElse(i - 1) { points[i] }
+                        val p1 = points[i]
+                        val p2 = points[i + 1]
+                        val p3 = points.getOrElse(i + 2) { p2 }
+                        cubicTo(p1.x + (p2.x - p0.x) / 6f, p1.y + (p2.y - p0.y) / 6f, p2.x - (p3.x - p1.x) / 6f, p2.y - (p3.y - p1.y) / 6f, p2.x, p2.y)
+                    }
+                }
+                drawPath(path, if (chosen) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f) else palette.accent, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            Text(
+                name,
+                style = MaterialTheme.typography.labelLarge,
+                color = ink,
+                maxLines = 2,
+                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+            )
+        } else {
+            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                icon?.let { Icon(it, null, tint = palette.muted, modifier = Modifier.size(if (it == BudsIcons.Plus) 30.dp else 22.dp)) }
+                if (icon != BudsIcons.Plus) Text(name, style = MaterialTheme.typography.labelMedium, color = palette.muted)
+            }
+        }
     }
 }
 
