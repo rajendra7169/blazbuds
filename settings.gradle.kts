@@ -17,3 +17,5 @@ dependencyResolutionManagement {
 rootProject.name = "blazbuds"
 
 include(":core")
+include(":ui")
+include(":desktop")
