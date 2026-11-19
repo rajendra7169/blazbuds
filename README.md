@@ -22,7 +22,12 @@ Everything you reach for is on one screen:
 - **Quick switches**: gaming mode, 3D surround, wear detection, touch lock
 - **Two devices or best quality**: the Liberty 4 NC can join two devices at once or play LDAC to one; the app makes that choice plain and lists the devices the earbuds remember
 
-One tap deeper: every touch control on each earbud (tap, double tap, triple tap, press and hold), which modes a touch cycles through, tones and prompts, auto power off, and the earbuds' firmware and serial number.
+- **Safe volume**: a cap on how loud they play, from 75 to 100 dB
+- **Find my earbuds**, an **ear tip fit test**, and **how to wear them**, drawn on an ear
+
+Touch controls are drawn on an ear too: pick a side, and each kind of touch (tap, double tap, triple tap, press and hold) shows what it does. Sound presets are colour tiles that show the shape of each sound. Tones and prompts, auto power off, and the earbuds' firmware and serial number are in the Device tab.
+
+On Android, a home-screen widget shows the battery and switches modes, and a quick-settings tile changes the mode from the shade, both without opening the app.
 
 On a computer it also lives in the tray: battery and mode in the menu, and a small panel on a click.
 
