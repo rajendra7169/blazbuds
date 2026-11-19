@@ -32,6 +32,9 @@ interface Platform {
     val hasBluetoothSettings: Boolean get() = false
 
     fun bluetoothSettings() {}
+
+    /** Hands text to the system's share sheet, or copies it where there is none. */
+    fun share(text: String) {}
 }
 
 /** One row of the earbuds list. */
@@ -134,6 +137,8 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     }
 
     fun openBluetoothSettings() = platform.bluetoothSettings()
+
+    fun share(text: String) = platform.share(text)
 
     val canOpenSettings: Boolean get() = platform.hasBluetoothSettings
 

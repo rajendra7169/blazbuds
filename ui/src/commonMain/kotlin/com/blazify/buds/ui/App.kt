@@ -70,7 +70,7 @@ private val TABS = listOf(
 @Composable
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
-        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs) {
+        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
             val bluetoothOn by hub.bluetoothOn.collectAsState()

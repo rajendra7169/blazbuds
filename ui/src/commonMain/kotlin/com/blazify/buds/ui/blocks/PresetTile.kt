@@ -56,7 +56,16 @@ private val GRADIENTS = listOf(
  * difference between presets is seen before choosing. The chosen one carries a tick and lifts slightly.
  */
 @Composable
-fun PresetTile(index: Int, name: String, gains: List<Double>, chosen: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun PresetTile(
+    index: Int,
+    name: String,
+    gains: List<Double>,
+    chosen: Boolean,
+    modifier: Modifier = Modifier,
+    art: androidx.compose.ui.graphics.vector.ImageVector = com.blazify.buds.ui.icons.SoundArt.forPreset(name),
+    corner: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
     val (from, to) = GRADIENTS[index % GRADIENTS.size]
     val lift by animateFloatAsState(if (chosen) 1f else 0f, tween(Motion.NORMAL), label = "lift")
     Box(
@@ -88,12 +97,19 @@ fun PresetTile(index: Int, name: String, gains: List<Double>, chosen: Boolean, m
             // A soft shine across the top.
             drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent), 0f, size.height * 0.5f))
         }
+        // What the sound is about, drawn large and dim on the right.
+        Icon(
+            art, null,
+            tint = Color.White.copy(alpha = 0.26f),
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).size(78.dp).graphicsLayer { rotationZ = -10f },
+        )
         Text(
             name,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = Color.White,
             modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
         )
+        if (corner != null) Box(Modifier.align(Alignment.TopEnd).padding(4.dp)) { corner() }
         if (chosen) {
             Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(24.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.92f)), contentAlignment = Alignment.Center) {
                 Icon(BudsIcons.Check, "Chosen", tint = from, modifier = Modifier.size(16.dp))

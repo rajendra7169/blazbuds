@@ -68,6 +68,11 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     override val hasBluetoothSettings: Boolean = true
 
+    override fun share(text: String) {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        context.startActivity(Intent.createChooser(send, "Share your sound").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     override fun bluetoothSettings() {
         context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }

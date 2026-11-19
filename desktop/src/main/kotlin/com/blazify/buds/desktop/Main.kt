@@ -72,6 +72,11 @@ object LinuxPlatform : Platform {
 
     override val hasBluetoothSettings: Boolean = true
 
+    /** A computer has no share sheet; the text goes to the clipboard, ready to paste anywhere. */
+    override fun share(text: String) {
+        runCatching { java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(text), null) }
+    }
+
     override fun bluetoothSettings() {
         runCatching { ProcessBuilder("gnome-control-center", "bluetooth").start() }
             .recoverCatching { ProcessBuilder("blueman-manager").start() }

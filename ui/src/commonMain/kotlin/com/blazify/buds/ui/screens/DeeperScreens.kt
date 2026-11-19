@@ -55,6 +55,15 @@ import com.blazify.buds.ui.theme.LocalPalette
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** Whether two sets of bands are the same sound, to the tenth of a decibel. */
+private fun same(a: List<Double>, b: List<Double>): Boolean =
+    a.size >= 8 && b.size >= 8 && (0 until 8).all { kotlin.math.abs(a[it] - b[it]) < 0.06 }
+
+/**
+ * The Sound tab: the sound itself as a curve you drag, your own saved sounds, which you can share as a short code, and
+ * the presets as tiles.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit)? = null) = PlaceFrame("Sound", back) {
     val eq = state.equalizer
@@ -63,55 +72,139 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         return@PlaceFrame
     }
     val palette = LocalPalette.current
+    val prefs = com.blazify.buds.ui.LocalPrefs.current
+    val share = com.blazify.buds.ui.LocalShare.current
     // The bands move under the finger and are sent once the finger lifts, so the earbuds aren't flooded.
     var draft by remember { mutableStateOf(eq.left) }
     LaunchedEffect(eq.left) { draft = eq.left }
-    Panel {
-        EqCurve(draft)
-        Spacer(Modifier.height(12.dp))
-        Text(eq.preset?.name ?: "Custom", style = MaterialTheme.typography.titleMedium, color = palette.text)
+    var saving by remember { mutableStateOf(false) }
+    var importing by remember { mutableStateOf(false) }
+    val mine = if (eq.preset == null) prefs.sounds.firstOrNull { same(it.gains, eq.left) } else null
+    val name = eq.preset?.name ?: mine?.name ?: "Custom"
+    Panel(padding = 14.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleLarge, color = palette.text)
+                Text(
+                    if (state.bothConnected) "Drag a point, or tap where you want it" else "Take both earbuds out of the case to change it",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.muted,
+                )
+            }
+        }
+        com.blazify.buds.ui.blocks.EqEditor(
+            draft,
+            eq.frequencies,
+            editable = state.bothConnected,
+            onChange = { draft = it },
+            onDone = { change(Change.Bands(draft)) },
+        )
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice("Save", false, icon = BudsIcons.Plus) { saving = true }
+            Choice("Share", false, icon = BudsIcons.Copy) {
+                val sound = com.blazify.buds.ui.SavedSound(name, draft)
+                share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Add a code and paste:\n${sound.code()}")
+            }
+            Choice("Flat", false) { change(Change.Bands(List(draft.size) { 0.0 })) }
+        }
+    }
+    SectionTitle("My sounds", action = "Add a code") { importing = true }
+    if (prefs.sounds.isEmpty()) {
+        Hint("Shape a sound above and tap Save to keep it here. A friend's sound comes in with Add a code.")
+    } else {
+        TileGrid(prefs.sounds) { i, sound, modifier ->
+            com.blazify.buds.ui.blocks.PresetTile(
+                i + 3, sound.name, sound.gains, chosen = eq.preset == null && same(sound.gains, eq.left), modifier = modifier,
+                art = com.blazify.buds.ui.icons.SoundArt.Sparkle,
+                corner = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        TileAction(BudsIcons.Copy, "Share ${sound.name}") { share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Add a code and paste:\n${sound.code()}") }
+                        TileAction(BudsIcons.Trash, "Delete ${sound.name}") { prefs.deleteSound(sound.name) }
+                    }
+                },
+            ) { change(Change.Bands(sound.gains)) }
+        }
     }
     SectionTitle("Presets")
+    TileGrid(eq.presets) { i, preset, modifier ->
+        com.blazify.buds.ui.blocks.PresetTile(i, preset.name, preset.gains, preset.id == eq.presetId, modifier) { change(Change.Preset(preset.id)) }
+    }
+    if (saving) {
+        NameDialog(
+            title = "Save this sound",
+            start = if (eq.preset == null && mine == null) "" else "",
+            hint = "Name, like Gym or Late night",
+            confirm = "Save",
+            onDone = { text ->
+                if (text.isNotBlank()) prefs.saveSound(text, draft)
+                saving = false
+            },
+        )
+    }
+    if (importing) {
+        NameDialog(
+            title = "Add a shared sound",
+            start = "",
+            hint = "Paste the code or the whole message",
+            confirm = "Add",
+            onDone = { text ->
+                com.blazify.buds.ui.SavedSound.fromCode(text)?.let { sound ->
+                    prefs.saveSound(sound.name, sound.gains)
+                    change(Change.Bands(sound.gains))
+                }
+                importing = false
+            },
+        )
+    }
+}
+
+/** Tiles two to a row on a phone, three on anything wider. */
+@Composable
+private fun <T> TileGrid(items: List<T>, tile: @Composable (Int, T, Modifier) -> Unit) {
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = if (maxWidth >= 520.dp) 3 else 2
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            eq.presets.chunked(columns).forEachIndexed { row, group ->
+            items.chunked(columns).forEachIndexed { row, group ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    group.forEachIndexed { i, preset ->
-                        com.blazify.buds.ui.blocks.PresetTile(row * columns + i, preset.name, preset.gains, preset.id == eq.presetId, Modifier.weight(1f)) {
-                            change(Change.Preset(preset.id))
-                        }
-                    }
+                    group.forEachIndexed { i, item -> tile(row * columns + i, item, Modifier.weight(1f)) }
                     repeat(columns - group.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
     }
-    Panel {
-        SectionTitle("Bands", action = "Flat") { change(Change.Bands(List(eq.left.size) { 0.0 })) }
-        eq.frequencies.forEachIndexed { i, hz ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(hz.hertz(), style = MaterialTheme.typography.labelMedium, color = palette.muted, modifier = Modifier.width(56.dp))
-                BandSlider(
-                    value = draft.getOrElse(i) { 0.0 },
-                    min = Equalizer.MIN_DB,
-                    max = Equalizer.MAX_DB,
-                    label = "${hz.hertz()} band",
-                    modifier = Modifier.weight(1f),
-                    onChange = { v -> draft = draft.toMutableList().also { it[i] = v } },
-                    onDone = { change(Change.Bands(draft)) },
-                )
-                val db = draft.getOrElse(i) { 0.0 }
-                Text(
-                    (if (db > 0) "+" else if (db < 0) "−" else "") + "${(abs(db) * 10).roundToInt() / 10.0}",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = palette.text,
-                    modifier = Modifier.width(44.dp).padding(start = 8.dp),
-                )
-            }
-        }
-        if (!state.bothConnected) Hint("Take both earbuds out of the case to change the sound.")
+}
+
+@Composable
+private fun TileAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(30.dp).clip(androidx.compose.foundation.shape.CircleShape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.18f)).press(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, label, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(16.dp))
     }
+}
+
+/** A small dialog with one text field. */
+@Composable
+private fun NameDialog(title: String, start: String, hint: String, confirm: String, onDone: (String) -> Unit) {
+    val palette = LocalPalette.current
+    var text by remember { mutableStateOf(start) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { onDone("") },
+        containerColor = palette.card,
+        title = { Text(title, color = palette.text) },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.take(400) },
+                placeholder = { Text(hint, color = palette.muted) },
+                singleLine = confirm == "Save",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = { Choice(confirm, true) { onDone(text) } },
+        dismissButton = { Choice("Cancel", false) { onDone("") } },
+    )
 }
 
 private fun Int.hertz() = if (this >= 1000) "${this / 1000}${if (this % 1000 >= 100) "." + (this % 1000) / 100 else ""} kHz" else "$this Hz"
