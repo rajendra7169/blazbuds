@@ -65,7 +65,8 @@ private fun same(a: List<Double>, b: List<Double>): Boolean =
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit)? = null) = PlaceFrame("Sound", back) {
+fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit)? = null, earPrint: () -> Unit = {}) = PlaceFrame("Sound", back) {
+    state.earPrint?.let { print -> EarPrintCard(print, state.bothConnected, earPrint) { change(Change.EarPrintOn(it)) } }
     val eq = state.equalizer
     if (eq == null) {
         Hint("These earbuds have no equalizer the app can reach.")
@@ -462,4 +463,41 @@ private fun Toggle.hue() = when (this) {
     Toggle.GamingMode -> com.blazify.buds.ui.blocks.Hue.Red
     Toggle.Surround -> com.blazify.buds.ui.blocks.Hue.Blue
     Toggle.Ldac -> com.blazify.buds.ui.blocks.Hue.Orange
+}
+
+/** The EarPrint at the top of the Sound tab: an invitation to make one, or the one there is with a switch. */
+@Composable
+private fun EarPrintCard(print: com.blazify.buds.core.model.EarPrintState, ready: Boolean, open: () -> Unit, turn: (Boolean) -> Unit) {
+    val palette = LocalPalette.current
+    val made = print.madeAt > 0
+    Row(
+        Modifier.fillMaxWidth().clip(com.blazify.buds.ui.blocks.CardShape)
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(palette.cancelling.copy(alpha = 0.22f), palette.accent.copy(alpha = 0.18f))))
+            .press(enabled = ready, onClick = open).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        com.blazify.buds.ui.blocks.FingerprintEar(if (made) 1f else 0.35f, size = 76.dp, done = made && print.on)
+        Column(Modifier.weight(1f)) {
+            Text("EarPrint", style = MaterialTheme.typography.titleLarge, color = palette.text)
+            Text(
+                when {
+                    !made -> "A sound made for your ears. About four minutes."
+                    print.on -> "On: your sound, shaped to your ears"
+                    else -> "Off. Turn it on, or test again"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = palette.muted,
+            )
+        }
+        if (made) {
+            androidx.compose.material3.Switch(
+                print.on,
+                onCheckedChange = { turn(it) },
+                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = palette.accent, checkedThumbColor = palette.onAccent),
+            )
+        } else {
+            Icon(BudsIcons.Forward, null, tint = palette.text, modifier = Modifier.size(20.dp))
+        }
+    }
 }

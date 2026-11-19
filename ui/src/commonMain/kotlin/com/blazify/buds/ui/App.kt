@@ -35,6 +35,7 @@ import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.screens.AddDeviceScreen
 import com.blazify.buds.ui.screens.FindScreen
 import com.blazify.buds.ui.screens.FitTestScreen
+import com.blazify.buds.ui.screens.EarPrintScreen
 import com.blazify.buds.ui.screens.ConnectGuideScreen
 import androidx.compose.runtime.LaunchedEffect
 import com.blazify.buds.ui.screens.ControlsScreen
@@ -69,7 +70,15 @@ private val TABS = listOf(
 @Composable
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
-        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind) {
+        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
+            LocalSoundOut provides remember(hub) {
+                object : SoundOut {
+                    override fun play(samples: ShortArray, loop: Boolean) = hub.playSound(samples, loop)
+                    override fun stop() = hub.stopSound()
+                    override fun steadyVolume(on: Boolean) = hub.steadyVolume(on)
+                }
+            },
+        ) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
             val bluetoothOn by hub.bluetoothOn.collectAsState()
@@ -123,7 +132,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                                             bluetoothOn = bluetoothOn,
                                             turnOnBluetooth = settingsAction(hub),
                                         )
-                                        Tab.Sound -> EqualizerScreen(state, change)
+                                        Tab.Sound -> EqualizerScreen(state, change, earPrint = { place = Place.EarPrint })
                                         Tab.Controls -> ControlsScreen(state, change)
                                         Tab.Device -> DeviceTab(state, change) { place = it }
                                     }
@@ -177,6 +186,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                         Place.Settings -> SettingsScreen(close)
                         Place.Find -> if (state != null) FindScreen(state, { l, r -> hub.findSound(l, r) }, close)
                         Place.Fit -> if (now != null) FitTestScreen(now, close)
+                        Place.EarPrint -> if (now != null && state != null) EarPrintScreen(state, { c -> scope.launch { now.apply(c) } }, close)
                         Place.Support -> SupportScreen(state, VERSION, close)
                     }
                 }

@@ -71,6 +71,16 @@ class Shots {
             shot(dir, "help-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
             shot(dir, "find-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Find) }
             shot(dir, "fit-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Fit) }
+            listOf("intro", "hearing", "taste", "result").forEachIndexed { step, name ->
+                shot(dir, "earprint-$name-$look", 412, 915) {
+                    val buds = remember { DemoBuds() }
+                    BudsTheme(theme) {
+                        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background)) {
+                            com.blazify.buds.ui.screens.EarPrintScreen(buds.state.value, {}, {}, preview = step)
+                        }
+                    }
+                }
+            }
             for ((name, style) in listOf("manual" to com.blazify.buds.core.model.CancelStyle.Manual, "travel" to com.blazify.buds.core.model.CancelStyle.Travel)) {
                 shot(dir, "nc-$name-$look", 412, 915) {
                     val buds = remember { DemoBuds().also { kotlinx.coroutines.runBlocking { it.apply(com.blazify.buds.core.model.Change.Cancelling(style, level = 3)) } } }
