@@ -34,6 +34,11 @@ class DemoBuds(connected: Boolean = true) : Buds {
 
     override fun close() {}
 
+    override suspend fun fitTest(): com.blazify.buds.core.model.FitResult {
+        kotlinx.coroutines.delay(2500)
+        return com.blazify.buds.core.model.FitResult(left = true, right = false)
+    }
+
     companion object {
         val FREQUENCIES = listOf(100, 200, 400, 800, 1600, 3200, 6400, 12800)
 
@@ -86,6 +91,8 @@ class DemoBuds(connected: Boolean = true) : Buds {
                 autoPowerOff = AutoPowerOff(true, 30, listOf(10, 20, 30, 60)),
                 volumeLimit = com.blazify.buds.core.model.VolumeLimit(false, 85),
                 firmware = "07.61",
+                canRing = true,
+                canFitTest = true,
                 serial = "3947DEMO00000000",
             )
         }

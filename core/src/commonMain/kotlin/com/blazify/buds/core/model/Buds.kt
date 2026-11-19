@@ -23,6 +23,12 @@ interface Buds {
      */
     fun watch(on: Boolean) {}
 
+    /** Makes the chosen earbuds play a loud sound so they can be found, or stops it. */
+    suspend fun ring(left: Boolean, right: Boolean) {}
+
+    /** Plays a short tone and listens to how well each ear tip seals; null if these earbuds can't. */
+    suspend fun fitTest(): FitResult? = null
+
     fun close()
 }
 
@@ -47,6 +53,10 @@ data class BudsState(
     val serial: String? = null,
     /** True when both earbuds are out and talking to each other, not only one. */
     val bothConnected: Boolean = true,
+    /** These earbuds can play a sound to be found. */
+    val canRing: Boolean = false,
+    /** These earbuds can check how well their tips seal. */
+    val canFitTest: Boolean = false,
 ) {
     val isReady: Boolean get() = link == Link.Connected
 }
@@ -143,6 +153,9 @@ enum class Toggle {
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())
 
 data class Host(val name: String, val address: String, val connected: Boolean, val playing: Boolean = false)
+
+/** How well each ear tip seals: true is a good seal, false a poor one, null not heard. */
+data class FitResult(val left: Boolean?, val right: Boolean?)
 
 data class VolumeLimit(val enabled: Boolean, val decibels: Int, val choices: List<Int> = listOf(75, 80, 85, 90, 95, 100))
 

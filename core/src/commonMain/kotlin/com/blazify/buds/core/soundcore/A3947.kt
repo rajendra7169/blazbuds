@@ -96,6 +96,9 @@ object A3947 {
     val FORGET = Packet.command(0x0B, 0x83)
     val TWO_DEVICES_SET = Packet.command(0x0B, 0x84)
     val LIMIT_SET = Packet.command(0x20, 0x82)
+    /** Not yet confirmed on this model: from the Soundcore family's shared protocol. */
+    val RING = Packet.command(0x10, 0x89)
+    val FIT_TEST = Packet.command(0x09, 0x01)
 
     val FREQUENCIES = listOf(100, 200, 400, 800, 1600, 3200, 6400, 12800)
     val POWER_OFF_MINUTES = listOf(10, 20, 30, 60)
@@ -182,6 +185,8 @@ object A3947 {
             firmware = firmware,
             serial = text(raw, SERIAL, 16),
             bothConnected = both,
+            canRing = true,
+            canFitTest = true,
         )
     }
 

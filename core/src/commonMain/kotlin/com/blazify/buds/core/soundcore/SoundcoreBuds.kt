@@ -6,6 +6,7 @@ import com.blazify.buds.core.link.LinkException
 import com.blazify.buds.core.model.Buds
 import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Change
+import com.blazify.buds.core.model.FitResult
 import com.blazify.buds.core.model.Host
 import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.Toggle
@@ -65,6 +66,7 @@ class SoundcoreBuds(
     private val pendingLock = Mutex()
     private val sending = Mutex()
     private var deviceList: Channel<Packet>? = null
+    private var fitAnswers: Channel<Packet>? = null
     private var runner: Job? = null
     private val wake = Channel<Unit>(Channel.CONFLATED)
 
@@ -144,6 +146,7 @@ class SoundcoreBuds(
     private suspend fun handle(packet: Packet) {
         log("<- $packet".take(90))
         if (packet.command == A3947.DEVICES) deviceList?.let { it.trySend(packet); return }
+        if (packet.command == A3947.FIT_TEST) fitAnswers?.let { it.trySend(packet); return }
         val waiter = pendingLock.withLock {
             val owed = late[packet.command] ?: 0
             if (owed > 0) {
@@ -360,6 +363,33 @@ class SoundcoreBuds(
             for (i in 0 until 10) now[A3947.EQ_LEFT + i] = (tenths[i].coerceIn(-120, 134) + 120).toByte()
         }
         return ok
+    }
+
+    override suspend fun ring(left: Boolean, right: Boolean) {
+        send(Packet(A3947.RING, byteArrayOf(if (left) 1 else 0, if (right) 1 else 0, 0)))
+    }
+
+    override suspend fun fitTest(): FitResult? {
+        val answers = Channel<Packet>(Channel.UNLIMITED)
+        fitAnswers = answers
+        try {
+            send(Packet(A3947.FIT_TEST, byteArrayOf(0x0A)))
+            // The earbuds play a short tone, then answer with one byte for each side: 1 a good seal, 2 a poor one.
+            repeat(4) {
+                val answer = withTimeoutOrNull(12_000L) { answers.receive() } ?: return null
+                if (answer.body.size >= 2) {
+                    fun seal(byte: Byte): Boolean? = when (byte.toInt()) {
+                        1 -> true
+                        2 -> false
+                        else -> null
+                    }
+                    return FitResult(seal(answer.body[0]), seal(answer.body[1]))
+                }
+            }
+            return null
+        } finally {
+            fitAnswers = null
+        }
     }
 
     @kotlin.concurrent.Volatile
