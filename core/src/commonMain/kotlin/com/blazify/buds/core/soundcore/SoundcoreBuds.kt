@@ -75,7 +75,8 @@ class SoundcoreBuds(
         runner = scope.launch {
             var wait = 2_000L
             while (isActive) {
-                flow.update { it.copy(link = Link.Connecting) }
+                // Retrying by itself, it keeps saying what is wrong rather than flashing back to "connecting" each time.
+                flow.update { if (it.link == Link.Busy || it.link == Link.Lost) it else it.copy(link = Link.Connecting) }
                 val busy = try {
                     session()
                     wait = 2_000L
@@ -250,6 +251,8 @@ class SoundcoreBuds(
 
     override suspend fun refresh() {
         if (connection == null) {
+            // Asked to try again: show that it is trying.
+            flow.update { it.copy(link = Link.Connecting) }
             wake.trySend(Unit)
             return
         }

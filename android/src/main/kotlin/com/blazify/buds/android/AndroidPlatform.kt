@@ -84,7 +84,9 @@ class AndroidPlatform(private val context: Context) : Platform {
         } catch (e: IOException) {
             Log.w(TAG, "control channel: ${e.message}")
             runCatching { socket.close() }
-            throw LinkException("Couldn't reach the earbuds: ${e.message}", busy = e.message?.contains("busy", true) == true)
+            // Connected for sound but the control channel refused: another app on this phone, most often the brand's
+            // own one, holds it, as only one may at a time.
+            throw LinkException("Couldn't reach the earbuds: ${e.message}", busy = bt.connectedNow() || e.message?.contains("busy", true) == true)
         }
         return SocketConnection(socket)
     }
