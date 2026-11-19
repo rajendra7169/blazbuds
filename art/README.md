@@ -3,12 +3,16 @@
 Each supported device is our own 3D model, built in Blender from scratch with product photos used only as a shape
 reference. Nothing here is a manufacturer's image.
 
-Render the Liberty 4 NC (Blender 4.2, Cycles on the processor, about a minute each):
+The app shows each model as frames rendered ahead of time: the lid opening and the earbuds rising (12), and a turn
+all the way round, every 30° (12). It blends neighbouring frames, so a drag or a tap moves it like live 3D, at about
+230 KB a model instead of a 3D engine.
+
+Render the Liberty 4 NC's frames (Blender 4.2, Cycles on the processor, a few seconds each):
 
 ```sh
-blender -b -P art/models/liberty4nc.py -- out 720 112 0.35 liberty4nc_open 1
-blender -b -P art/models/liberty4nc.py -- out 720 0 0 liberty4nc_closed 0
+cd art/models && ./render_frames.sh out 512
 ```
 
-Arguments: output folder, size, lid angle, how far the earbuds rise, file name, earbuds shown (1) or not (0).
-The app uses them as WebP at quality 86 in `ui/src/commonMain/composeResources/drawable/`.
+One picture: `blender -b -P liberty4nc.py -- <folder> <size> <lid angle> <rise 0..1> <name> <turn degrees> <samples>`.
+The app takes them as WebP at quality 82, named `l4nc_open_NN` and `l4nc_turn_NN`, in
+`ui/src/commonMain/composeResources/drawable/`.
