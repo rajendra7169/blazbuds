@@ -53,8 +53,10 @@ class ModelFrames(val open: List<DrawableResource>, val turn: List<DrawableResou
     val shown get() = open.last()
 }
 
-fun frames(art: String?): ModelFrames? = when (art) {
-    "liberty4nc" -> LIBERTY_4_NC_FRAMES
+/** The model's own frames, or Blazbuds' universal earbuds for any other pair of earbuds. */
+fun frames(art: String?, kind: com.blazify.buds.core.catalog.Kind = com.blazify.buds.core.catalog.Kind.StemBuds): ModelFrames? = when {
+    art == "liberty4nc" -> LIBERTY_4_NC_FRAMES
+    kind == com.blazify.buds.core.catalog.Kind.StemBuds || kind == com.blazify.buds.core.catalog.Kind.RoundBuds -> UNIVERSAL_FRAMES
     else -> null
 }
 
