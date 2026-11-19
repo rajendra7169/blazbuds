@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +33,7 @@ import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Toggle
 import com.blazify.buds.core.model.TouchAction
+import com.blazify.buds.ui.blocks.BandSlider
 import com.blazify.buds.ui.blocks.Choice
 import com.blazify.buds.ui.blocks.EqCurve
 import com.blazify.buds.ui.blocks.Hint
@@ -74,17 +73,14 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit
         eq.frequencies.forEachIndexed { i, hz ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(hz.hertz(), style = MaterialTheme.typography.labelMedium, color = palette.muted, modifier = Modifier.width(56.dp))
-                Slider(
-                    value = draft.getOrElse(i) { 0.0 }.toFloat(),
-                    onValueChange = { v -> draft = draft.toMutableList().also { it[i] = (v * 10).roundToInt() / 10.0 } },
-                    onValueChangeFinished = { change(Change.Bands(draft)) },
-                    valueRange = Equalizer.MIN_DB.toFloat()..Equalizer.MAX_DB.toFloat(),
+                BandSlider(
+                    value = draft.getOrElse(i) { 0.0 },
+                    min = Equalizer.MIN_DB,
+                    max = Equalizer.MAX_DB,
+                    label = "${hz.hertz()} band",
                     modifier = Modifier.weight(1f),
-                    colors = SliderDefaults.colors(
-                        thumbColor = palette.accent,
-                        activeTrackColor = palette.accent,
-                        inactiveTrackColor = palette.raised,
-                    ),
+                    onChange = { v -> draft = draft.toMutableList().also { it[i] = v } },
+                    onDone = { change(Change.Bands(draft)) },
                 )
                 val db = draft.getOrElse(i) { 0.0 }
                 Text(
