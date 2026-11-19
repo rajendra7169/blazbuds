@@ -20,7 +20,6 @@ fun DeviceTab(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit)
         Panel(padding = 8.dp) {
             if (state.canRing) LinkRow(BudsIcons.Find, "Find my earbuds", "Play a sound on each one", color = Hue.Orange) { open(Place.Find) }
             if (state.canFitTest) LinkRow(BudsIcons.Ear, "Ear tip fit test", "Check how well they seal", color = Hue.Purple) { open(Place.Fit) }
-            LinkRow(BudsIcons.Info, "How to wear them", "The fit that gives the best sound", color = Hue.Teal) { open(Place.Wear) }
         }
         Panel(padding = 8.dp) {
             LinkRow(BudsIcons.Earbuds, "My devices", "Switch earbuds or add a pair", color = Hue.Blue) { open(Place.Earbuds) }

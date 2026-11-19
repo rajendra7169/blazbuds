@@ -63,6 +63,7 @@ fun ModeDetails(
     onCancel: (CancelStyle, Int?, Travel?) -> Unit,
     onTransparency: (TransparencyStyle) -> Unit,
     onWind: (Boolean) -> Unit,
+    onEnvironment: (Boolean) -> Unit = {},
 ) {
     AnimatedContent(
         sound.mode,
@@ -75,37 +76,61 @@ fun ModeDetails(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (mode) {
                 ListeningMode.NoiseCancelling -> {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Choice("Adaptive", sound.cancelStyle == CancelStyle.Adaptive) { onCancel(CancelStyle.Adaptive, null, null) }
-                        Choice("Manual", sound.cancelStyle == CancelStyle.Manual) { onCancel(CancelStyle.Manual, null, null) }
-                        Choice("Travel", sound.cancelStyle == CancelStyle.Travel) { onCancel(CancelStyle.Travel, null, null) }
+                    // Three equal capsules, so they always fit on one line.
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Choice("Adaptive", sound.cancelStyle == CancelStyle.Adaptive, Modifier.weight(1f), centered = true) { onCancel(CancelStyle.Adaptive, null, null) }
+                        Choice("Manual", sound.cancelStyle == CancelStyle.Manual, Modifier.weight(1f), centered = true) { onCancel(CancelStyle.Manual, null, null) }
+                        Choice("Travel", sound.cancelStyle == CancelStyle.Travel, Modifier.weight(1f), centered = true) { onCancel(CancelStyle.Travel, null, null) }
                     }
                     when (sound.cancelStyle) {
-                        CancelStyle.Manual -> LevelSteps(sound.manualLevel) { onCancel(CancelStyle.Manual, it, null) }
-                        CancelStyle.Travel -> Row(
-                            Modifier.horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Travel.entries.forEach { travel ->
-                                Choice(travel.label(), sound.travel == travel, icon = travel.icon()) { onCancel(CancelStyle.Travel, null, travel) }
+                        CancelStyle.Adaptive -> {
+                            Hint("Adjusts by itself to your fit and to the noise around you.")
+                            SwitchRow(null, "Environment detection", sound.environmentDetection, onEnvironment, detail = "Also follows how loud it is around you")
+                        }
+                        CancelStyle.Manual -> {
+                            Hint("You choose how strongly it cancels: 1 is lightest, 5 is strongest.")
+                            LevelSteps(sound.manualLevel) { onCancel(CancelStyle.Manual, it, null) }
+                        }
+                        CancelStyle.Travel -> {
+                            Hint("Tuned for the steady rumble of each way of travelling.")
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Travel.entries.forEach { travel ->
+                                    TravelTile(travel, sound.travel == travel, Modifier.weight(1f)) { onCancel(CancelStyle.Travel, null, travel) }
+                                }
                             }
                         }
-                        CancelStyle.Adaptive -> Hint("Adjusts to your fit and to the noise around you.")
                     }
                     SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
                 ListeningMode.Transparency -> {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Choice("Everything", sound.transparencyStyle == TransparencyStyle.Full) { onTransparency(TransparencyStyle.Full) }
-                        Choice("Voices", sound.transparencyStyle == TransparencyStyle.Voice, icon = BudsIcons.Voice) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Choice("Everything", sound.transparencyStyle == TransparencyStyle.Full, Modifier.weight(1f), centered = true) { onTransparency(TransparencyStyle.Full) }
+                        Choice("Voices", sound.transparencyStyle == TransparencyStyle.Voice, Modifier.weight(1f), icon = BudsIcons.Voice, centered = true) {
                             onTransparency(TransparencyStyle.Voice)
                         }
                     }
+                    Hint(if (sound.transparencyStyle == TransparencyStyle.Voice) "Brings voices through clearly and keeps other sounds down." else "Lets the world in, as if you weren't wearing them.")
                     SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
                 ListeningMode.Normal -> Hint("No cancelling and no passthrough: the longest battery.")
             }
         }
+    }
+}
+
+/** One way of travelling: its picture over its name, filled when chosen. */
+@Composable
+private fun TravelTile(travel: Travel, chosen: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    val fill by animateColorAsState(if (chosen) palette.accent else palette.raised, tween(Motion.NORMAL), label = "travel")
+    val ink by animateColorAsState(if (chosen) palette.onAccent else palette.text, tween(Motion.NORMAL), label = "travelInk")
+    Column(
+        modifier.height(72.dp).clip(RoundedCornerShape(16.dp)).background(fill).press(role = Role.RadioButton, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(travel.icon(), null, tint = ink, modifier = Modifier.size(24.dp))
+        Text(travel.label(), style = MaterialTheme.typography.labelMedium, color = ink, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -128,24 +153,35 @@ fun Hint(text: String, modifier: Modifier = Modifier) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = LocalPalette.current.muted, modifier = modifier)
 }
 
-/** Strength from 1 to 5 as five steps that light up from the left. */
+/**
+ * Strength from 1 to 5: five numbered steps that fill from the left, each a deeper shade than the one before, with
+ * lightest and strongest marked at the ends.
+ */
 @Composable
 fun LevelSteps(level: Int, onPick: (Int) -> Unit) {
     val palette = LocalPalette.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             (1..5).forEach { step ->
                 val on = step <= level
-                val fill by animateColorAsState(if (on) palette.cancelling else palette.raised, tween(Motion.NORMAL), label = "step")
+                val shade = palette.cancelling.copy(alpha = 0.45f + 0.11f * step)
+                val fill by animateColorAsState(if (on) shade else palette.raised, tween(Motion.NORMAL), label = "step")
                 Box(
-                    Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(10.dp)).background(fill)
+                    Modifier.weight(1f).height(48.dp).background(fill)
                         .semantics { contentDescription = "Strength $step of 5" }
                         .press(role = Role.RadioButton) { onPick(step) },
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "$step",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = if (step == level) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal),
+                        color = if (on) Color.White else palette.muted,
+                    )
+                }
             }
         }
         Row(Modifier.fillMaxWidth()) {
-            Text("Light", style = MaterialTheme.typography.labelSmall, color = palette.muted, modifier = Modifier.weight(1f))
+            Text("Lightest", style = MaterialTheme.typography.labelSmall, color = palette.muted, modifier = Modifier.weight(1f))
             Text("Strongest", style = MaterialTheme.typography.labelSmall, color = palette.muted)
         }
     }

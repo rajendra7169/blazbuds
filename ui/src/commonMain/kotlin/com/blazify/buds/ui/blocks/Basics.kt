@@ -106,6 +106,7 @@ fun Choice(
     selected: Boolean,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    centered: Boolean = false,
     onClick: () -> Unit,
 ) {
     val palette = LocalPalette.current
@@ -119,7 +120,7 @@ fun Choice(
             .press(role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = if (centered) Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(6.dp),
     ) {
         if (icon != null) Icon(icon, null, tint = ink, modifier = Modifier.size(18.dp))
         Text(text, style = MaterialTheme.typography.labelLarge, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)

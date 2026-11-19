@@ -174,7 +174,7 @@ private fun DeviceRow(row: Pair2, chosen: Boolean, onClick: () -> Unit) {
             when (kind) {
                 com.blazify.buds.core.catalog.Kind.Headphones -> HeadphonesHero(row.device.connected, null, height = 84.dp, still = true)
                 com.blazify.buds.core.catalog.Kind.Speaker -> DeviceArt(kind, size = 72.dp, active = row.device.connected)
-                else -> CaseHero(row.device.connected, null, leftOut = true, rightOut = true, height = 84.dp, still = true)
+                else -> CaseHero(row.device.connected, null, leftOut = true, rightOut = true, height = 84.dp, still = true, soft = true)
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {

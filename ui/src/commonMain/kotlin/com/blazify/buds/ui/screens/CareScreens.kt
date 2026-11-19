@@ -153,37 +153,42 @@ private fun RingButton(label: String, on: Boolean, reachable: Boolean, onClick: 
  * well each tip seals. A poor seal costs bass and noise cancelling.
  */
 @Composable
-fun FitTestScreen(buds: Buds, back: () -> Unit, howToWear: () -> Unit) {
+fun FitTestScreen(buds: Buds, back: () -> Unit) {
     val palette = LocalPalette.current
     val scope = rememberCoroutineScope()
     var running by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<FitResult?>(null) }
     var failed by remember { mutableStateOf(false) }
     PlaceFrame("Ear tip fit test", back) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(Ear.Left to result?.left, Ear.Right to result?.right).forEach { (ear, seal) ->
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EarArt(ear, height = 150.dp)
-                    Text(if (ear == Ear.Left) "Left" else "Right", style = MaterialTheme.typography.titleMedium, color = palette.text)
-                    SealChip(running, seal, result != null)
+        Panel {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(Ear.Left to result?.left, Ear.Right to result?.right).forEach { (ear, seal) ->
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EarArt(ear, height = 140.dp)
+                        Text(if (ear == Ear.Left) "Left" else "Right", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                        SealChip(running, seal, result != null)
+                    }
                 }
             }
         }
         val verdict = result
-        when {
-            running -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                LogoLoader(size = 24.dp)
-                Text("Listening… keep still for a few seconds.", style = MaterialTheme.typography.bodyMedium, color = palette.muted, modifier = Modifier.padding(start = 10.dp))
-            }
-            failed -> Hint("The earbuds didn't answer. Make sure both are in your ears, and try again.")
-            verdict != null -> Panel {
-                Text(
-                    if (verdict.left == true && verdict.right == true) "Both seal well. You get the full bass and noise cancelling." else "Try a bigger ear tip on the side that seals poorly, or turn the earbud a little to settle it.",
+        Panel {
+            when {
+                running -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    LogoLoader(size = 24.dp)
+                    Text("Listening… keep still for a few seconds.", style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.padding(start = 12.dp))
+                }
+                failed -> Text("The earbuds didn't answer. Make sure both are in your ears, then try again.", style = MaterialTheme.typography.bodyLarge, color = palette.text)
+                verdict != null -> Text(
+                    if (verdict.left == true && verdict.right == true) "Both seal well: you get the full bass and noise cancelling." else "One side seals poorly. Settle that earbud by turning it a little, or try a bigger ear tip on that side.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = palette.text,
                 )
+                else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("How it works", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                    Text("Put both earbuds in your ears and tap Start. A short tone plays and each earbud listens to how well its tip seals.", style = MaterialTheme.typography.bodyMedium, color = palette.muted)
+                }
             }
-            else -> Hint("Put both earbuds in your ears and start. A short tone plays.")
         }
         BigButton(if (verdict == null) "Start" else "Test again", BudsIcons.Ear) {
             if (running) return@BigButton
@@ -196,7 +201,6 @@ fun FitTestScreen(buds: Buds, back: () -> Unit, howToWear: () -> Unit) {
                 if (found == null) failed = true else result = found
             }
         }
-        BigButton("How to wear them", null, quiet = true, onClick = howToWear)
     }
 }
 
@@ -216,37 +220,4 @@ private fun SealChip(running: Boolean, seal: Boolean?, done: Boolean) {
         color = color,
         modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 5.dp),
     )
-}
-
-/** How to wear earbuds well, with the ear drawing: which is which, the twist that settles them, and ear tip sizes. */
-@Composable
-fun WearScreen(back: () -> Unit, fitTest: (() -> Unit)?) {
-    val palette = LocalPalette.current
-    var ear by remember { mutableStateOf(Ear.Right) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(2600)
-            ear = if (ear == Ear.Right) Ear.Left else Ear.Right
-        }
-    }
-    PlaceFrame("How to wear them", back) {
-        EarArt(ear, height = 200.dp)
-        Panel {
-            listOf(
-                "Check the L and R on each earbud, and put each in its own ear.",
-                "Put the earbud in with the stem pointing down, then turn it slightly towards your face until it sits snugly.",
-                "The medium ear tips come fitted. If an earbud feels loose or the bass sounds thin, try a size up; if it presses, a size down.",
-                "Change both sides together, then check the fit.",
-            ).forEachIndexed { i, step ->
-                Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.size(26.dp).clip(CircleShape).background(palette.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-                        Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = palette.accent)
-                    }
-                    Text(step, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
-                }
-            }
-        }
-        if (fitTest != null) BigButton("Check the fit", BudsIcons.Ear, onClick = fitTest)
-        Spacer(Modifier.height(4.dp))
-    }
 }

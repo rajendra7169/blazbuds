@@ -71,7 +71,12 @@ class Shots {
             shot(dir, "help-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
             shot(dir, "find-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Find) }
             shot(dir, "fit-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Fit) }
-            shot(dir, "wear-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Wear) }
+            for ((name, style) in listOf("manual" to com.blazify.buds.core.model.CancelStyle.Manual, "travel" to com.blazify.buds.core.model.CancelStyle.Travel)) {
+                shot(dir, "nc-$name-$look", 412, 915) {
+                    val buds = remember { DemoBuds().also { kotlinx.coroutines.runBlocking { it.apply(com.blazify.buds.core.model.Change.Cancelling(style, level = 3)) } } }
+                    BudsApp(buds, prefs(theme))
+                }
+            }
             shot(dir, "connect-phone-$look", 412, 915) { BudsApp(DemoBuds(connected = false), prefs(theme), Place.Connect) }
             shot(dir, "panel-$look", 360, 330) {
                 val buds = remember { DemoBuds() }

@@ -212,6 +212,7 @@ private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
                 leftOut = (state.left != null && state.left?.charging != true) || state.overall != null,
                 rightOut = (state.right != null && state.right?.charging != true) || state.overall != null,
                 height = heroHeight,
+                soft = true,
             )
         }
         if (state.left == null && state.right == null && state.overall != null) {
@@ -238,6 +239,7 @@ private fun Listening(state: BudsState, change: (Change) -> Unit) {
             onCancel = { style, level, travel -> change(Change.Cancelling(style, level, travel)) },
             onTransparency = { change(Change.TransparencyKind(it)) },
             onWind = { change(Change.Wind(it)) },
+            onEnvironment = { change(Change.Environment(it)) },
         )
     }
 }
@@ -365,12 +367,11 @@ private fun TwoDevices(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
     }
 }
 
-/** The everyday helpers, one tap away: find them, check the fit, and how to wear them. */
+/** The everyday helpers, one tap away: find them, and check the fit. */
 @Composable
 private fun Care(state: BudsState, open: (Place) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (state.canRing) Choice("Find", false, icon = BudsIcons.Find) { open(Place.Find) }
         if (state.canFitTest) Choice("Fit test", false, icon = BudsIcons.Ear) { open(Place.Fit) }
-        Choice("How to wear", false, icon = BudsIcons.Info) { open(Place.Wear) }
     }
 }

@@ -35,7 +35,6 @@ import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.screens.AddDeviceScreen
 import com.blazify.buds.ui.screens.FindScreen
 import com.blazify.buds.ui.screens.FitTestScreen
-import com.blazify.buds.ui.screens.WearScreen
 import com.blazify.buds.ui.screens.ConnectGuideScreen
 import androidx.compose.runtime.LaunchedEffect
 import com.blazify.buds.ui.screens.ControlsScreen
@@ -177,8 +176,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                         }
                         Place.Settings -> SettingsScreen(close)
                         Place.Find -> if (now != null && state != null) FindScreen(now, state, close)
-                        Place.Fit -> if (now != null) FitTestScreen(now, close, howToWear = { place = Place.Wear })
-                        Place.Wear -> WearScreen(close, fitTest = if (state?.canFitTest == true) ({ place = Place.Fit }) else null)
+                        Place.Fit -> if (now != null) FitTestScreen(now, close)
                         Place.Support -> SupportScreen(state, VERSION, close)
                     }
                 }
