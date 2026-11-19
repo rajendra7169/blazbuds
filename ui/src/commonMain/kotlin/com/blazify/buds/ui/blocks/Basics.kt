@@ -128,7 +128,7 @@ fun Choice(
 
 /** A row that opens something deeper: icon, title, a line of what it holds now, and an arrow. */
 @Composable
-fun LinkRow(icon: ImageVector, title: String, detail: String?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun LinkRow(icon: ImageVector, title: String, detail: String?, modifier: Modifier = Modifier, color: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
     val palette = LocalPalette.current
     Row(
         modifier
@@ -140,8 +140,9 @@ fun LinkRow(icon: ImageVector, title: String, detail: String?, modifier: Modifie
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(palette.raised), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = palette.text, modifier = Modifier.size(20.dp))
+        // A coloured circle with a white symbol, each kind of thing in its own colour.
+        Box(Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color ?: palette.accent), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = palette.text)
@@ -155,3 +156,17 @@ fun LinkRow(icon: ImageVector, title: String, detail: String?, modifier: Modifie
 
 @Composable
 fun RowScope.Gap(width: Dp) = Box(Modifier.size(width, 1.dp))
+
+/** The colours of the circles behind list icons. */
+object Hue {
+    val Orange = androidx.compose.ui.graphics.Color(0xFFF28A35)
+    val Purple = androidx.compose.ui.graphics.Color(0xFF8B6CEF)
+    val Teal = androidx.compose.ui.graphics.Color(0xFF14A99A)
+    val Blue = androidx.compose.ui.graphics.Color(0xFF3D7BF0)
+    val Green = androidx.compose.ui.graphics.Color(0xFF2EAD6B)
+    val Slate = androidx.compose.ui.graphics.Color(0xFF6B7A90)
+    val Pink = androidx.compose.ui.graphics.Color(0xFFE5578F)
+    val Indigo = androidx.compose.ui.graphics.Color(0xFF5560E0)
+    val Amber = androidx.compose.ui.graphics.Color(0xFFE0A13F)
+    val Red = androidx.compose.ui.graphics.Color(0xFFE5534B)
+}

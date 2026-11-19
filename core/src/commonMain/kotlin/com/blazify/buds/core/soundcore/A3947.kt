@@ -185,7 +185,8 @@ object A3947 {
             firmware = firmware,
             serial = text(raw, SERIAL, 16),
             bothConnected = both,
-            canRing = true,
+            // The family's find command plays nothing on this model; hidden until its own is known.
+            canRing = false,
             canFitTest = true,
         )
     }

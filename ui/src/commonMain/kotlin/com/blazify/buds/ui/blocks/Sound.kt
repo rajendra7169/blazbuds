@@ -152,7 +152,7 @@ fun LevelSteps(level: Int, onPick: (Int) -> Unit) {
 }
 
 @Composable
-fun SwitchRow(icon: ImageVector?, title: String, on: Boolean, onChange: (Boolean) -> Unit, detail: String? = null, enabled: Boolean = true) {
+fun SwitchRow(icon: ImageVector?, title: String, on: Boolean, onChange: (Boolean) -> Unit, detail: String? = null, enabled: Boolean = true, color: androidx.compose.ui.graphics.Color? = null) {
     val palette = LocalPalette.current
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press(enabled = enabled, role = Role.Switch) { onChange(!on) }
@@ -160,7 +160,13 @@ fun SwitchRow(icon: ImageVector?, title: String, on: Boolean, onChange: (Boolean
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (icon != null) Icon(icon, null, tint = palette.muted, modifier = Modifier.size(20.dp))
+        if (icon != null && color != null) {
+            Box(Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        } else if (icon != null) {
+            Icon(icon, null, tint = palette.muted, modifier = Modifier.size(20.dp))
+        }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) palette.text else palette.muted)
             if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = palette.muted)

@@ -32,7 +32,7 @@ fun SettingsScreen(back: (() -> Unit)?) = PlaceFrame("Settings", back) {
             Choice("Dark", prefs.theme == ThemeChoice.Dark) { prefs.theme(ThemeChoice.Dark) }
         }
         Spacer(Modifier.height(8.dp))
-        SwitchRow(BudsIcons.Moon, "Less motion", prefs.reduceMotion, { prefs.reduceMotion(it) }, detail = "Fades instead of slides, and the earbuds hold still")
+        SwitchRow(BudsIcons.Moon, "Less motion", prefs.reduceMotion, { prefs.reduceMotion(it) }, detail = "Fades instead of slides, and the earbuds hold still", color = com.blazify.buds.ui.blocks.Hue.Indigo)
     }
     Panel {
         SectionTitle("About Blazbuds")

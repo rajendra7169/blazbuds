@@ -267,12 +267,12 @@ fun PromptsSection(state: BudsState, change: (Change) -> Unit) {
     Panel {
         SectionTitle("Sound and prompts")
         PROMPTS.filter { it.first in state.toggles }.forEach { (toggle, detail) ->
-            SwitchRow(toggle.icon(), toggle.label(), state.toggles[toggle] == true, { change(Change.Switch(toggle, it)) }, detail = detail)
+            SwitchRow(toggle.icon(), toggle.label(), state.toggles[toggle] == true, { change(Change.Switch(toggle, it)) }, detail = detail, color = toggle.hue())
         }
     }
     state.autoPowerOff?.let { off ->
         Panel {
-            SwitchRow(BudsIcons.Power, "Turn off when not in use", off.enabled, { change(Change.PowerOff(it, off.minutes)) })
+            SwitchRow(BudsIcons.Power, "Turn off when not in use", off.enabled, { change(Change.PowerOff(it, off.minutes)) }, color = com.blazify.buds.ui.blocks.Hue.Red)
             if (off.enabled) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     off.choices.forEach { minutes -> Choice("$minutes min", minutes == off.minutes) { change(Change.PowerOff(true, minutes)) } }
@@ -294,6 +294,7 @@ fun HostsSection(state: BudsState, change: (Change) -> Unit) {
             "Two devices at once",
             points.enabled,
             { change(Change.TwoDevices(it)) },
+            color = com.blazify.buds.ui.blocks.Hue.Blue,
             detail = if (state.toggles[Toggle.Ldac] == true) "Turns off Best quality (LDAC)" else "Music moves to whichever device plays",
         )
     }
@@ -348,7 +349,7 @@ fun SafeVolumeSection(state: BudsState, change: (Change) -> Unit) {
     val limit = state.volumeLimit ?: return
     Panel {
         SectionTitle("Safe volume")
-        SwitchRow(BudsIcons.Ear, "Limit the volume", limit.enabled, { change(Change.SafeVolume(it, limit.decibels)) }, detail = "The earbuds never play louder than this")
+        SwitchRow(BudsIcons.Ear, "Limit the volume", limit.enabled, { change(Change.SafeVolume(it, limit.decibels)) }, detail = "The earbuds never play louder than this", color = com.blazify.buds.ui.blocks.Hue.Green)
         if (limit.enabled) {
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 limit.choices.forEach { db -> Choice("$db dB", db == limit.decibels) { change(Change.SafeVolume(true, db)) } }
@@ -356,4 +357,16 @@ fun SafeVolumeSection(state: BudsState, change: (Change) -> Unit) {
             Hint("85 dB or less is safe for hours of listening; above that, the louder it is, the shorter the time.", Modifier.padding(top = 8.dp))
         }
     }
+}
+
+private fun Toggle.hue() = when (this) {
+    Toggle.TouchTone -> com.blazify.buds.ui.blocks.Hue.Purple
+    Toggle.WearingTone -> com.blazify.buds.ui.blocks.Hue.Pink
+    Toggle.LowBatteryPrompt -> com.blazify.buds.ui.blocks.Hue.Amber
+    Toggle.SoundLeakCompensation -> com.blazify.buds.ui.blocks.Hue.Indigo
+    Toggle.WearDetection -> com.blazify.buds.ui.blocks.Hue.Teal
+    Toggle.TouchLock -> com.blazify.buds.ui.blocks.Hue.Slate
+    Toggle.GamingMode -> com.blazify.buds.ui.blocks.Hue.Red
+    Toggle.Surround -> com.blazify.buds.ui.blocks.Hue.Blue
+    Toggle.Ldac -> com.blazify.buds.ui.blocks.Hue.Orange
 }
