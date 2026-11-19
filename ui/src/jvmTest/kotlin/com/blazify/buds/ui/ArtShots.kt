@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
@@ -20,6 +21,35 @@ import kotlin.test.Test
 
 /** The drawn devices at each step of opening, in both looks, for checking them by eye. Only with SHOTS_DIR set. */
 class ArtShots {
+    @Test
+    fun drawPresets() {
+        val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
+        dir.mkdirs()
+        val presets = com.blazify.buds.core.soundcore.A3947.PRESETS
+        for (theme in listOf(com.blazify.buds.ui.theme.ThemeChoice.Dark, com.blazify.buds.ui.theme.ThemeChoice.Light)) {
+            ImageComposeScene(412 * 2, 1180 * 2, Density(2f)) {
+                com.blazify.buds.ui.theme.BudsTheme(theme) {
+                    Column(
+                        Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background).padding(16.dp),
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+                    ) {
+                        presets.chunked(2).forEachIndexed { row, pair ->
+                            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                                pair.forEachIndexed { i, (name, tenths) ->
+                                    com.blazify.buds.ui.blocks.PresetTile(row * 2 + i, name, tenths.take(8).map { it / 10.0 }, chosen = name == "Acoustic", modifier = Modifier.weight(1f), showCurve = false) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }.use { scene ->
+                var t = 0L
+                repeat(10) { scene.render(t); t += 100_000_000L }
+                File(dir, "presets-${theme.name.lowercase()}.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+            }
+        }
+    }
+
     @Test
     fun drawEarPrint() {
         val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
