@@ -41,6 +41,7 @@ import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Scene
 import com.blazify.buds.core.model.Toggle
+import com.blazify.buds.ui.blocks.BatteryRing
 import com.blazify.buds.ui.blocks.BatteryRow
 import com.blazify.buds.ui.blocks.BudsHero
 import com.blazify.buds.ui.blocks.Choice
@@ -59,7 +60,7 @@ import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.theme.LocalPalette
 
 /** Where Home sends the person for what doesn't fit on it. */
-enum class Place { Equalizer, Controls, Sounds, About, Settings, Devices }
+enum class Place { Equalizer, Controls, Sounds, About, Settings, Devices, Earbuds }
 
 /**
  * Everything most people need, on one screen: the earbuds and their battery, the listening mode with its options,
@@ -115,7 +116,7 @@ private fun TopBar(state: BudsState, open: (Place) -> Unit) {
     val palette = LocalPalette.current
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).press { open(Place.Devices) }.padding(4.dp),
+            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).press { open(Place.Earbuds) }.padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -186,7 +187,14 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit) {
 private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BudsHero(state.sound?.mode, leftIn = state.left != null, rightIn = state.right != null, height = heroHeight)
-        BatteryRow(state.left, state.case, state.right)
+        if (state.left == null && state.right == null && state.overall != null) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { BatteryRing("Earbuds", state.overall) }
+        } else {
+            BatteryRow(state.left, state.case, state.right)
+        }
+        if (state.sound == null && state.isReady) {
+            Hint("These earbuds get the basics: connection and battery. Full control comes as their brand is added.", Modifier.padding(top = 8.dp))
+        }
     }
 }
 
@@ -237,8 +245,9 @@ private fun SoundPanel(state: BudsState, change: (Change) -> Unit, open: (Place)
         EqCurve(eq.left)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            eq.presets.forEach { preset -> Choice(preset.name, preset.id == eq.presetId) { change(Change.Preset(preset.id)) } }
+            // Your own sound first when it is the one playing.
             if (eq.preset == null) Choice("Custom", selected = true) { open(Place.Equalizer) }
+            eq.presets.forEach { preset -> Choice(preset.name, preset.id == eq.presetId) { change(Change.Preset(preset.id)) } }
         }
         if (!state.bothConnected) {
             Spacer(Modifier.height(8.dp))
