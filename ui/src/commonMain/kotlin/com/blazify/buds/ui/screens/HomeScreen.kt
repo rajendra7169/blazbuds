@@ -19,8 +19,7 @@ import androidx.compose.foundation.layout.only
 import com.blazify.buds.core.catalog.Catalog
 import com.blazify.buds.core.catalog.Kind
 import com.blazify.buds.ui.blocks.CaseHero
-import com.blazify.buds.ui.blocks.ModelViewer
-import com.blazify.buds.ui.blocks.frames
+import com.blazify.buds.ui.blocks.HeadphonesHero
 import com.blazify.buds.ui.blocks.DeviceArt
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -199,12 +198,10 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit, bluetoothOn: Boolean
 @Composable
 private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val frames = frames(Catalog.art(state.name), Catalog.kind(state.name))
-        if (frames != null) {
-            ModelViewer(frames, connected = state.isReady, mode = state.sound?.mode, height = heroHeight)
-        } else when (Catalog.kind(state.name)) {
-            Kind.Headphones, Kind.Speaker -> Box(Modifier.fillMaxWidth().height(heroHeight), contentAlignment = Alignment.Center) {
-                DeviceArt(Catalog.kind(state.name), size = heroHeight * 0.8f, active = state.isReady)
+        when (Catalog.kind(state.name)) {
+            Kind.Headphones -> HeadphonesHero(connected = state.isReady, mode = state.sound?.mode, height = heroHeight)
+            Kind.Speaker -> Box(Modifier.fillMaxWidth().height(heroHeight), contentAlignment = Alignment.Center) {
+                DeviceArt(Kind.Speaker, size = heroHeight * 0.8f, active = state.isReady)
             }
             else -> CaseHero(
                 connected = state.isReady,

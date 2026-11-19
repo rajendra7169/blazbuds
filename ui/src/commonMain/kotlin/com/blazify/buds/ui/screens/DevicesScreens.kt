@@ -45,7 +45,8 @@ import com.blazify.buds.ui.blocks.AddArt
 import com.blazify.buds.ui.blocks.CardShape
 import com.blazify.buds.ui.blocks.Choice
 import com.blazify.buds.ui.blocks.DeviceArt
-import com.blazify.buds.ui.blocks.frames
+import com.blazify.buds.ui.blocks.CaseHero
+import com.blazify.buds.ui.blocks.HeadphonesHero
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.graphicsLayer
 import org.jetbrains.compose.resources.painterResource
@@ -169,16 +170,11 @@ private fun DeviceRow(row: Pair2, chosen: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         val kind = Catalog.kind(row.device.name)
-        val frames = frames(Catalog.art(row.device.name), kind)
         Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
-            if (frames != null) {
-                Image(
-                    painterResource(if (row.device.connected) frames.shown else frames.closed),
-                    null,
-                    Modifier.fillMaxSize().graphicsLayer { alpha = if (row.device.connected) 1f else 0.75f },
-                )
-            } else {
-                DeviceArt(kind, size = 72.dp, active = row.device.connected)
+            when (kind) {
+                com.blazify.buds.core.catalog.Kind.Headphones -> HeadphonesHero(row.device.connected, null, height = 84.dp, still = true)
+                com.blazify.buds.core.catalog.Kind.Speaker -> DeviceArt(kind, size = 72.dp, active = row.device.connected)
+                else -> CaseHero(row.device.connected, null, leftOut = true, rightOut = true, height = 84.dp, still = true)
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
