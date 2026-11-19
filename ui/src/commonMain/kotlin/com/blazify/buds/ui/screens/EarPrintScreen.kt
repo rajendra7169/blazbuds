@@ -224,8 +224,8 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                             Text("Which do you prefer?", style = MaterialTheme.typography.headlineMedium, color = palette.text, textAlign = TextAlign.Center)
                             RoundBar(round.number, round.total)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                SoundCard("Sound A", pick != true, Modifier.weight(1f)) { pick = false }
-                                SoundCard("Sound B", pick == true, Modifier.weight(1f)) { pick = true }
+                                SoundCard("Sound A", round.a, pick != true, Modifier.weight(1f)) { pick = false }
+                                SoundCard("Sound B", round.b, pick == true, Modifier.weight(1f)) { pick = true }
                             }
                             Hint("A short beat is playing. Switch between A and B a few times, then choose.", Modifier.padding(horizontal = 8.dp))
                             BigButton(if (pick == true) "Choose B" else "Choose A", null) {
@@ -317,7 +317,7 @@ private fun RoundBar(number: Int, total: Int) {
 
 /** One of the two sounds: a tall card with a live wave, lit when it is the one playing. */
 @Composable
-private fun SoundCard(name: String, playing: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun SoundCard(name: String, curve: List<Double>, playing: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val palette = LocalPalette.current
     val time = rememberInfiniteTransition(label = "wave")
     val phase by time.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "phase")
@@ -332,8 +332,12 @@ private fun SoundCard(name: String, playing: Boolean, modifier: Modifier, onClic
             val w = size.width / bars
             for (i in 0 until bars) {
                 val x = i * w + w / 2
-                val wave = if (playing) 0.5f + 0.5f * kotlin.math.sin((i / bars.toFloat() * 6f + phase * 6.283f) * 1.3f) else 0.25f
-                val h = size.height * (0.12f + 0.22f * wave * (0.6f + 0.4f * kotlin.math.sin(i * 1.7f)))
+                // The bars follow this sound's own shape, bass on the left and treble on the right, with a gentle sway.
+                val at = i / (bars - 1f) * (curve.size - 1)
+                val lo = at.toInt().coerceAtMost(curve.size - 2)
+                val db = curve[lo] + (curve[lo + 1] - curve[lo]) * (at - lo)
+                val sway = if (playing) 0.02f * kotlin.math.sin(i * 0.9f + phase * 6.283f) else 0f
+                val h = size.height * (0.24f + 0.032f * db.toFloat() + sway).coerceIn(0.04f, 0.6f)
                 drawLine(
                     if (playing) Color.White.copy(alpha = 0.85f) else palette.muted.copy(alpha = 0.4f),
                     Offset(x, size.height - 16.dp.toPx()), Offset(x, size.height - 16.dp.toPx() - h),

@@ -137,32 +137,51 @@ class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
 }
 
 /**
- * The taste test: six rounds of "this or that". Each round offers the sound so far against it with one change; the
- * one chosen carries on. "No difference" keeps the sound as it is.
+ * The taste test: six rounds of "this or that". Like a sound engineer narrowing in, each round plays the sound so far
+ * pushed one way against the same sound pushed the opposite way, so the two are easy to tell apart: warmer or brighter,
+ * then voices forward or a punchier V, then each again at half the size around what was chosen, then half again.
+ * "No difference" keeps the sound as it is.
  */
 class TasteTest(start: List<Double>) {
     data class Round(val number: Int, val total: Int, val name: String, val a: List<Double>, val b: List<Double>)
 
-    private val tweaks = listOf(
-        "More bass" to listOf(2.0, 1.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0),
-        "Brighter" to listOf(0.0, 0.0, 0.0, 0.0, 0.5, 1.5, 2.0, 2.0),
-        "Clearer voices" to listOf(0.0, -0.5, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0),
-        "Less bass" to listOf(-1.5, -1.0, -0.5, 0.0, 0.0, 0.0, 0.0, 0.0),
-        "Softer treble" to listOf(0.0, 0.0, 0.0, 0.0, 0.0, -1.0, -1.5, -1.5),
-        "More air" to listOf(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.5),
+    private val rounds = listOf(
+        "Warm or bright" to (WARM to 1.0),
+        "Voices or punch" to (VOICES to 1.0),
+        "Warm or bright" to (WARM to 0.5),
+        "Voices or punch" to (VOICES to 0.5),
+        "Warm or bright" to (WARM to 0.25),
+        "Voices or punch" to (VOICES to 0.25),
     )
     private var index = 0
     var sound: List<Double> = start
         private set
 
-    val done: Boolean get() = index >= tweaks.size
+    val done: Boolean get() = index >= rounds.size
 
-    fun current(): Round? = if (done) null else Round(index + 1, tweaks.size, tweaks[index].first, sound, EarPrint.add(sound, tweaks[index].second))
+    fun current(): Round? {
+        if (done) return null
+        val (name, push) = rounds[index]
+        val (axis, size) = push
+        return Round(index + 1, rounds.size, name, EarPrint.add(sound, axis.map { it * size }), EarPrint.add(sound, axis.map { -it * size }))
+    }
 
     /** true for B, false for A, null for no difference. */
     fun choose(b: Boolean?) {
         val round = current() ?: return
-        if (b == true) sound = round.b
+        when (b) {
+            true -> sound = round.b
+            false -> sound = round.a
+            null -> {}
+        }
         index++
+    }
+
+    companion object {
+        /** More bass and less treble one way; the other way, brighter and lighter. */
+        val WARM = listOf(2.5, 2.0, 1.0, 0.0, -0.5, -1.2, -2.0, -2.5)
+
+        /** Voices and the middle forward one way; the other way, a V of deep bass and crisp treble. */
+        val VOICES = listOf(-1.0, 0.0, 2.0, 2.5, 1.5, -0.5, -1.5, -2.0)
     }
 }

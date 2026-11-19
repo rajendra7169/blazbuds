@@ -31,10 +31,13 @@ class EarPrintTest {
     @Test
     fun tasteTestKeepsWhatIsChosen() {
         val taste = TasteTest(List(8) { 0.0 })
+        val first = taste.current()!!
+        // The two sounds go opposite ways, 5 dB apart at the ends, so they are easy to tell apart.
+        assertEquals(5.0, first.a.first() - first.b.first())
         taste.choose(true)
-        assertEquals(2.0, taste.sound.first())
+        assertEquals(-2.5, taste.sound.first())
         repeat(5) { taste.choose(null) }
         assertTrue(taste.done)
-        assertEquals(2.0, taste.sound.first())
+        assertEquals(-2.5, taste.sound.first())
     }
 }
