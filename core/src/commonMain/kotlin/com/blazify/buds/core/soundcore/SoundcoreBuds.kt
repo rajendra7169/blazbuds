@@ -340,6 +340,12 @@ class SoundcoreBuds(
             true
         }
         is Change.Forget -> ack(A3947.FORGET, A3947.macBytes(change.address)).also { if (it) loadHosts() }
+        is Change.SafeVolume -> {
+            // The earbuds take the cap in steps of 5 dB, from 75 to 100.
+            val db = (change.decibels / 5 * 5).coerceIn(75, 100)
+            val body = byteArrayOf(if (change.enabled) 1 else 0, db.toByte())
+            ack(A3947.LIMIT_SET, body).also { if (it) body.copyInto(now, A3947.LIMIT) }
+        }
         Change.ResetControls -> ack(A3947.BUTTON_RESET, ByteArray(0)).also { if (it) refresh() }
     }
 

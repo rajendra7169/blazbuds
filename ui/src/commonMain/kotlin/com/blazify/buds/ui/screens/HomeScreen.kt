@@ -281,22 +281,29 @@ private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
     }
 }
 
-private val QUICK = listOf(Toggle.GamingMode, Toggle.Surround, Toggle.WearDetection, Toggle.TouchLock)
+private val QUICK = listOf(Toggle.GamingMode, Toggle.Surround, Toggle.WearDetection)
+
+/** One tile in the quick switches. */
+private class Quick(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val on: Boolean, val detail: String, val flip: () -> Unit)
 
 @Composable
 private fun Switches(state: BudsState, change: (Change) -> Unit) {
-    val shown = QUICK.filter { it in state.toggles }
-    if (shown.isEmpty()) return
+    val tiles = QUICK.filter { it in state.toggles }.map { toggle ->
+        val on = state.toggles[toggle] == true
+        Quick(toggle.icon(), toggle.label(), on, toggle.detail(on)) { change(Change.Switch(toggle, !on)) }
+    } + listOfNotNull(
+        state.volumeLimit?.let { limit ->
+            Quick(BudsIcons.Ear, "Safe volume", limit.enabled, if (limit.enabled) "Up to ${limit.decibels} dB" else "Off") {
+                change(Change.SafeVolume(!limit.enabled, limit.decibels))
+            }
+        },
+    )
+    if (tiles.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle("Quick switches")
-        shown.chunked(2).forEach { pair ->
+        tiles.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pair.forEach { toggle ->
-                    val on = state.toggles[toggle] == true
-                    ToggleTile(toggle.icon(), toggle.label(), on, Modifier.weight(1f), detail = toggle.detail(on)) {
-                        change(Change.Switch(toggle, !on))
-                    }
-                }
+                pair.forEach { tile -> ToggleTile(tile.icon, tile.title, tile.on, Modifier.weight(1f), detail = tile.detail, onToggle = tile.flip) }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }

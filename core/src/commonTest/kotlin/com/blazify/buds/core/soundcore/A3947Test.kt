@@ -42,6 +42,7 @@ class A3947Test {
         assertEquals(TouchAction.None, state.controls!!.actions[Ear.Right to Press.Triple])
         assertEquals(true, state.multipoint!!.enabled)
         assertEquals(30, state.autoPowerOff!!.minutes)
+        assertEquals(false, state.volumeLimit!!.enabled)
         assertEquals(true, state.toggles[Toggle.WearDetection])
         assertEquals(false, state.toggles[Toggle.GamingMode])
     }

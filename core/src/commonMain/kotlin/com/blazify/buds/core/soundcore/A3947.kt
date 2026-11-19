@@ -56,6 +56,8 @@ object A3947 {
     const val SURROUND = 148
     const val WEAR_DETECTION = 152
     const val WEARING_TONE = 153
+    const val LIMIT = 149
+    const val LIMIT_DB = 150
     const val POWER_OFF = 154
     const val POWER_OFF_TIME = 155
     const val TOUCH_LOCK = 156
@@ -93,6 +95,7 @@ object A3947 {
     val CONNECT = Packet.command(0x0B, 0x82)
     val FORGET = Packet.command(0x0B, 0x83)
     val TWO_DEVICES_SET = Packet.command(0x0B, 0x84)
+    val LIMIT_SET = Packet.command(0x20, 0x82)
 
     val FREQUENCIES = listOf(100, 200, 400, 800, 1600, 3200, 6400, 12800)
     val POWER_OFF_MINUTES = listOf(10, 20, 30, 60)
@@ -174,6 +177,7 @@ object A3947 {
             controls = controls(raw, both),
             toggles = toggles,
             multipoint = Multipoint(raw[TWO_DEVICES].toInt() == 1, hosts),
+            volumeLimit = com.blazify.buds.core.model.VolumeLimit(raw[LIMIT].toInt() == 1, raw[LIMIT_DB].u().takeIf { it in 75..100 } ?: 85),
             autoPowerOff = AutoPowerOff(raw[POWER_OFF].toInt() == 1, POWER_OFF_MINUTES.getOrElse(raw[POWER_OFF_TIME].u()) { 30 }, POWER_OFF_MINUTES),
             firmware = firmware,
             serial = text(raw, SERIAL, 16),

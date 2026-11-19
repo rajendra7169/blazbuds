@@ -84,6 +84,7 @@ class DemoBuds(connected: Boolean = true) : Buds {
                     ),
                 ),
                 autoPowerOff = AutoPowerOff(true, 30, listOf(10, 20, 30, 60)),
+                volumeLimit = com.blazify.buds.core.model.VolumeLimit(false, 85),
                 firmware = "07.61",
                 serial = "3947DEMO00000000",
             )
@@ -131,5 +132,6 @@ fun BudsState.with(change: Change): BudsState = when (change) {
         ),
     )
     is Change.Forget -> copy(multipoint = multipoint?.copy(devices = multipoint.devices.filterNot { it.address == change.address }))
+    is Change.SafeVolume -> copy(volumeLimit = volumeLimit?.copy(enabled = change.enabled, decibels = change.decibels))
     Change.ResetControls -> this
 }

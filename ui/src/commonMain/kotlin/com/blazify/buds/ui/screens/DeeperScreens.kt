@@ -341,3 +341,19 @@ fun AboutSection(state: BudsState) {
 /** Bluetooth doesn't say what a host is; computers usually say so in their name. */
 private fun com.blazify.buds.core.model.Host.looksLikeComputer(): Boolean =
     listOf("book", "pad", "pc", "laptop", "desktop", "loq", "legion", "thinkpad", "imac", "mac", "dell", "hp ", "asus", "acer").any { it in name.lowercase() }
+
+/** A cap on how loud the earbuds go, with a word on what is safe. */
+@Composable
+fun SafeVolumeSection(state: BudsState, change: (Change) -> Unit) {
+    val limit = state.volumeLimit ?: return
+    Panel {
+        SectionTitle("Safe volume")
+        SwitchRow(BudsIcons.Ear, "Limit the volume", limit.enabled, { change(Change.SafeVolume(it, limit.decibels)) }, detail = "The earbuds never play louder than this")
+        if (limit.enabled) {
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                limit.choices.forEach { db -> Choice("$db dB", db == limit.decibels) { change(Change.SafeVolume(true, db)) } }
+            }
+            Hint("85 dB or less is safe for hours of listening; above that, the louder it is, the shorter the time.", Modifier.padding(top = 8.dp))
+        }
+    }
+}

@@ -13,6 +13,7 @@ import com.blazify.buds.ui.icons.BudsIcons
 fun DeviceTab(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit) =
     PlaceFrame("Device", back = null, actions = listOf(BudsIcons.Support to ("Help" to { open(Place.Support) }), BudsIcons.Settings to ("Settings" to { open(Place.Settings) }))) {
         HostsSection(state, change)
+        SafeVolumeSection(state, change)
         PromptsSection(state, change)
         AboutSection(state)
         Panel(padding = 8.dp) {

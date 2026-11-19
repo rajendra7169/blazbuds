@@ -41,6 +41,8 @@ data class BudsState(
     val toggles: Map<Toggle, Boolean> = emptyMap(),
     val multipoint: Multipoint? = null,
     val autoPowerOff: AutoPowerOff? = null,
+    /** A cap on how loud the earbuds play, to look after hearing. */
+    val volumeLimit: VolumeLimit? = null,
     val firmware: String? = null,
     val serial: String? = null,
     /** True when both earbuds are out and talking to each other, not only one. */
@@ -142,6 +144,8 @@ data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList(
 
 data class Host(val name: String, val address: String, val connected: Boolean, val playing: Boolean = false)
 
+data class VolumeLimit(val enabled: Boolean, val decibels: Int, val choices: List<Int> = listOf(75, 80, 85, 90, 95, 100))
+
 data class AutoPowerOff(val enabled: Boolean, val minutes: Int, val choices: List<Int>)
 
 /** Everything a screen can ask the earbuds to change. */
@@ -158,6 +162,7 @@ sealed interface Change {
     data class Touch(val ear: Ear, val press: Press, val action: TouchAction) : Change
     data class PowerOff(val enabled: Boolean, val minutes: Int) : Change
     data class TwoDevices(val on: Boolean) : Change
+    data class SafeVolume(val enabled: Boolean, val decibels: Int) : Change
     data class HostConnection(val address: String, val connect: Boolean) : Change
     data class Forget(val address: String) : Change
     data object ResetControls : Change
