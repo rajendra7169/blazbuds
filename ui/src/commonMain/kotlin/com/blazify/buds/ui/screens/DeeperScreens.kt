@@ -1,6 +1,14 @@
 package com.blazify.buds.ui.screens
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import com.blazify.buds.ui.blocks.press
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -25,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
@@ -115,6 +124,19 @@ fun Press.label() = when (this) {
     Press.Triple -> "Triple tap"
 }
 
+/** The mark for each kind of touch: one dot, two, three, or a bar for holding. */
+private fun Press.glyph(): String = when (this) {
+    Press.Single -> "•"
+    Press.Double -> "••"
+    Press.Triple -> "•••"
+    Press.Long -> "▬"
+}
+
+/**
+ * Touch controls, the way people think about them: an ear with the earbud in it and the spot to touch, a switch
+ * between left and right, and one row for each kind of touch showing what it does. A row opens the choices.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit)? = null) = PlaceFrame("Controls", back) {
     val controls = state.controls
@@ -124,25 +146,30 @@ fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit
     }
     val palette = LocalPalette.current
     var ear by remember { mutableStateOf(Ear.Left) }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Choice("Left earbud", ear == Ear.Left) { ear = Ear.Left }
-        Choice("Right earbud", ear == Ear.Right) { ear = Ear.Right }
-    }
-    Press.entries.forEach { press ->
-        val now = controls.actions[ear to press] ?: return@forEach
-        Panel {
-            SectionTitle(press.label())
-            Spacer(Modifier.height(4.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                controls.available.forEach { action ->
-                    Choice(action.label(), action == now) { change(Change.Touch(ear, press, action)) }
+    var picking by remember { mutableStateOf<Press?>(null) }
+    com.blazify.buds.ui.blocks.EarArt(ear, height = 210.dp)
+    SideSwitch(ear) { ear = it }
+    Panel(padding = 6.dp) {
+        Press.entries.forEach { press ->
+            val now = controls.actions[ear to press] ?: return@forEach
+            Row(
+                Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).press { picking = press }
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(press.glyph(), style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, letterSpacing = 1.sp), color = palette.accent, modifier = Modifier.width(44.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(press.label(), style = MaterialTheme.typography.bodyLarge, color = palette.text)
+                    Text(now.label(), style = MaterialTheme.typography.bodyMedium, color = if (now == TouchAction.None) palette.muted else palette.accent)
                 }
+                Icon(BudsIcons.Forward, null, tint = palette.muted, modifier = Modifier.size(18.dp))
             }
         }
     }
     state.sound?.let { sound ->
         Panel {
-            SectionTitle("Change listening mode cycles through")
+            SectionTitle("Change listening mode goes through")
             Spacer(Modifier.height(4.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ListeningMode.entries.forEach { mode ->
@@ -156,10 +183,60 @@ fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit
             Hint("At least two modes stay in the cycle.")
         }
     }
-    Panel(padding = 8.dp) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Put every control back as it came", style = MaterialTheme.typography.bodyMedium, color = palette.muted, modifier = Modifier.weight(1f))
-            Choice("Reset", false) { change(Change.ResetControls) }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Text(
+            "Reset to how they came",
+            style = MaterialTheme.typography.labelLarge,
+            color = palette.accent,
+            modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).press { change(Change.ResetControls) }.padding(12.dp),
+        )
+    }
+    val press = picking
+    if (press != null) {
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = { picking = null },
+            containerColor = palette.card,
+            contentColor = palette.text,
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+                Text("${if (ear == Ear.Left) "Left" else "Right"} earbud · ${press.label()}", style = MaterialTheme.typography.titleMedium, color = palette.text, modifier = Modifier.padding(bottom = 8.dp))
+                controls.available.forEach { action ->
+                    val chosen = controls.actions[ear to press] == action
+                    Row(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).press {
+                            change(Change.Touch(ear, press, action))
+                            picking = null
+                        }.padding(horizontal = 8.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(action.label(), style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
+                        if (chosen) Icon(BudsIcons.Check, "Chosen", tint = palette.accent, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Left or right, as one pill that slides between them. */
+@Composable
+private fun SideSwitch(ear: Ear, onPick: (Ear) -> Unit) {
+    val palette = LocalPalette.current
+    val x by androidx.compose.animation.core.animateFloatAsState(if (ear == Ear.Left) 0f else 1f, androidx.compose.animation.core.spring(dampingRatio = 0.75f, stiffness = 420f), label = "side")
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        Modifier.fillMaxWidth().height(48.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp)).background(palette.raised).padding(4.dp),
+    ) {
+        val half = maxWidth / 2
+        Box(Modifier.offset(x = half * x).width(half).fillMaxHeight().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(palette.card))
+        Row(Modifier.fillMaxSize()) {
+            listOf(Ear.Left to "Left", Ear.Right to "Right").forEach { (side, name) ->
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).press(role = androidx.compose.ui.semantics.Role.Tab) { onPick(side) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(name, style = MaterialTheme.typography.labelLarge, color = if (side == ear) palette.text else palette.muted)
+                }
+            }
         }
     }
 }
