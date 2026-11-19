@@ -35,6 +35,20 @@ import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.ui.theme.LocalPalette
 import com.blazify.buds.ui.theme.Motion
 
+/** The colours a drawn device is made of: a pearl white one in the light look, graphite in the dark. */
+class Finish(
+    val top: Color,
+    val mid: Color,
+    val low: Color,
+    val inside: Color,
+    val insideLow: Color,
+    val tip: Color,
+    val shine: Float,
+)
+
+val Pearl = Finish(Color(0xFFFFFFFF), Color(0xFFEDEFF2), Color(0xFFC7CDD5), Color(0xFFB9C0C9), Color(0xFF8F98A4), Color(0xFFD4D8DE), 0.9f)
+val Graphite = Finish(Color(0xFF5A616B), Color(0xFF353A42), Color(0xFF1B1E23), Color(0xFF15181C), Color(0xFF07080A), Color(0xFF6B717B), 0.45f)
+
 /**
  * Over-ear headphones, drawn with light and shade, for any pair. Folded flat while they are away; when they connect
  * the headband stretches out and the ear cups swing round to face you. The light on the right cup takes the mode's

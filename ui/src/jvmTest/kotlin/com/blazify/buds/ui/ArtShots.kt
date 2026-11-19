@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.use
 import com.blazify.buds.ui.blocks.Graphite
 import com.blazify.buds.ui.blocks.Pearl
-import com.blazify.buds.ui.blocks.drawCase
 import com.blazify.buds.ui.blocks.drawHeadphones
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
@@ -30,9 +29,6 @@ class ArtShots {
             Column {
                 for ((finish, bg, dark) in listOf(Triple(Pearl, Color(0xFFF5F7F8), false), Triple(Graphite, Color(0xFF0C0F12), true))) {
                     Row(Modifier.background(bg)) {
-                        for (open in listOf(0f, 0.45f, 1f)) {
-                            Canvas(Modifier.size(300.dp, 320.dp)) { drawCase(finish, open, open, open, 0f, if (open > 0.9f) teal else Color.Transparent, dark) }
-                        }
                         for (open in listOf(0f, 1f)) {
                             Canvas(Modifier.size(300.dp, 320.dp)) { drawHeadphones(finish, open, 0f, if (open > 0.9f) teal else Color.Transparent, dark) }
                         }
