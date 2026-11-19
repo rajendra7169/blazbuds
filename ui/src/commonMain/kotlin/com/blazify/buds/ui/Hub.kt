@@ -41,6 +41,14 @@ interface Platform {
 
     /** Plays the find sound through the left, the right or both earbuds, loud; both false stops it. */
     fun findSound(left: Boolean, right: Boolean) {}
+
+    /** Plays 16-bit stereo samples at 44.1 kHz through the earbuds, once or looping, in place of any sound playing. */
+    fun playSound(samples: ShortArray, loop: Boolean) {}
+
+    fun stopSound() {}
+
+    /** Holds the media volume at a set level for the hearing test, or puts it back as it was. */
+    fun steadyVolume(on: Boolean) {}
 }
 
 /** One row of the earbuds list. */
@@ -149,6 +157,12 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     val canFind: Boolean get() = platform.canFind
 
     fun findSound(left: Boolean, right: Boolean) = platform.findSound(left, right)
+
+    fun playSound(samples: ShortArray, loop: Boolean) = platform.playSound(samples, loop)
+
+    fun stopSound() = platform.stopSound()
+
+    fun steadyVolume(on: Boolean) = platform.steadyVolume(on)
 
     val canOpenSettings: Boolean get() = platform.hasBluetoothSettings
 

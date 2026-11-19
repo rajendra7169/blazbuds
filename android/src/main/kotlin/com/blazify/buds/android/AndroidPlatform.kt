@@ -72,24 +72,21 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     private var tone: android.media.AudioTrack? = null
     private var volumeBefore = -1
+    private val audio get() = context.getSystemService(android.media.AudioManager::class.java)
 
     /** Plays the find sound as media, so it goes to the earbuds, louder while it plays and back after. */
     override fun findSound(left: Boolean, right: Boolean) {
-        val audio = context.getSystemService(android.media.AudioManager::class.java)
-        tone?.let {
-            runCatching { it.stop() }
-            it.release()
-        }
-        tone = null
         if (!left && !right) {
-            if (volumeBefore >= 0) audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, volumeBefore, 0)
-            volumeBefore = -1
+            stopSound()
+            steadyVolume(false)
             return
         }
-        if (volumeBefore < 0) volumeBefore = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-        val max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (max * 0.85).toInt(), 0)
-        val samples = com.blazify.buds.core.FindTone.samples(left, right)
+        setVolume(0.85)
+        playSound(com.blazify.buds.core.FindTone.samples(left, right), loop = true)
+    }
+
+    override fun playSound(samples: ShortArray, loop: Boolean) {
+        stopSound()
         val track = android.media.AudioTrack.Builder()
             .setAudioAttributes(
                 android.media.AudioAttributes.Builder()
@@ -108,9 +105,30 @@ class AndroidPlatform(private val context: Context) : Platform {
             .setBufferSizeInBytes(samples.size * 2)
             .build()
         track.write(samples, 0, samples.size)
-        track.setLoopPoints(0, samples.size / 2, -1)
+        if (loop) track.setLoopPoints(0, samples.size / 2, -1)
         track.play()
         tone = track
+    }
+
+    override fun stopSound() {
+        tone?.let {
+            runCatching { it.stop() }
+            it.release()
+        }
+        tone = null
+    }
+
+    override fun steadyVolume(on: Boolean) {
+        if (on) setVolume(0.6) else if (volumeBefore >= 0) {
+            audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, volumeBefore, 0)
+            volumeBefore = -1
+        }
+    }
+
+    private fun setVolume(part: Double) {
+        if (volumeBefore < 0) volumeBefore = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        val max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (max * part).toInt(), 0)
     }
 
     override fun share(text: String) {

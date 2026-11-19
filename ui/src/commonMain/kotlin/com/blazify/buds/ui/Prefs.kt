@@ -83,3 +83,18 @@ val LocalShare = staticCompositionLocalOf<(String) -> Unit> { {} }
 
 /** Whether this device can play the find sound through the earbuds, which works for any brand. */
 val LocalCanFind = staticCompositionLocalOf { false }
+
+/** Sound out through the earbuds, for EarPrint's beeps and demo. */
+interface SoundOut {
+    fun play(samples: ShortArray, loop: Boolean)
+    fun stop()
+    fun steadyVolume(on: Boolean)
+}
+
+val LocalSoundOut = staticCompositionLocalOf<SoundOut> {
+    object : SoundOut {
+        override fun play(samples: ShortArray, loop: Boolean) {}
+        override fun stop() {}
+        override fun steadyVolume(on: Boolean) {}
+    }
+}
