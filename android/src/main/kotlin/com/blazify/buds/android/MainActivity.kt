@@ -14,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +40,10 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val scope = rememberCoroutineScope()
-            val hub = remember { Hub(AndroidPlatform(applicationContext), scope).also { this.hub = it } }
+            val platform = remember { AndroidPlatform(applicationContext) }
+            val hub = remember { Hub(platform, scope).also { this.hub = it } }
+            val current by hub.current.collectAsState()
+            LaunchedEffect(current) { current?.let { platform.watchForWidget(it, scope) } }
             // Look again once Bluetooth is allowed.
             LaunchedEffect(granted) { hub.reload() }
             BudsApp(hub)

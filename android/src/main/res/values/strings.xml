@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Battery and listening mode for your earbuds</string>
+    <string name="tile_label">Earbuds mode</string>
+</resources>

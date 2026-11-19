@@ -20,6 +20,7 @@ import com.blazify.buds.core.soundcore.A3947
 import com.blazify.buds.core.soundcore.SoundcoreBuds
 import com.blazify.buds.ui.Platform
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.UUID
 
@@ -43,9 +44,23 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     override fun open(device: Device, scope: CoroutineScope): Buds {
         val bt = adapter!!.getRemoteDevice(device.address)
-        return when (Catalog.model(device).support) {
+        val buds = when (Catalog.model(device).support) {
             Support.Full -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { Log.i(TAG, it) }).also { it.start() }
             Support.Basic -> BasicBuds(device.name, scope) { bt.connectedNow() to bt.batteryNow() }.also { it.start() }
+        }
+        return buds
+    }
+
+    /** The pair the app itself is showing: the widget and tile use its link, and the widget follows its state. */
+    fun watchForWidget(buds: Buds, scope: CoroutineScope) {
+        Remote.live = buds
+        scope.launch {
+            buds.state.collect { state ->
+                if (state.isReady) {
+                    Remote.remember(state)
+                    BudsWidget.refresh(context)
+                }
+            }
         }
     }
 
