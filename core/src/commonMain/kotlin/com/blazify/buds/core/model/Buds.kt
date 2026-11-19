@@ -97,7 +97,7 @@ data class EqPreset(val id: Int, val name: String, val gains: List<Double>)
 
 enum class Ear { Left, Right }
 
-enum class Press { Single, Double, Long }
+enum class Press { Single, Double, Long, Triple }
 
 /** What a touch does. Not every pair offers every action. */
 enum class TouchAction {
