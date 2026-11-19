@@ -33,6 +33,8 @@ import com.blazify.buds.ui.blocks.NavItem
 import com.blazify.buds.ui.blocks.NavRail
 import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.screens.AddDeviceScreen
+import com.blazify.buds.ui.screens.ConnectGuideScreen
+import androidx.compose.runtime.LaunchedEffect
 import com.blazify.buds.ui.screens.ControlsScreen
 import com.blazify.buds.ui.screens.DeviceTab
 import com.blazify.buds.ui.screens.EqualizerScreen
@@ -63,7 +65,7 @@ private val TABS = listOf(
  * device, Help and Settings slide in over them.
  */
 @Composable
-fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null, startTab: Tab = Tab.Home) {
+fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
         CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs) {
             val buds by hub.current.collectAsState()
@@ -72,6 +74,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null,
             val scope = rememberCoroutineScope()
             var place by remember { mutableStateOf(start) }
             var tab by remember { mutableStateOf(startTab) }
+            var guide by remember { mutableStateOf<com.blazify.buds.core.link.Device?>(null) }
             var loading by remember { mutableStateOf(true) }
             val reload: suspend () -> Unit = {
                 loading = true
@@ -117,23 +120,43 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = null,
                             reload,
                             pick = {
                                 hub.choose(it.device)
-                                place = null
-                                tab = Tab.Home
+                                if (it.device.connected) {
+                                    place = null
+                                    tab = Tab.Home
+                                } else {
+                                    // Not connected: show how to connect it; Home follows once it does.
+                                    guide = it.device
+                                    place = Place.Connect
+                                }
                             },
+                            remove = { hub.remove(it.device) },
                             add = { place = Place.Add },
                             help = { place = Place.Support },
                             bluetoothOn = bluetoothOn,
                             openSettings = settingsAction(hub),
-                            back = if (now != null) close else null,
+                            back = if (now != null && state?.isReady == true) close else null,
                         )
                         Place.Add -> AddDeviceScreen(
-                            settingsAction(hub),
+                            look = hub.look,
+                            openSettings = settingsAction(hub),
                             lookAgain = {
                                 scope.launch { reload() }
                                 place = Place.Earbuds
                             },
                             back = { place = Place.Earbuds },
                         )
+                        Place.Connect -> {
+                            val name = guide?.name ?: state?.name ?: "your earbuds"
+                            // Straight to Home once they connect.
+                            LaunchedEffect(state?.isReady) { if (state?.isReady == true) { place = null; tab = Tab.Home } }
+                            LaunchedEffect(Unit) {
+                                while (true) {
+                                    hub.reload()
+                                    kotlinx.coroutines.delay(3_000)
+                                }
+                            }
+                            ConnectGuideScreen(name, hub.look, settingsAction(hub), lookAgain = { scope.launch { hub.reload() } }, back = { place = Place.Earbuds })
+                        }
                         Place.Settings -> SettingsScreen(close)
                         Place.Support -> SupportScreen(state, VERSION, close)
                     }

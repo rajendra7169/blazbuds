@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.Color
+import com.blazify.buds.ui.blocks.BluetoothMockup
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,8 +58,8 @@ import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.theme.LocalPalette
 
 /**
- * The devices this phone or computer knows, as cards with each one's picture, what the app can do for it and its
- * battery, and a clear way to add another.
+ * Where the app opens: every pair that has connected to this device, connected ones first, each with its picture,
+ * battery and what the app can do for it. Swipe one right to take it off the list; it comes back when it connects.
  */
 @Composable
 fun MyDevicesScreen(
@@ -65,41 +68,52 @@ fun MyDevicesScreen(
     loading: Boolean,
     reload: suspend () -> Unit,
     pick: (Pair2) -> Unit,
+    remove: (Pair2) -> Unit,
     add: () -> Unit,
     help: () -> Unit,
     back: (() -> Unit)?,
     bluetoothOn: Boolean = true,
     openSettings: (() -> Unit)? = null,
 ) {
-    LaunchedEffect(Unit) { reload() }
+    // Look again every few seconds, so a pair that connects shows up by itself.
+    LaunchedEffect(Unit) {
+        while (true) {
+            reload()
+            kotlinx.coroutines.delay(3_000)
+        }
+    }
     val palette = LocalPalette.current
     PlaceFrame("My devices", back, actions = listOf(BudsIcons.Support to ("Help" to help))) {
+        if (!bluetoothOn) {
+            Panel {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(BudsIcons.Bluetooth, null, tint = palette.warn, modifier = Modifier.size(28.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Bluetooth is off", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                        Hint("Turn it on and your earbuds connect by themselves.")
+                    }
+                    if (openSettings != null) Choice("Turn on", true, onClick = openSettings)
+                }
+            }
+        }
         if (loading && earbuds.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { LogoLoader(size = 48.dp) }
-        } else if (earbuds.isEmpty() && !bluetoothOn) {
-            Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(BudsIcons.Bluetooth, null, tint = palette.warn, modifier = Modifier.size(48.dp))
-                Text("Bluetooth is off", style = MaterialTheme.typography.titleLarge, color = palette.text)
-                Hint("Turn it on to see your earbuds.", Modifier.padding(horizontal = 24.dp))
-                if (openSettings != null) Choice("Turn on Bluetooth", true, icon = BudsIcons.Bluetooth, onClick = openSettings)
-            }
         } else if (earbuds.isEmpty()) {
             Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AddArt(size = 140.dp)
                 Text("No devices yet", style = MaterialTheme.typography.titleLarge, color = palette.text)
-                Hint("Pair your earbuds with this device and they appear here.", Modifier.padding(horizontal = 24.dp))
+                Hint("Earbuds that connect to this device appear here by themselves.", Modifier.padding(horizontal = 24.dp))
             }
         } else {
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val columns = if (maxWidth >= 520.dp) 3 else 2
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    earbuds.chunked(columns).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            row.forEach { DeviceCard(it, it.device.address == chosen, Modifier.weight(1f)) { pick(it) } }
-                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                earbuds.forEach { row ->
+                    androidx.compose.runtime.key(row.device.address) {
+                        SwipeAway(onRemove = { remove(row) }) {
+                            DeviceRow(row, row.device.address == chosen) { pick(row) }
                         }
                     }
                 }
+                if (earbuds.size > 0) Hint("Swipe a device right to remove it. It comes back when it connects again.", Modifier.padding(horizontal = 4.dp))
             }
         }
         Row(
@@ -114,56 +128,144 @@ fun MyDevicesScreen(
     }
 }
 
+/** A row that can be swiped to the right to remove it, showing a bin as it goes. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun DeviceCard(row: Pair2, chosen: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun SwipeAway(onRemove: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalPalette.current
-    Column(
-        modifier.clip(CardShape).background(palette.card)
+    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = {
+            if (it == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd) {
+                onRemove()
+                true
+            } else {
+                false
+            }
+        },
+    )
+    androidx.compose.material3.SwipeToDismissBox(
+        state = state,
+        enableDismissFromEndToStart = false,
+        backgroundContent = {
+            Row(
+                Modifier.fillMaxSize().clip(CardShape).background(palette.low.copy(alpha = 0.9f)).padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BudsIcons.Trash, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Text("Remove", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.padding(start = 10.dp))
+            }
+        },
+    ) { content() }
+}
+
+@Composable
+private fun DeviceRow(row: Pair2, chosen: Boolean, onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().clip(CardShape).background(palette.card)
             .border(if (chosen) 2.dp else 1.dp, if (chosen) palette.accent else palette.line, CardShape)
-            .press(onClick = onClick).padding(14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .press(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.fillMaxWidth()) {
-            val frames = frames(Catalog.art(row.device.name))
+        val kind = Catalog.kind(row.device.name)
+        val frames = frames(Catalog.art(row.device.name), kind)
+        Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
             if (frames != null) {
                 Image(
                     painterResource(if (row.device.connected) frames.shown else frames.closed),
                     null,
-                    Modifier.align(Alignment.Center).size(96.dp).graphicsLayer { alpha = if (row.device.connected) 1f else 0.7f },
+                    Modifier.fillMaxSize().graphicsLayer { alpha = if (row.device.connected) 1f else 0.75f },
                 )
             } else {
-                DeviceArt(Catalog.kind(row.device.name), Modifier.align(Alignment.Center), size = 84.dp, active = row.device.connected)
+                DeviceArt(kind, size = 72.dp, active = row.device.connected)
             }
-            if (chosen) {
-                Box(Modifier.align(Alignment.TopEnd).size(22.dp).clip(CircleShape).background(palette.accent), contentAlignment = Alignment.Center) {
-                    Icon(BudsIcons.Check, "In use", tint = palette.onAccent, modifier = Modifier.size(14.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(row.device.name, style = MaterialTheme.typography.titleMedium, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(if (row.device.connected) palette.good else palette.line))
+                Text(
+                    if (row.device.connected) "Connected" + (row.battery?.let { " · ${it.percent}%" } ?: "") else "Not connected",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.muted,
+                )
+            }
+            Text(
+                if (row.support == Support.Full) "Full control" else "Basics",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (row.support == Support.Full) palette.accent else palette.muted,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                    .background(if (row.support == Support.Full) palette.accent.copy(alpha = 0.12f) else palette.raised)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            )
+        }
+        Icon(BudsIcons.Forward, null, tint = palette.muted, modifier = Modifier.size(20.dp))
+    }
+}
+
+/**
+ * For a pair that isn't connected: how to connect it, with a drawing of this device's own Bluetooth settings showing
+ * exactly where to tap. Moves on to Home by itself once it connects.
+ */
+@Composable
+fun ConnectGuideScreen(name: String, look: com.blazify.buds.ui.SystemLook, openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: () -> Unit) {
+    val palette = LocalPalette.current
+    val steps = when (look) {
+        com.blazify.buds.ui.SystemLook.Android -> listOf(
+            "Take the earbuds out of the case.",
+            "Open Bluetooth settings: Connected devices.",
+            "Under Previously connected devices, tap \"$name\".",
+        )
+        com.blazify.buds.ui.SystemLook.Ios -> listOf(
+            "Take the earbuds out of the case.",
+            "Open Settings, then Bluetooth.",
+            "Under My Devices, tap \"$name\".",
+        )
+        com.blazify.buds.ui.SystemLook.Windows -> listOf(
+            "Take the earbuds out of the case.",
+            "Open Settings, then Bluetooth & devices.",
+            "Find \"$name\" and choose Connect.",
+        )
+        else -> listOf(
+            "Take the earbuds out of the case.",
+            "Open Settings, then Bluetooth.",
+            "Find \"$name\" and choose Connect.",
+        )
+    }
+    PlaceFrame("Connect $name", back) {
+        BluetoothMockup(look, name, pairing = false)
+        Panel {
+            steps.forEachIndexed { i, step ->
+                Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                    Box(Modifier.size(26.dp).clip(CircleShape).background(palette.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                        Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = palette.accent)
+                    }
+                    Text(step, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
                 }
             }
         }
-        Text(row.device.name, style = MaterialTheme.typography.labelLarge, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.size(7.dp).clip(CircleShape).background(if (row.device.connected) palette.good else palette.line))
-            Text(
-                if (row.device.connected) row.battery?.let { "${it.percent}%" } ?: "Connected" else "Not connected",
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.muted,
-            )
+        if (openSettings != null) {
+            Row(
+                Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(28.dp)).background(palette.accent)
+                    .press(onClick = openSettings).padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(BudsIcons.Bluetooth, null, tint = palette.onAccent, modifier = Modifier.size(22.dp))
+                Text("Open Bluetooth settings", style = MaterialTheme.typography.titleMedium, color = palette.onAccent, modifier = Modifier.padding(start = 8.dp))
+            }
         }
-        Text(
-            if (row.support == Support.Full) "Full control" else "Basics",
-            style = MaterialTheme.typography.labelSmall,
-            color = if (row.support == Support.Full) palette.accent else palette.muted,
-            modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                .background(if (row.support == Support.Full) palette.accent.copy(alpha = 0.12f) else palette.raised)
-                .padding(horizontal = 8.dp, vertical = 3.dp),
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            LogoLoader(size = 22.dp)
+            Text("Waiting for them to connect…", style = MaterialTheme.typography.bodyMedium, color = palette.muted, modifier = Modifier.padding(start = 10.dp))
+        }
     }
 }
 
 /** Adding earbuds: a clear picture, the steps for the chosen kind, and the way to the system's pairing screen. */
 @Composable
-fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: () -> Unit) {
+fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: () -> Unit, look: com.blazify.buds.ui.SystemLook = com.blazify.buds.ui.SystemLook.Android) {
     val palette = LocalPalette.current
     var which by remember { mutableIntStateOf(0) }
     PlaceFrame("Add device", back) {
@@ -172,6 +274,7 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
             Text("Pair your earbuds", style = MaterialTheme.typography.titleLarge, color = palette.text)
             Hint("Put them in pairing mode, pair them in Bluetooth settings, then come back.", Modifier.padding(horizontal = 24.dp))
         }
+        BluetoothMockup(look, "Your earbuds", pairing = true)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Catalog.pairingHelp.forEachIndexed { i, (name, _) -> Choice(name, which == i) { which = i } }
         }

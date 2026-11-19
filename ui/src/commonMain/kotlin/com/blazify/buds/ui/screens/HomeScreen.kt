@@ -199,7 +199,7 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit, bluetoothOn: Boolean
 @Composable
 private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val frames = frames(Catalog.art(state.name))
+        val frames = frames(Catalog.art(state.name), Catalog.kind(state.name))
         if (frames != null) {
             ModelViewer(frames, connected = state.isReady, mode = state.sound?.mode, height = heroHeight)
         } else when (Catalog.kind(state.name)) {

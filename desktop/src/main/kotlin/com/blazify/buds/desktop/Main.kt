@@ -39,6 +39,7 @@ import com.blazify.buds.core.soundcore.SoundcoreBuds
 import com.blazify.buds.ui.BudsApp
 import com.blazify.buds.ui.Hub
 import com.blazify.buds.ui.Platform
+import com.blazify.buds.ui.SystemLook
 import com.blazify.buds.ui.Prefs
 import com.blazify.buds.ui.blocks.LogoShape
 import com.blazify.buds.ui.blocks.label
@@ -51,6 +52,14 @@ import java.awt.GraphicsEnvironment
 
 /** Bluetooth on a Linux computer, through BlueZ. */
 object LinuxPlatform : Platform {
+    override val look: SystemLook = System.getProperty("os.name").let {
+        when {
+            it.startsWith("Windows") -> SystemLook.Windows
+            it.startsWith("Mac") -> SystemLook.Mac
+            else -> SystemLook.Linux
+        }
+    }
+
     override suspend fun paired(): List<Device> = LinuxBluetooth.devices()
 
     override suspend fun peek(device: Device): Pair<Boolean, Int?> = LinuxBluetooth.info(device.address)
