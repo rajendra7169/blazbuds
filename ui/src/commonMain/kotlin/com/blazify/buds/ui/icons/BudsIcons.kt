@@ -45,6 +45,11 @@ object BudsIcons {
     val Moon = line("M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z")
     val Focus = line("M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3", filled = "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z")
     val Power = line("M12 3v8M7 6a7.5 7.5 0 1 0 10 0")
+    val Plus = line("M12 5v14M5 12h14")
+    val Support = line("M4.5 13v-1.5a7.5 7.5 0 0 1 15 0V13M4.5 13h2.5v5H5.5a1 1 0 0 1-1-1zM19.5 13H17v5h1.5a1 1 0 0 0 1-1zM18 18c0 2-2 3-5 3h-1")
+    val Home = line("M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z")
+    val Earbuds = line("M10 3a5 5 0 1 0 0 10h0v6.5a1.75 1.75 0 0 0 3.5 0V7.2A5 5 0 0 0 10 3z", filled = "M10.5 6.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z")
+    val Copy = line("M9 9h10v11H9zM5 15V4h10")
     val Battery = line("M4 7h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM21 10.5v3")
 
     private fun line(path: String, filled: String? = null, strokeless: Boolean = false): ImageVector =
