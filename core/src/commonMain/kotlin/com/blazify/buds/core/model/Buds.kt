@@ -27,6 +27,8 @@ data class BudsState(
     val left: Battery? = null,
     val right: Battery? = null,
     val case: Battery? = null,
+    /** One level for the whole pair, when that is all the phone or computer can tell. */
+    val overall: Battery? = null,
     val sound: Sound? = null,
     val equalizer: Equalizer? = null,
     val controls: TouchControls? = null,

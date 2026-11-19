@@ -138,3 +138,14 @@ object LinuxBluetooth {
         return list().map { (address, name) -> Device(name, address, address in connected) }
     }
 }
+
+/** Whether a device is connected, and the battery BlueZ reads for any headset that reports one. */
+fun LinuxBluetooth.info(address: String): Pair<Boolean, Int?> = runCatching {
+    val process = ProcessBuilder("bluetoothctl", "info", address).redirectErrorStream(true).start()
+    val lines = process.inputStream.bufferedReader().readLines()
+    process.waitFor()
+    val connected = lines.any { it.trim() == "Connected: yes" }
+    val battery = lines.firstOrNull { it.trim().startsWith("Battery Percentage:") }
+        ?.substringAfter("(")?.substringBefore(")")?.trim()?.toIntOrNull()
+    connected to battery
+}.getOrDefault(false to null)
