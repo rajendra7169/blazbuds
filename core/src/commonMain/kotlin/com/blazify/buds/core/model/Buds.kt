@@ -17,6 +17,12 @@ interface Buds {
     /** Asks the earbuds for everything again. */
     suspend fun refresh()
 
+    /**
+     * Whether someone is looking. While they are, the app asks the earbuds every few seconds, so a change made from
+     * another app or on the earbuds themselves shows almost at once; while nobody is, it rests.
+     */
+    fun watch(on: Boolean) {}
+
     fun close()
 }
 

@@ -19,6 +19,7 @@ import com.blazify.buds.ui.Hub
 
 class MainActivity : ComponentActivity() {
     private var granted by mutableIntStateOf(0)
+    private var hub: Hub? = null
 
     private val ask = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted++ }
 
@@ -33,10 +34,21 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val scope = rememberCoroutineScope()
-            val hub = remember { Hub(AndroidPlatform(applicationContext), scope) }
+            val hub = remember { Hub(AndroidPlatform(applicationContext), scope).also { this.hub = it } }
             // Look again once Bluetooth is allowed.
             LaunchedEffect(granted) { hub.reload() }
             BudsApp(hub)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        hub?.watch(true)
+    }
+
+    override fun onStop() {
+        // In the background the earbuds aren't asked every few seconds.
+        hub?.watch(false)
+        super.onStop()
     }
 }

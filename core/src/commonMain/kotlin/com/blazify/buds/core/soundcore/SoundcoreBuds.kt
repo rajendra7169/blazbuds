@@ -109,7 +109,21 @@ class SoundcoreBuds(
             ldac = request(Packet(A3947.LDAC))?.body?.firstOrNull()?.let { it.toInt() == 1 }
             publish()
             if (raw!![A3947.TWO_DEVICES].toInt() == 1) loadHosts()
-            reading.join()
+            val polling = scope.launch {
+                while (true) {
+                    delay(POLL)
+                    // Other apps' changes don't always reach this link; asking is the sure way to see them.
+                    if (watching && !sending.isLocked) request(Packet(A3947.STATE))?.body?.takeIf(A3947::isState)?.let {
+                        raw = keepSound(it)
+                        publish()
+                    }
+                }
+            }
+            try {
+                reading.join()
+            } finally {
+                polling.cancel()
+            }
         } finally {
             // A read waiting on the radio doesn't hear a cancel; closing the link wakes it.
             link.close()
@@ -202,6 +216,7 @@ class SoundcoreBuds(
     private companion object {
         val DROP = CompletableDeferred<Packet>()
         val SOUND_SETTLE = 3.seconds
+        const val POLL = 3_000L
     }
 
     /** The devices the earbuds remember, which can come over several messages. */
@@ -339,6 +354,14 @@ class SoundcoreBuds(
             for (i in 0 until 10) now[A3947.EQ_LEFT + i] = (tenths[i].coerceIn(-120, 134) + 120).toByte()
         }
         return ok
+    }
+
+    @kotlin.concurrent.Volatile
+    private var watching = true
+
+    override fun watch(on: Boolean) {
+        watching = on
+        if (on) wake.trySend(Unit)
     }
 
     /** Try to connect again now, not at the next scheduled try. */

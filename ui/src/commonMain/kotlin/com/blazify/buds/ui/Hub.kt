@@ -55,7 +55,15 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         chosen.value?.close()
         address = device.address
         store?.putString(CHOSEN, device.address)
-        chosen.value = platform.open(device, scope)
+        chosen.value = platform.open(device, scope).also { it.watch(watching) }
+    }
+
+    private var watching = true
+
+    /** Whether the app is on screen; the earbuds are asked often only while it is. */
+    fun watch(on: Boolean) {
+        watching = on
+        chosen.value?.watch(on)
     }
 
     fun refresh() {
