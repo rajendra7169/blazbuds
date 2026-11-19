@@ -66,7 +66,9 @@ import com.blazify.buds.ui.blocks.press
 import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.theme.LocalPalette
 import com.blazify.buds.ui.theme.Motion
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 
 private enum class Stage { Intro, Hearing, Taste, Result }
@@ -90,6 +92,13 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
     var taste by remember { mutableStateOf<TasteTest?>(null) }
     var saved by remember { mutableStateOf(false) }
     val wasOn = remember { state.earPrint?.on == true }
+    // The beat for the taste rounds takes a moment to make, so it is made in the background from the start.
+    var beat by remember { mutableStateOf<ShortArray?>(null) }
+    LaunchedEffect(Unit) { beat = withContext(Dispatchers.Default) { TestSounds.demo() } }
+    LaunchedEffect(stage == Stage.Taste || stage == Stage.Result, beat) {
+        val samples = beat
+        if ((stage == Stage.Taste || stage == Stage.Result) && samples != null) sound.play(samples, loop = true)
+    }
     // For the readme pictures: jump straight to a later step with made-up answers.
     remember {
         if (preview >= 1) {
@@ -122,7 +131,6 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
         right = EarPrint.curve(hearing.thresholds(Ear.Right), age)
         taste = TasteTest(List(8) { 0.0 })
         stage = Stage.Taste
-        sound.play(TestSounds.demo(), loop = true)
     }
 
     PlaceFrame("EarPrint", back) {
