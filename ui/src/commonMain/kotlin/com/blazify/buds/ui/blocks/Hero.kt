@@ -140,14 +140,14 @@ private fun DrawScope.drawBud(at: Offset, side: Float, mirrored: Boolean, fill: 
     val alpha = if (faded) 0.35f else 1f
     translate(at.x - side / 2, at.y - side / 2) {
         scale(if (mirrored) -1f else 1f, 1f, pivot = Offset(side / 2, side / 2)) {
-            rotate(-24f, pivot = Offset(side / 2, side * 0.56f)) {
+            rotate(-24f, pivot = Offset(side * 0.43f, side * 0.6f)) {
                 drawPath(outline, fill.copy(alpha = fill.alpha * alpha))
                 drawPath(outline, edge.copy(alpha = edge.alpha * alpha), style = Stroke(side * 0.012f))
                 // The speaker opening, set in a little darker.
                 drawPath(opening, shade.copy(alpha = shade.alpha * alpha))
                 val shine = Path().apply {
                     fillType = PathFillType.NonZero
-                    addPath(LogoShape.path("M330 300 A200 200 0 0 1 560 150", box))
+                    addPath(LogoShape.path("M265 340 A200 200 0 0 1 495 190", box))
                 }
                 drawPath(shine, Color.White.copy(alpha = 0.35f * alpha), style = Stroke(side * 0.025f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }

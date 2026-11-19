@@ -35,14 +35,15 @@ import kotlin.math.floor
 import kotlin.math.sin
 
 /**
- * The Blazbuds mark: one earbud, a round head with a stem, on a 1000-unit square. The outline is a single line all the
+ * The Blazbuds mark: one earbud, a round head with a stem and a sound wave, on a 1000-unit square. The outline is a single line all the
  * way round, so the loader can run along it; the app icon fills it and cuts the opening out of the head.
  */
 object LogoShape {
-    const val OUTLINE = "M240 350 L240 830 A80 80 0 0 0 400 830 L400 590 A260 260 0 1 0 240 350 Z"
-    const val OPENING = "M500 260 A90 90 0 1 0 500 440 A90 90 0 1 0 500 260 Z"
-    /** A sound wave beside the head, drawn on the icon only. */
-    const val WAVE = "M830 230 A230 230 0 0 1 830 470"
+    const val OUTLINE = "M175 390 L175 870 A80 80 0 0 0 335 870 L335 630 A260 260 0 1 0 175 390 Z"
+    const val OPENING = "M435 298 A92 92 0 1 0 435 482 A92 92 0 1 0 435 298 Z"
+    /** A sound wave round the head, drawn on the icon only, as wide as [WAVE_WIDTH]. */
+    const val WAVE = "M722.6 165.3 A365 365 0 0 1 722.6 614.7"
+    const val WAVE_WIDTH = 64f
 
     fun path(svg: String, box: Size, inset: Float = 0f): Path {
         val side = minOf(box.width, box.height) - 2 * inset
@@ -72,7 +73,7 @@ fun LogoMark(modifier: Modifier = Modifier, size: Dp = 32.dp, color: Color = Loc
             addPath(opening)
         }
         drawPath(whole, color)
-        drawPath(LogoShape.path(LogoShape.WAVE, this.size), color, style = Stroke(this.size.width * 0.07f, cap = StrokeCap.Round))
+        drawPath(LogoShape.path(LogoShape.WAVE, this.size), color, style = Stroke(this.size.width * LogoShape.WAVE_WIDTH / 1000f, cap = StrokeCap.Round))
     }
 }
 
