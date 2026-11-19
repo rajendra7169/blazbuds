@@ -16,3 +16,9 @@ cd art/models && ./render_frames.sh out 512
 One picture: `blender -b -P liberty4nc.py -- <folder> <size> <lid angle> <rise 0..1> <name> <turn degrees> <samples>`.
 The app takes them as WebP at quality 82, named `l4nc_open_NN` and `l4nc_turn_NN`, in
 `ui/src/commonMain/composeResources/drawable/`.
+
+## Blazbuds universal earbuds
+
+Our own design with the Blazbuds mark printed on the lid and the stems, shown for every pair that has no model of its
+own. `cd art/models && ./render_universal.sh out 512`, then name the WebP frames `gen_open_NN` and `gen_turn_NN`.
+The mark is `blazbuds_logo_print.png`.
