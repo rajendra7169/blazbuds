@@ -367,11 +367,14 @@ private fun TwoDevices(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
     }
 }
 
-/** The everyday helpers, one tap away: find them, and check the fit. */
+/** The everyday helpers, one tap away: find them, and check the fit, as equal buttons across the row. */
 @Composable
 private fun Care(state: BudsState, open: (Place) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if ((state.canRing || com.blazify.buds.ui.LocalCanFind.current) && state.isReady) Choice("Find", false, icon = BudsIcons.Find) { open(Place.Find) }
-        if (state.canFitTest) Choice("Fit test", false, icon = BudsIcons.Ear) { open(Place.Fit) }
+    val find = (state.canRing || com.blazify.buds.ui.LocalCanFind.current) && state.isReady
+    val fit = state.canFitTest
+    if (!find && !fit) return
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (find) Choice("Find my earbuds", false, Modifier.weight(1f), icon = BudsIcons.Find, centered = true) { open(Place.Find) }
+        if (fit) Choice("Fit test", false, Modifier.weight(1f), icon = BudsIcons.Ear, centered = true) { open(Place.Fit) }
     }
 }
