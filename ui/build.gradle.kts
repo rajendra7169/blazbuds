@@ -30,6 +30,10 @@ kotlin {
             implementation(libs.settings)
             implementation(libs.settings.no.arg)
         }
+        androidMain.dependencies {
+            // The phone's back gesture.
+            implementation(libs.activity.compose)
+        }
         jvmTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.settings.test)

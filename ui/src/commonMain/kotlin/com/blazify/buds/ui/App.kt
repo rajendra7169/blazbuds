@@ -87,6 +87,21 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
             Box(Modifier.fillMaxSize().background(LocalPalette.current.background)) {
                 val now = buds
                 val state = now?.state?.collectAsState()?.value
+                // Back steps back inside the app: a page closes, another tab returns Home, and only Home leaves.
+                val shownPlace = if (now == null && place == null) Place.Earbuds else place
+                val canGoBack = when (shownPlace) {
+                    null -> tab != Tab.Home
+                    Place.Earbuds -> now != null
+                    else -> true
+                }
+                SystemBack(canGoBack) {
+                    when (shownPlace) {
+                        null -> tab = Tab.Home
+                        Place.Add, Place.Connect -> place = Place.Earbuds
+                        Place.Fit -> place = null
+                        else -> place = null
+                    }
+                }
                 AnimatedContent(
                     if (now == null && place == null) Place.Earbuds else place,
                     transitionSpec = {
