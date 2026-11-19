@@ -72,6 +72,27 @@ object LinuxPlatform : Platform {
 
     override val hasBluetoothSettings: Boolean = true
 
+    override val canFind: Boolean = true
+
+    private var clip: javax.sound.sampled.Clip? = null
+
+    /** Plays the find sound on the computer's sound output, which is the earbuds while they are connected. */
+    override fun findSound(left: Boolean, right: Boolean) {
+        clip?.let { it.stop(); it.close() }
+        clip = null
+        if (!left && !right) return
+        runCatching {
+            val samples = com.blazify.buds.core.FindTone.samples(left, right)
+            val bytes = ByteArray(samples.size * 2)
+            samples.forEachIndexed { i, v -> bytes[i * 2] = v.toByte(); bytes[i * 2 + 1] = (v.toInt() shr 8).toByte() }
+            val format = javax.sound.sampled.AudioFormat(com.blazify.buds.core.FindTone.RATE.toFloat(), 16, 2, true, false)
+            val next = javax.sound.sampled.AudioSystem.getClip()
+            next.open(format, bytes, 0, bytes.size)
+            next.loop(javax.sound.sampled.Clip.LOOP_CONTINUOUSLY)
+            clip = next
+        }
+    }
+
     /** A computer has no share sheet; the text goes to the clipboard, ready to paste anywhere. */
     override fun share(text: String) {
         runCatching { java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(text), null) }

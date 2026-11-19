@@ -371,7 +371,7 @@ private fun TwoDevices(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
 @Composable
 private fun Care(state: BudsState, open: (Place) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (state.canRing) Choice("Find", false, icon = BudsIcons.Find) { open(Place.Find) }
+        if ((state.canRing || com.blazify.buds.ui.LocalCanFind.current) && state.isReady) Choice("Find", false, icon = BudsIcons.Find) { open(Place.Find) }
         if (state.canFitTest) Choice("Fit test", false, icon = BudsIcons.Ear) { open(Place.Fit) }
     }
 }

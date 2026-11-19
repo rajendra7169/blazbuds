@@ -35,6 +35,12 @@ interface Platform {
 
     /** Hands text to the system's share sheet, or copies it where there is none. */
     fun share(text: String) {}
+
+    /** Whether this platform can play the find sound through the earbuds. */
+    val canFind: Boolean get() = false
+
+    /** Plays the find sound through the left, the right or both earbuds, loud; both false stops it. */
+    fun findSound(left: Boolean, right: Boolean) {}
 }
 
 /** One row of the earbuds list. */
@@ -139,6 +145,10 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     fun openBluetoothSettings() = platform.bluetoothSettings()
 
     fun share(text: String) = platform.share(text)
+
+    val canFind: Boolean get() = platform.canFind
+
+    fun findSound(left: Boolean, right: Boolean) = platform.findSound(left, right)
 
     val canOpenSettings: Boolean get() = platform.hasBluetoothSettings
 

@@ -80,3 +80,6 @@ data class SavedSound(val name: String, val gains: List<Double>) {
 
 /** Shares text the platform's way: the share sheet on a phone, the clipboard on a computer. */
 val LocalShare = staticCompositionLocalOf<(String) -> Unit> { {} }
+
+/** Whether this device can play the find sound through the earbuds, which works for any brand. */
+val LocalCanFind = staticCompositionLocalOf { false }

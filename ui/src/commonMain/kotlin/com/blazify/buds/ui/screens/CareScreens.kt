@@ -72,21 +72,21 @@ fun BigButton(text: String, icon: ImageVector?, modifier: Modifier = Modifier, q
  * a minute, and as soon as the page closes.
  */
 @Composable
-fun FindScreen(buds: Buds, state: BudsState, back: () -> Unit) {
+fun FindScreen(state: BudsState, ring: (Boolean, Boolean) -> Unit, back: () -> Unit) {
     val palette = LocalPalette.current
     val scope = rememberCoroutineScope()
     var left by remember { mutableStateOf(false) }
     var right by remember { mutableStateOf(false) }
     val ringing = left || right
     LaunchedEffect(left, right) {
-        scope.launch { buds.ring(left, right) }
+        ring(left, right)
         if (ringing) {
             delay(60_000)
             left = false
             right = false
         }
     }
-    DisposableEffect(Unit) { onDispose { scope.launch { buds.ring(false, false) } } }
+    DisposableEffect(Unit) { onDispose { ring(false, false) } }
     PlaceFrame("Find my earbuds", back) {
         Panel {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -95,8 +95,8 @@ fun FindScreen(buds: Buds, state: BudsState, back: () -> Unit) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            RingButton("Left", left, state.left != null) { left = !left }
-            RingButton("Right", right, state.right != null) { right = !right }
+            RingButton("Left", left, state.isReady) { left = !left }
+            RingButton("Right", right, state.isReady) { right = !right }
         }
         if (ringing) {
             BigButton("Stop", BudsIcons.Close, quiet = true) {
@@ -109,7 +109,7 @@ fun FindScreen(buds: Buds, state: BudsState, back: () -> Unit) {
                 right = true
             }
         }
-        Hint("An earbud in the case or out of reach can't play. Bring your phone closer and try again.")
+        Hint("The sound plays through the earbuds like music, so they must be connected and out of the case. Bring your phone closer if you hear nothing.")
     }
 }
 

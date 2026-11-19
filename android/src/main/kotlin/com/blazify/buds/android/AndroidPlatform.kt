@@ -68,6 +68,51 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     override val hasBluetoothSettings: Boolean = true
 
+    override val canFind: Boolean = true
+
+    private var tone: android.media.AudioTrack? = null
+    private var volumeBefore = -1
+
+    /** Plays the find sound as media, so it goes to the earbuds, louder while it plays and back after. */
+    override fun findSound(left: Boolean, right: Boolean) {
+        val audio = context.getSystemService(android.media.AudioManager::class.java)
+        tone?.let {
+            runCatching { it.stop() }
+            it.release()
+        }
+        tone = null
+        if (!left && !right) {
+            if (volumeBefore >= 0) audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, volumeBefore, 0)
+            volumeBefore = -1
+            return
+        }
+        if (volumeBefore < 0) volumeBefore = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        val max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (max * 0.85).toInt(), 0)
+        val samples = com.blazify.buds.core.FindTone.samples(left, right)
+        val track = android.media.AudioTrack.Builder()
+            .setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            .setAudioFormat(
+                android.media.AudioFormat.Builder()
+                    .setSampleRate(com.blazify.buds.core.FindTone.RATE)
+                    .setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(android.media.AudioFormat.CHANNEL_OUT_STEREO)
+                    .build(),
+            )
+            .setTransferMode(android.media.AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(samples.size * 2)
+            .build()
+        track.write(samples, 0, samples.size)
+        track.setLoopPoints(0, samples.size / 2, -1)
+        track.play()
+        tone = track
+    }
+
     override fun share(text: String) {
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
         context.startActivity(Intent.createChooser(send, "Share your sound").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

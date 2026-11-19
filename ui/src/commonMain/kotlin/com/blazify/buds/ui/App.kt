@@ -69,7 +69,7 @@ private val TABS = listOf(
 @Composable
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
-        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }) {
+        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
             val bluetoothOn by hub.bluetoothOn.collectAsState()
@@ -175,7 +175,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                             ConnectGuideScreen(name, hub.look, settingsAction(hub), lookAgain = { scope.launch { hub.reload() } }, back = { place = Place.Earbuds })
                         }
                         Place.Settings -> SettingsScreen(close)
-                        Place.Find -> if (now != null && state != null) FindScreen(now, state, close)
+                        Place.Find -> if (state != null) FindScreen(state, { l, r -> hub.findSound(l, r) }, close)
                         Place.Fit -> if (now != null) FitTestScreen(now, close)
                         Place.Support -> SupportScreen(state, VERSION, close)
                     }
