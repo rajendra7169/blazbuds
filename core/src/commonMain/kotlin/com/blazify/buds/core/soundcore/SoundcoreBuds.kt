@@ -352,7 +352,32 @@ class SoundcoreBuds(
             val body = byteArrayOf(if (change.enabled) 1 else 0, db.toByte())
             ack(A3947.LIMIT_SET, body).also { if (it) body.copyInto(now, A3947.LIMIT) }
         }
+        is Change.EarPrintTry -> ack(A3947.EQ_SET, A3947.earPrintBody(now, change.left, change.right, trying = true, madeAt = 0))
+        is Change.EarPrintSave -> ack(A3947.EQ_SET, A3947.earPrintBody(now, change.left, change.right, trying = false, madeAt = change.madeAt)).also {
+            if (it) keepEarPrint(now, change.left, change.right, change.madeAt, on = true)
+        }
+        is Change.EarPrintOn -> {
+            val saved = A3947.earPrint(now)
+            if (change.on) {
+                ack(A3947.EQ_SET, A3947.earPrintBody(now, saved.left, saved.right, trying = false, madeAt = saved.madeAt)).also { if (it) now[A3947.HEAR_ID] = 1 }
+            } else {
+                // The usual sound message switches the profile off and keeps it on the earbuds for later.
+                val tenths = IntArray(10) { if (now[A3947.EQ_LEFT + it].toInt() and 0xFF == 0xFF) 0 else (now[A3947.EQ_LEFT + it].toInt() and 0xFF) - 120 }
+                val id = (now[A3947.PRESET].toInt() and 0xFF) or ((now[A3947.PRESET + 1].toInt() and 0xFF) shl 8)
+                ack(A3947.EQ_SET, A3947.equalizerBody(now, if (id == 0xFEFE) com.blazify.buds.core.model.Equalizer.CUSTOM else id, tenths)).also { if (it) now[A3947.HEAR_ID] = 0 }
+            }
+        }
+        is Change.HearingTestMode -> ack(A3947.HEARING_TEST, byteArrayOf(if (change.on) 1 else 0))
         Change.ResetControls -> ack(A3947.BUTTON_RESET, ByteArray(0)).also { if (it) refresh() }
+    }
+
+    private fun keepEarPrint(now: ByteArray, left: List<Double>, right: List<Double>, madeAt: Long, on: Boolean) {
+        now[A3947.HEAR_ID] = if (on) 1 else 0
+        for (i in 0 until 10) {
+            now[A3947.HEAR_ID + 1 + i] = (if (i < 8) kotlin.math.round(left[i] * 10).toInt() + 120 else 0).toByte()
+            now[A3947.HEAR_ID + 11 + i] = (if (i < 8) kotlin.math.round(right[i] * 10).toInt() + 120 else 0).toByte()
+        }
+        now[81] = (madeAt shr 24).toByte(); now[82] = (madeAt shr 16).toByte(); now[83] = (madeAt shr 8).toByte(); now[84] = madeAt.toByte()
     }
 
     private suspend fun equalizer(now: ByteArray, presetId: Int, tenths: IntArray): Boolean {

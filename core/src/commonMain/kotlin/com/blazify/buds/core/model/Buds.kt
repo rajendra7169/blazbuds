@@ -57,6 +57,8 @@ data class BudsState(
     val canRing: Boolean = false,
     /** These earbuds can check how well their tips seal. */
     val canFitTest: Boolean = false,
+    /** A sound shaped to the person's ears, kept on the earbuds; null if these earbuds can't hold one. */
+    val earPrint: EarPrintState? = null,
 ) {
     val isReady: Boolean get() = link == Link.Connected
 }
@@ -154,6 +156,9 @@ data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList(
 
 data class Host(val name: String, val address: String, val connected: Boolean, val playing: Boolean = false)
 
+/** The EarPrint the earbuds hold: on or off, a curve for each ear, and when it was made (seconds since 1970). */
+data class EarPrintState(val on: Boolean, val left: List<Double>, val right: List<Double>, val madeAt: Long)
+
 /** How well each ear tip seals: true is a good seal, false a poor one, null not heard. */
 data class FitResult(val left: Boolean?, val right: Boolean?)
 
@@ -176,6 +181,13 @@ sealed interface Change {
     data class PowerOff(val enabled: Boolean, val minutes: Int) : Change
     data class TwoDevices(val on: Boolean) : Change
     data class SafeVolume(val enabled: Boolean, val decibels: Int) : Change
+    /** Plays an EarPrint for comparing, without keeping it. */
+    data class EarPrintTry(val left: List<Double>, val right: List<Double>) : Change
+    /** Keeps an EarPrint on the earbuds and turns it on. */
+    data class EarPrintSave(val left: List<Double>, val right: List<Double>, val madeAt: Long) : Change
+    data class EarPrintOn(val on: Boolean) : Change
+    /** The earbuds' quiet state for the hearing test. */
+    data class HearingTestMode(val on: Boolean) : Change
     data class HostConnection(val address: String, val connect: Boolean) : Change
     data class Forget(val address: String) : Change
     data object ResetControls : Change

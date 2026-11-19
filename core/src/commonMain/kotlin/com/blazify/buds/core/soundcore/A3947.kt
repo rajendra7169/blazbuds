@@ -99,6 +99,7 @@ object A3947 {
     /** Not yet confirmed on this model: from the Soundcore family's shared protocol. */
     val RING = Packet.command(0x10, 0x89)
     val FIT_TEST = Packet.command(0x09, 0x01)
+    val HEARING_TEST = Packet.command(0x03, 0x83)
 
     val FREQUENCIES = listOf(100, 200, 400, 800, 1600, 3200, 6400, 12800)
     val POWER_OFF_MINUTES = listOf(10, 20, 30, 60)
@@ -188,6 +189,7 @@ object A3947 {
             // The family's find command plays nothing on this model; hidden until its own is known.
             canRing = false,
             canFitTest = true,
+            earPrint = earPrint(raw),
         )
     }
 
@@ -248,6 +250,43 @@ object A3947 {
             (ear to press) to (ACTIONS.firstOrNull { it.first == id }?.second ?: TouchAction.None)
         }.toMap()
         return TouchControls(actions, ACTIONS.map { it.second })
+    }
+
+    /** The hearing profile the earbuds hold (Soundcore calls it HearID): on or off, a curve for each ear, when made. */
+    fun earPrint(raw: ByteArray): com.blazify.buds.core.model.EarPrintState {
+        fun curve(at: Int): List<Double>? =
+            if (raw[at].u() == 0xFF) null else (0 until 8).map { (raw[at + it].u() - 120) / 10.0 }
+        val left = curve(HEAR_ID + 1) ?: List(8) { 0.0 }
+        val right = curve(HEAR_ID + 11) ?: left
+        val time = (raw[81].u().toLong() shl 24) or (raw[82].u().toLong() shl 16) or (raw[83].u().toLong() shl 8) or raw[84].u().toLong()
+        return com.blazify.buds.core.model.EarPrintState(raw[HEAR_ID].toInt() == 1, left, right, time)
+    }
+
+    /**
+     * The message that plays an EarPrint, laid out as Soundcore's own app sends it (read from a recording of it): the
+     * current sound kept, the hearing profile switched on with a curve for each ear, and the limiter's curve for it.
+     * [trying] marks a sound being compared rather than kept.
+     */
+    fun earPrintBody(raw: ByteArray, left: List<Double>, right: List<Double>, trying: Boolean, madeAt: Long): ByteArray {
+        fun tenths(curve: List<Double>) = IntArray(10) { if (it < 8) kotlin.math.round(curve.getOrElse(it) { 0.0 } * 10).toInt().coerceIn(-120, 134) else -120 }
+        val l = tenths(left)
+        val r = tenths(right)
+        val bands = if (raw[EQ_LEFT].u() == 0xFF) ByteArray(10) { 0x78 } else raw.copyOfRange(EQ_LEFT, EQ_LEFT + 10)
+        fun curveBytes(t: IntArray) = ByteArray(10) { (t[it] + 120).toByte() }
+        fun limiter(t: IntArray) = drc(t).let { values -> ByteArray(10) { (values[it] + 120).toByte() }.also { it[8] = 0x6C; it[9] = 0 } }
+        val out = ArrayList<Byte>(93)
+        out += raw[PRESET]; out += raw[PRESET + 1]
+        out += 0; out += 0
+        out.addAll(bands.toList()); out.addAll(bands.toList())
+        if (trying) { out += 1; out += 0xFE.toByte() } else { out += 0; out += 1 }
+        out += 1
+        out.addAll(curveBytes(l).toList()); out.addAll(curveBytes(r).toList())
+        out += (madeAt shr 24).toByte(); out += (madeAt shr 16).toByte(); out += (madeAt shr 8).toByte(); out += madeAt.toByte()
+        out += 0
+        out.addAll(curveBytes(l).toList()); out.addAll(curveBytes(r).toList())
+        out.addAll(limiter(l).toList()); out.addAll(limiter(r).toList())
+        out += if (trying) 0 else 0x15
+        return out.toByteArray()
     }
 
     // ---- Messages that change things ----

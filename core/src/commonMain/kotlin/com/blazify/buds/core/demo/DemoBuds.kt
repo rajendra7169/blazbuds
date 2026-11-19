@@ -93,6 +93,7 @@ class DemoBuds(connected: Boolean = true) : Buds {
                 firmware = "07.61",
                 canRing = true,
                 canFitTest = true,
+                earPrint = com.blazify.buds.core.model.EarPrintState(false, List(8) { 0.0 }, List(8) { 0.0 }, 0),
                 serial = "3947DEMO00000000",
             )
         }
@@ -140,5 +141,9 @@ fun BudsState.with(change: Change): BudsState = when (change) {
     )
     is Change.Forget -> copy(multipoint = multipoint?.copy(devices = multipoint.devices.filterNot { it.address == change.address }))
     is Change.SafeVolume -> copy(volumeLimit = volumeLimit?.copy(enabled = change.enabled, decibels = change.decibels))
+    is Change.EarPrintTry -> this
+    is Change.EarPrintSave -> copy(earPrint = com.blazify.buds.core.model.EarPrintState(true, change.left, change.right, change.madeAt))
+    is Change.EarPrintOn -> copy(earPrint = earPrint?.copy(on = change.on))
+    is Change.HearingTestMode -> this
     Change.ResetControls -> this
 }

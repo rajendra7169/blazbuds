@@ -89,6 +89,17 @@ class A3947Test {
     }
 
     @Test
+    fun earPrintMessageMatchesTheOfficialAppsSave() {
+        // The curve and save time from a recording of Soundcore's own app keeping a HearID profile.
+        val curve = listOf(2.3, 0.4, -1.5, -1.2, 1.3, 2.2, 2.3, 3.0)
+        val body = A3947.earPrintBody(body(), curve, curve, trying = false, madeAt = 0x6aff32b0)
+        val hex = body.toHex()
+        assertTrue(hex.contains("00 01 01 8f 7c 69 6c 85 8e 8f 96 00 00 8f 7c 69 6c 85 8e 8f 96 00 00 6a ff 32 b0 00 8f 7c"), hex)
+        assertTrue(hex.endsWith("7a 78 77 77 7a 79 79 7b 6c 00 7a 78 77 77 7a 79 79 7b 6c 00 15"), hex)
+        assertEquals(93, body.size)
+    }
+
+    @Test
     fun customBandsKeepTheHiddenBandsAsRead() {
         val tenths = A3947.customTenths(body(), listOf(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.5))
         assertContentEquals(intArrayOf(10, 0, 0, 0, 0, 0, 0, -15, -120, -120), tenths)
