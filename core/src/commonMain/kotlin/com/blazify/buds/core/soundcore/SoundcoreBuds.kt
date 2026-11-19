@@ -376,16 +376,13 @@ class SoundcoreBuds(
         val answers = Channel<Packet>(Channel.UNLIMITED)
         fitAnswers = answers
         try {
-            send(Packet(A3947.FIT_TEST, byteArrayOf(0x0A)))
-            // The earbuds play a short tone, then answer with one byte for each side: 1 a good seal, 2 a poor one.
+            // As Soundcore's own app does: the bare command. The earbuds switch to Normal, play a tone for about ten
+            // seconds, switch back, and answer with a byte for each side: 0 a good seal, anything else a poor one.
+            send(Packet(A3947.FIT_TEST))
             repeat(4) {
-                val answer = withTimeoutOrNull(12_000L) { answers.receive() } ?: return null
+                val answer = withTimeoutOrNull(16_000L) { answers.receive() } ?: return null
                 if (answer.body.size >= 2) {
-                    fun seal(byte: Byte): Boolean? = when (byte.toInt()) {
-                        1 -> true
-                        2 -> false
-                        else -> null
-                    }
+                    fun seal(byte: Byte): Boolean = byte.toInt() == 0
                     return FitResult(seal(answer.body[0]), seal(answer.body[1]))
                 }
             }
