@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +48,8 @@ import com.blazify.buds.ui.theme.Motion
  * ticks once. Every tappable thing in the app goes through this.
  */
 @Composable
-fun Modifier.press(enabled: Boolean = true, role: Role = Role.Button, onClick: () -> Unit): Modifier {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun Modifier.press(enabled: Boolean = true, role: Role = Role.Button, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val reduce = LocalReduceMotion.current
@@ -59,7 +61,13 @@ fun Modifier.press(enabled: Boolean = true, role: Role = Role.Button, onClick: (
     val haptics = LocalHapticFeedback.current
     return this
         .graphicsLayer { scaleX = scale; scaleY = scale }
-        .clickable(source, indication = null, enabled = enabled, role = role) {
+        .combinedClickable(
+            source,
+            indication = null,
+            enabled = enabled,
+            role = role,
+            onLongClick = onLongClick?.let { long -> { haptics.performHapticFeedback(HapticFeedbackType.LongPress); long() } },
+        ) {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onClick()
         }

@@ -24,7 +24,9 @@ class Prefs(private val store: Settings = Settings()) {
     private fun writeSounds() = store.putString(SOUNDS, sounds.joinToString("\n") { it.line() })
 
     fun saveSound(name: String, gains: List<Double>) {
-        sounds = sounds.filterNot { it.name.equals(name, ignoreCase = true) } + SavedSound(name.trim(), gains)
+        val sound = SavedSound(name.trim(), gains)
+        val at = sounds.indexOfFirst { it.name.equals(name.trim(), ignoreCase = true) }
+        sounds = if (at >= 0) sounds.toMutableList().also { it[at] = sound } else sounds + sound
         writeSounds()
     }
 

@@ -64,6 +64,7 @@ fun PresetTile(
     modifier: Modifier = Modifier,
     art: androidx.compose.ui.graphics.vector.ImageVector = com.blazify.buds.ui.icons.SoundArt.forPreset(name),
     corner: (@Composable () -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val (from, to) = GRADIENTS[index % GRADIENTS.size]
@@ -75,7 +76,7 @@ fun PresetTile(
             .background(Brush.linearGradient(listOf(from, to)))
             .border(if (chosen) 2.5.dp else 0.dp, Color.White.copy(alpha = if (chosen) 0.9f else 0f), RoundedCornerShape(18.dp))
             .semantics { contentDescription = "$name preset"; selected = chosen }
-            .press(role = Role.RadioButton, onClick = onClick),
+            .press(role = Role.RadioButton, onLongClick = onLongClick, onClick = onClick),
     ) {
         // The preset's own sound, drawn faintly across the tile.
         Canvas(Modifier.fillMaxSize()) {
