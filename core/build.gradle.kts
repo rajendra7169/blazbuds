@@ -27,6 +27,10 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.coroutines.core)
         }
+        jvmMain.dependencies {
+            // Linux and Windows Bluetooth sockets, called straight from the app.
+            implementation(libs.jna)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.coroutines.test)
