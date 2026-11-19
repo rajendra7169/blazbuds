@@ -20,7 +20,7 @@ import com.blazify.buds.ui.theme.LocalPalette
 import com.blazify.buds.ui.theme.ThemeChoice
 
 @Composable
-fun SettingsScreen(back: () -> Unit) = PlaceFrame("Settings", back) {
+fun SettingsScreen(back: (() -> Unit)?) = PlaceFrame("Settings", back) {
     val prefs = LocalPrefs.current
     val palette = LocalPalette.current
     Panel {
@@ -36,7 +36,7 @@ fun SettingsScreen(back: () -> Unit) = PlaceFrame("Settings", back) {
     }
     Panel {
         SectionTitle("About Blazbuds")
-        Text("Version 0.1.0", style = MaterialTheme.typography.bodyMedium, color = palette.text)
+        Text("Version ${com.blazify.buds.ui.VERSION}", style = MaterialTheme.typography.bodyMedium, color = palette.text)
         Spacer(Modifier.height(6.dp))
         Hint("No ads, no account, nothing sent anywhere: the app talks only to your earbuds.")
         Spacer(Modifier.height(6.dp))

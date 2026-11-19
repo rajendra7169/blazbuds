@@ -47,7 +47,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
-fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) = PlaceFrame("Sound", back) {
+fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit)? = null) = PlaceFrame("Sound", back) {
     val eq = state.equalizer
     if (eq == null) {
         Hint("These earbuds have no equalizer the app can reach.")
@@ -116,7 +116,7 @@ fun Press.label() = when (this) {
 }
 
 @Composable
-fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) = PlaceFrame("Touch controls", back) {
+fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit)? = null) = PlaceFrame("Controls", back) {
     val controls = state.controls
     if (controls == null) {
         Hint("These earbuds' controls can't be changed from the app.")
@@ -176,8 +176,9 @@ private val PROMPTS = listOf(
 )
 
 @Composable
-fun SoundsScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) = PlaceFrame("Sound and prompts", back) {
+fun PromptsSection(state: BudsState, change: (Change) -> Unit) {
     Panel {
+        SectionTitle("Sound and prompts")
         PROMPTS.filter { it.first in state.toggles }.forEach { (toggle, detail) ->
             SwitchRow(toggle.icon(), toggle.label(), state.toggles[toggle] == true, { change(Change.Switch(toggle, it)) }, detail = detail)
         }
@@ -195,14 +196,12 @@ fun SoundsScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) =
 }
 
 @Composable
-fun DevicesScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) = PlaceFrame("Devices", back) {
+fun HostsSection(state: BudsState, change: (Change) -> Unit) {
     val palette = LocalPalette.current
     val points = state.multipoint
-    if (points == null) {
-        Hint("These earbuds connect to one device at a time.")
-        return@PlaceFrame
-    }
+    if (points == null) return
     Panel {
+        SectionTitle("Connection")
         SwitchRow(
             BudsIcons.Laptop,
             "Two devices at once",
@@ -216,7 +215,7 @@ fun DevicesScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) 
             SectionTitle("Remembered devices")
             points.devices.forEach { host ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(BudsIcons.Phone, null, tint = palette.muted, modifier = Modifier.size(20.dp))
+                    Icon(if (host.looksLikeComputer()) BudsIcons.Laptop else BudsIcons.Phone, null, tint = palette.muted, modifier = Modifier.size(20.dp))
                     Column(Modifier.weight(1f)) {
                         Text(host.name, style = MaterialTheme.typography.bodyLarge, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(if (host.connected) "Connected" else "Not connected", style = MaterialTheme.typography.labelSmall, color = palette.muted)
@@ -230,9 +229,10 @@ fun DevicesScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit) 
 }
 
 @Composable
-fun AboutScreen(state: BudsState, back: () -> Unit) = PlaceFrame("About these earbuds", back) {
+fun AboutSection(state: BudsState) {
     val palette = LocalPalette.current
     Panel {
+        SectionTitle("About these earbuds")
         listOfNotNull(
             "Name" to state.name,
             "Model" to state.model,
@@ -250,3 +250,7 @@ fun AboutScreen(state: BudsState, back: () -> Unit) = PlaceFrame("About these ea
     }
     Hint("Battery is shown in the steps the earbuds report: fifths, so 20, 40, 60, 80 or 100%. Firmware updates come from the brand's own app.")
 }
+
+/** Bluetooth doesn't say what a host is; computers usually say so in their name. */
+private fun com.blazify.buds.core.model.Host.looksLikeComputer(): Boolean =
+    listOf("book", "pad", "pc", "laptop", "desktop", "loq", "legion", "thinkpad", "imac", "mac", "dell", "hp ", "asus", "acer").any { it in name.lowercase() }

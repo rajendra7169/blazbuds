@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import com.blazify.buds.core.catalog.Catalog
+import com.blazify.buds.core.catalog.Kind
+import com.blazify.buds.ui.blocks.CaseHero
+import com.blazify.buds.ui.blocks.DeviceArt
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,16 +44,13 @@ import androidx.compose.ui.unit.dp
 import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Link
-import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Scene
 import com.blazify.buds.core.model.Toggle
 import com.blazify.buds.ui.blocks.BatteryRing
 import com.blazify.buds.ui.blocks.BatteryRow
-import com.blazify.buds.ui.blocks.BudsHero
 import com.blazify.buds.ui.blocks.Choice
 import com.blazify.buds.ui.blocks.EqCurve
 import com.blazify.buds.ui.blocks.Hint
-import com.blazify.buds.ui.blocks.LinkRow
 import com.blazify.buds.ui.blocks.LogoLoader
 import com.blazify.buds.ui.blocks.LogoMark
 import com.blazify.buds.ui.blocks.ModeDetails
@@ -59,21 +62,22 @@ import com.blazify.buds.ui.blocks.press
 import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.theme.LocalPalette
 
-/** Where Home sends the person for what doesn't fit on it. */
-enum class Place { Equalizer, Controls, Sounds, About, Settings, Devices, Earbuds }
+/** The tabs along the bottom. */
+enum class Tab { Home, Sound, Controls, Device }
 
 /**
- * Everything most people need, on one screen: the earbuds and their battery, the listening mode with its options,
- * scenes, the sound, the everyday switches and the two-device choice. The rest is one tap away. On a phone it is one
- * column; on a tablet or a computer window it splits in two.
+ * The everyday controls on one screen: the earbuds' case and battery, the listening mode with its options, scenes,
+ * the sound, quick switches and the two-device choice. The rest lives in the other tabs. On a phone it is one column;
+ * on a tablet or a computer window it splits in two.
  */
 @Composable
-fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit, retry: () -> Unit) {
+fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit, goTab: (Tab) -> Unit, retry: () -> Unit) {
     val palette = LocalPalette.current
     BoxWithConstraints(Modifier.fillMaxSize().background(palette.background)) {
         val wide = maxWidth >= 720.dp
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing)
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
                 .padding(horizontal = if (wide) 24.dp else 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -83,29 +87,27 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
                 if (wide) {
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Earbuds(state, heroHeight = 240.dp)
+                            Earbuds(state, heroHeight = 280.dp)
                             Listening(state, change)
                             Scenes(state, change)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            SoundPanel(state, change, open)
+                            SoundPanel(state, change, goTab)
                             Switches(state, change)
-                            TwoDevices(state, change, open)
-                            More(state, open)
+                            TwoDevices(state, change, goTab)
                         }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Earbuds(state, heroHeight = 190.dp)
+                        Earbuds(state, heroHeight = 230.dp)
                         Listening(state, change)
                         Scenes(state, change)
-                        SoundPanel(state, change, open)
+                        SoundPanel(state, change, goTab)
                         Switches(state, change)
-                        TwoDevices(state, change, open)
-                        More(state, open)
+                        TwoDevices(state, change, goTab)
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -143,9 +145,8 @@ private fun TopBar(state: BudsState, open: (Place) -> Unit) {
                 }
             }
         }
-        Box(Modifier.size(48.dp).clip(CircleShape).press { open(Place.Settings) }, contentAlignment = Alignment.Center) {
-            Icon(BudsIcons.Settings, "Settings", tint = palette.text, modifier = Modifier.size(24.dp))
-        }
+        IconButton(BudsIcons.Support, "Help") { open(Place.Support) }
+        IconButton(BudsIcons.Settings, "Settings") { open(Place.Settings) }
     }
 }
 
@@ -186,7 +187,19 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit) {
 @Composable
 private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BudsHero(state.sound?.mode, leftIn = state.left != null, rightIn = state.right != null, height = heroHeight)
+        when (Catalog.kind(state.name)) {
+            Kind.Headphones, Kind.Speaker -> Box(Modifier.fillMaxWidth().height(heroHeight), contentAlignment = Alignment.Center) {
+                DeviceArt(Catalog.kind(state.name), size = heroHeight * 0.8f, active = state.isReady)
+            }
+            else -> CaseHero(
+                connected = state.isReady,
+                mode = state.sound?.mode,
+                // A bud that is charging is in its case.
+                leftOut = (state.left != null && state.left?.charging != true) || state.overall != null,
+                rightOut = (state.right != null && state.right?.charging != true) || state.overall != null,
+                height = heroHeight,
+            )
+        }
         if (state.left == null && state.right == null && state.overall != null) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { BatteryRing("Earbuds", state.overall) }
         } else {
@@ -237,16 +250,16 @@ private fun Scene.icon() = when (id) {
 }
 
 @Composable
-private fun SoundPanel(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit) {
+private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) -> Unit) {
     val eq = state.equalizer ?: return
     Panel {
-        SectionTitle("Sound", action = "Edit") { open(Place.Equalizer) }
+        SectionTitle("Sound", action = "Edit") { goTab(Tab.Sound) }
         Spacer(Modifier.height(4.dp))
         EqCurve(eq.left)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Your own sound first when it is the one playing.
-            if (eq.preset == null) Choice("Custom", selected = true) { open(Place.Equalizer) }
+            if (eq.preset == null) Choice("Custom", selected = true) { goTab(Tab.Sound) }
             eq.presets.forEach { preset -> Choice(preset.name, preset.id == eq.presetId) { change(Change.Preset(preset.id)) } }
         }
         if (!state.bothConnected) {
@@ -309,58 +322,24 @@ private fun Toggle.detail(on: Boolean): String = when (this) {
 
 /** The model's real trade-off made plain: the best sound, or two devices at once. */
 @Composable
-private fun TwoDevices(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit) {
-    val points = state.multipoint
-    val ldac = state.toggles[Toggle.Ldac]
-    if (points == null && ldac == null) return
-    val palette = LocalPalette.current
+private fun TwoDevices(state: BudsState, change: (Change) -> Unit, goTab: (Tab) -> Unit) {
+    val points = state.multipoint ?: return
+    val ldac = state.toggles[Toggle.Ldac] ?: return
     Panel {
-        SectionTitle("Connection", action = if (points != null) "Devices" else null) { open(Place.Devices) }
+        SectionTitle("Connection", action = "Devices") { goTab(Tab.Device) }
         Spacer(Modifier.height(8.dp))
-        if (ldac != null && points != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Choice("Two devices", points.enabled && !ldac, Modifier.weight(1f), icon = BudsIcons.Laptop) { change(Change.TwoDevices(true)) }
-                Choice("Best quality", ldac, Modifier.weight(1f), icon = BudsIcons.Hd) { change(Change.Switch(Toggle.Ldac, true)) }
-            }
-            Spacer(Modifier.height(8.dp))
-            Hint(
-                if (ldac) "LDAC sound for one Android device. Uses more battery." else "Connected to two devices at once; music moves to whichever plays.",
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice("Two devices", points.enabled && !ldac, Modifier.weight(1f), icon = BudsIcons.Laptop) { change(Change.TwoDevices(true)) }
+            Choice("Best quality", ldac, Modifier.weight(1f), icon = BudsIcons.Hd) { change(Change.Switch(Toggle.Ldac, true)) }
         }
-        if (points != null && points.enabled && points.devices.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            points.devices.forEach { host ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Icon(if (host.name.contains("book", true) || host.name.contains("pad", true) || host.name.contains("PC", true)) BudsIcons.Laptop else BudsIcons.Phone, null, tint = palette.muted, modifier = Modifier.size(20.dp))
-                    Text(host.name, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        when {
-                            host.playing -> "Playing"
-                            host.connected -> "Connected"
-                            else -> "Not connected"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (host.connected) palette.accent else palette.muted,
-                    )
-                }
-            }
-        }
+        Spacer(Modifier.height(8.dp))
+        val connected = points.devices.count { it.connected }
+        Hint(
+            if (ldac) {
+                "LDAC sound for one Android device. Uses more battery."
+            } else {
+                "Connected to two devices at once; music moves to whichever plays." + if (connected > 0) " $connected connected now." else ""
+            },
+        )
     }
 }
-
-@Composable
-private fun More(state: BudsState, open: (Place) -> Unit) {
-    Panel(padding = 8.dp) {
-        if (state.controls != null) {
-            val doubles = state.controls!!.actions.filterKeys { it.second == Press.Double }.size
-            LinkRow(BudsIcons.Touch, "Touch controls", "Taps, double taps and holds on each earbud".takeIf { doubles >= 0 }) { open(Place.Controls) }
-        }
-        LinkRow(BudsIcons.Equalizer, "Sound and prompts", "Tones, alerts, auto power off") { open(Place.Sounds) }
-        LinkRow(BudsIcons.Info, "About these earbuds", listOfNotNull(state.model, state.firmware?.let { "firmware $it" }).joinToString(" · ")) { open(Place.About) }
-    }
-}
-
