@@ -69,6 +69,9 @@ class Shots {
             shot(dir, "earbuds-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Earbuds) }
             shot(dir, "add-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Add) }
             shot(dir, "help-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
+            shot(dir, "find-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Find) }
+            shot(dir, "fit-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Fit) }
+            shot(dir, "wear-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Wear) }
             shot(dir, "connect-phone-$look", 412, 915) { BudsApp(DemoBuds(connected = false), prefs(theme), Place.Connect) }
             shot(dir, "panel-$look", 360, 330) {
                 val buds = remember { DemoBuds() }

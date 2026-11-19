@@ -96,6 +96,7 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
                             SoundPanel(state, change, goTab)
                             Switches(state, change)
                             TwoDevices(state, change, goTab)
+                            Care(state, open)
                         }
                     }
                 } else {
@@ -106,6 +107,7 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
                         SoundPanel(state, change, goTab)
                         Switches(state, change)
                         TwoDevices(state, change, goTab)
+                        Care(state, open)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -360,5 +362,15 @@ private fun TwoDevices(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
                 "Connected to two devices at once; music moves to whichever plays." + if (connected > 0) " $connected connected now." else ""
             },
         )
+    }
+}
+
+/** The everyday helpers, one tap away: find them, check the fit, and how to wear them. */
+@Composable
+private fun Care(state: BudsState, open: (Place) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (state.canRing) Choice("Find", false, icon = BudsIcons.Find) { open(Place.Find) }
+        if (state.canFitTest) Choice("Fit test", false, icon = BudsIcons.Ear) { open(Place.Fit) }
+        Choice("How to wear", false, icon = BudsIcons.Info) { open(Place.Wear) }
     }
 }

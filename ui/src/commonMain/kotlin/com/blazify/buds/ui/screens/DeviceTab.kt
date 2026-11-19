@@ -17,6 +17,11 @@ fun DeviceTab(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit)
         PromptsSection(state, change)
         AboutSection(state)
         Panel(padding = 8.dp) {
+            if (state.canRing) LinkRow(BudsIcons.Find, "Find my earbuds", "Play a sound on each one") { open(Place.Find) }
+            if (state.canFitTest) LinkRow(BudsIcons.Ear, "Ear tip fit test", "Check how well they seal") { open(Place.Fit) }
+            LinkRow(BudsIcons.Info, "How to wear them", "The fit that gives the best sound") { open(Place.Wear) }
+        }
+        Panel(padding = 8.dp) {
             LinkRow(BudsIcons.Earbuds, "My devices", "Switch earbuds or add a pair") { open(Place.Earbuds) }
             LinkRow(BudsIcons.Support, "Help", "Answers, and details to send") { open(Place.Support) }
             LinkRow(BudsIcons.Settings, "Settings", "Look and motion") { open(Place.Settings) }

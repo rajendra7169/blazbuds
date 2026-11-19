@@ -35,7 +35,7 @@ import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.theme.LocalPalette
 
 /** Where Home sends the person for what isn't in the tabs. */
-enum class Place { Earbuds, Add, Settings, Support, Connect }
+enum class Place { Earbuds, Add, Settings, Support, Connect, Find, Fit, Wear }
 
 /**
  * A page: a title, with a back button when it was opened from somewhere and icon buttons on the right, over a
