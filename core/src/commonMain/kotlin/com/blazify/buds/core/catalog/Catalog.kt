@@ -11,6 +11,9 @@ enum class Support {
     Basic,
 }
 
+/** What a device looks like, for its picture. */
+enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
+
 /** A model the app knows by name, with what it can do and how to put it in pairing mode. */
 data class Model(
     val name: String,
@@ -42,6 +45,17 @@ object Catalog {
     fun model(device: Device): Model = when {
         device.name.contains("Liberty 4 NC", ignoreCase = true) -> LIBERTY_4_NC
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
+    }
+
+    /** Guessed from the name, as Bluetooth doesn't say what shape a device is. */
+    fun kind(name: String): Kind {
+        val n = name.lowercase()
+        return when {
+            listOf("speaker", "boom", "flip", "charge", "motion", "soundlink", "partybox", "go ").any { it in n } -> Kind.Speaker
+            listOf("wh-", "headphone", "space", "life q", "q20", "q30", "q35", "q45", "qc4", "qc45", "700", "max", "momentum 4", "rockerz", "tune 7").any { it in n } -> Kind.Headphones
+            listOf("liberty", "airpods", "freebuds pro", "buds pro", "x7e", "nothing ear", "pixel buds pro").any { it in n } -> Kind.StemBuds
+            else -> Kind.RoundBuds
+        }
     }
 
     /** Pairing steps to show before anything is paired. */
