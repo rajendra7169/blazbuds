@@ -65,6 +65,7 @@ fun PresetTile(
     art: androidx.compose.ui.graphics.vector.ImageVector = com.blazify.buds.ui.icons.SoundArt.forPreset(name),
     corner: (@Composable () -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    showCurve: Boolean = true,
     onClick: () -> Unit,
 ) {
     val (from, to) = GRADIENTS[index % GRADIENTS.size]
@@ -80,7 +81,7 @@ fun PresetTile(
     ) {
         // The preset's own sound, drawn faintly across the tile.
         Canvas(Modifier.fillMaxSize()) {
-            if (gains.size < 2) return@Canvas
+            if (gains.size < 2 || !showCurve) return@Canvas
             val step = size.width / (gains.size - 1)
             fun y(db: Double) = (size.height * 0.55f - (db / 6.0).toFloat() * size.height * 0.28f)
             val points = gains.mapIndexed { i, g -> Offset(i * step, y(g)) }
