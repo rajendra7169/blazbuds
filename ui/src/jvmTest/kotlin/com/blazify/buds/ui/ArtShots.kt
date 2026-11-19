@@ -21,6 +21,31 @@ import kotlin.test.Test
 /** The drawn devices at each step of opening, in both looks, for checking them by eye. Only with SHOTS_DIR set. */
 class ArtShots {
     @Test
+    fun drawEarPrint() {
+        val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
+        dir.mkdirs()
+        ImageComposeScene(1400 * 2, 640 * 2, Density(2f)) {
+            Column {
+                for (theme in listOf(com.blazify.buds.ui.theme.ThemeChoice.Dark, com.blazify.buds.ui.theme.ThemeChoice.Light)) {
+                    com.blazify.buds.ui.theme.BudsTheme(theme) {
+                        Row(Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background)) {
+                            com.blazify.buds.ui.blocks.FingerprintEar(0f, size = 280.dp)
+                            com.blazify.buds.ui.blocks.FingerprintEar(0.4f, size = 280.dp, listening = true)
+                            com.blazify.buds.ui.blocks.FingerprintEar(0.75f, size = 280.dp, mirrored = true)
+                            com.blazify.buds.ui.blocks.FingerprintEar(1f, size = 280.dp, done = true)
+                            com.blazify.buds.ui.blocks.FingerprintEar(1f, size = 280.dp, done = true, mirrored = true)
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            var t = 0L
+            repeat(40) { scene.render(t); t += 100_000_000L }
+            File(dir, "earprint.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+    }
+
+    @Test
     fun compareCase() {
         val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
         dir.mkdirs()

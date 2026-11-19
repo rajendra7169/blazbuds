@@ -63,13 +63,13 @@ fun EarArt(ear: Ear, modifier: Modifier = Modifier, height: Dp = 220.dp) {
     }
 }
 
-private val EAR_OUTLINE = "M46 10 C62 2 86 10 88 34 C90 52 80 62 76 74 C72 86 70 100 58 106 C48 111 40 104 42 94 C44 86 48 82 46 76 C40 72 36 66 40 60 C44 56 42 50 38 44 C34 30 36 16 46 10 Z"
+internal val EAR_OUTLINE = "M46 10 C62 2 86 10 88 34 C90 52 80 62 76 74 C72 86 70 100 58 106 C48 111 40 104 42 94 C44 86 48 82 46 76 C40 72 36 66 40 60 C44 56 42 50 38 44 C34 30 36 16 46 10 Z"
 private val EAR_RIM = "M48 18 C62 12 78 18 80 34 C82 48 74 58 70 70"
 private val EAR_FOLD = "M66 26 C73 38 71 52 61 60 C57 63 55 66 53 71"
 private val EAR_FOLD_UPPER = "M66 26 C60 28 56 30 54 36"
 private val EAR_LOBE = "M58 98 C54 100 50 98 50 94"
 
-private fun path(svg: String, side: Float): Path = PathParser().parsePathString(svg).toPath().apply {
+internal fun path(svg: String, side: Float): Path = PathParser().parsePathString(svg).toPath().apply {
     transform(Matrix().apply { scale(side / 112f, side / 112f) })
 }
 
