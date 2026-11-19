@@ -116,6 +116,7 @@ fun Press.label() = when (this) {
     Press.Single -> "Tap"
     Press.Double -> "Double tap"
     Press.Long -> "Press and hold"
+    Press.Triple -> "Triple tap"
 }
 
 @Composable

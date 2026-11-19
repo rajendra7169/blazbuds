@@ -33,7 +33,7 @@ import com.blazify.buds.ui.theme.LocalPalette
 
 /** A deeper page: a back button and title over a scrolling column, centred and kept readable on wide windows. */
 @Composable
-fun PlaceFrame(title: String, back: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun PlaceFrame(title: String, back: () -> Unit, showBack: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     val palette = LocalPalette.current
     Column(
         Modifier.fillMaxSize().background(palette.background).verticalScroll(rememberScrollState())
@@ -41,11 +41,13 @@ fun PlaceFrame(title: String, back: () -> Unit, content: @Composable ColumnScope
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(CircleShape).press(onClick = back), contentAlignment = Alignment.Center) {
-                    Icon(BudsIcons.Back, "Back", tint = palette.text)
+            if (showBack) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(48.dp).clip(CircleShape).press(onClick = back), contentAlignment = Alignment.Center) {
+                        Icon(BudsIcons.Back, "Back", tint = palette.text)
+                    }
+                    Text(title, style = MaterialTheme.typography.titleLarge, color = palette.text)
                 }
-                Text(title, style = MaterialTheme.typography.titleLarge, color = palette.text)
             }
             content()
         }
@@ -61,5 +63,6 @@ fun PlaceScreen(place: Place, state: BudsState, change: (Change) -> Unit, back: 
         Place.About -> AboutScreen(state, back)
         Place.Settings -> SettingsScreen(back)
         Place.Devices -> DevicesScreen(state, change, back)
+        Place.Earbuds -> Unit
     }
 }
