@@ -19,6 +19,8 @@ data class Model(
     val name: String,
     val support: Support,
     val pairing: List<String>,
+    /** Our own rendered pictures of it, closed and open, when we have made them. */
+    val art: String? = null,
 )
 
 /**
@@ -34,6 +36,7 @@ object Catalog {
             "Press and hold the button on the case for 3 seconds, until the light flashes white.",
             "Pick \"soundcore Liberty 4 NC\" in your Bluetooth settings.",
         ),
+        art = "liberty4nc",
     )
 
     private val GENERIC_PAIRING = listOf(
@@ -46,6 +49,9 @@ object Catalog {
         device.name.contains("Liberty 4 NC", ignoreCase = true) -> LIBERTY_4_NC
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
     }
+
+    /** Our own pictures for a device by its name, if we have made them. */
+    fun art(name: String): String? = if (name.contains("Liberty 4 NC", ignoreCase = true)) LIBERTY_4_NC.art else null
 
     /** Guessed from the name, as Bluetooth doesn't say what shape a device is. */
     fun kind(name: String): Kind {
