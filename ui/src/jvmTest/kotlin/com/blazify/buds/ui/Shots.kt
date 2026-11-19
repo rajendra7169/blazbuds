@@ -7,6 +7,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.use
 import com.blazify.buds.core.demo.DemoBuds
 import com.blazify.buds.ui.screens.Place
+import com.blazify.buds.ui.screens.Tab
 import com.blazify.buds.ui.screens.QuickPanel
 import com.blazify.buds.ui.theme.BudsTheme
 import com.blazify.buds.ui.theme.ThemeChoice
@@ -39,9 +40,12 @@ class Shots {
             val look = theme.name.lowercase()
             shot(dir, "home-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme)) }
             shot(dir, "home-desktop-$look", 1180, 820) { BudsApp(DemoBuds(), prefs(theme)) }
-            shot(dir, "sound-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Equalizer) }
+            shot(dir, "sound-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), startTab = Tab.Sound) }
+            shot(dir, "controls-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), startTab = Tab.Controls) }
+            shot(dir, "device-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), startTab = Tab.Device) }
             shot(dir, "earbuds-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Earbuds) }
-            shot(dir, "controls-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Controls) }
+            shot(dir, "add-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Add) }
+            shot(dir, "help-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
             shot(dir, "panel-$look", 360, 330) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) { QuickPanel(buds.state.value, {}, {}) }
