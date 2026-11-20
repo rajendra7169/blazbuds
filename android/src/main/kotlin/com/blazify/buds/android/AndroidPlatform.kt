@@ -11,7 +11,9 @@ import android.provider.Settings
 import android.util.Log
 import com.blazify.buds.core.BasicBuds
 import com.blazify.buds.core.catalog.Catalog
+import com.blazify.buds.core.catalog.Family
 import com.blazify.buds.core.catalog.Support
+import com.blazify.buds.core.huawei.HuaweiBuds
 import com.blazify.buds.core.link.Connection
 import com.blazify.buds.core.link.Device
 import com.blazify.buds.core.link.LinkException
@@ -36,7 +38,7 @@ class AndroidPlatform(
 
     override suspend fun paired(): List<Device> = runCatching {
         adapter?.bondedDevices.orEmpty()
-            .filter { it.bluetoothClass?.majorDeviceClass == BluetoothClass.Device.Major.AUDIO_VIDEO || Catalog.model(it.toDevice()).support == Support.Full }
+            .filter { it.bluetoothClass?.majorDeviceClass == BluetoothClass.Device.Major.AUDIO_VIDEO || Catalog.model(it.toDevice()).support != Support.Basic }
             .map { it.toDevice() }
     }.getOrDefault(emptyList())
 
@@ -47,9 +49,15 @@ class AndroidPlatform(
 
     override fun open(device: Device, scope: CoroutineScope): Buds {
         val bt = adapter!!.getRemoteDevice(device.address)
-        val buds = when (Catalog.model(device).support) {
-            Support.Full -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { Log.i(TAG, it) }).also { it.start() }
-            Support.Basic -> BasicBuds(device.name, scope) { bt.connectedNow() to bt.batteryNow() }.also { it.start() }
+        val buds = when (Catalog.model(device).family) {
+            Family.Soundcore -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { Log.i(TAG, it) }).also { it.start() }
+            Family.Huawei -> HuaweiBuds(
+                device.name, scope,
+                // The serial-port service first; where it lands on the wrong channel, the usual ones by number.
+                listOf({ serial(bt, null) }, { serial(bt, 1) }, { serial(bt, 16) }),
+                { Log.i(TAG, it) },
+            ).also { it.start() }
+            Family.None -> BasicBuds(device.name, scope) { bt.connectedNow() to bt.batteryNow() }.also { it.start() }
         }
         return buds
     }
@@ -176,6 +184,23 @@ class AndroidPlatform(
 
     override fun bluetoothSettings() {
         context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    /** A serial-port link: by its service, or straight to a channel number where [channel] is given. */
+    private fun serial(bt: BluetoothDevice, channel: Int?): Connection {
+        val socket = if (channel == null) bt.createRfcommSocketToServiceRecord(UUID.fromString(com.blazify.buds.core.huawei.HuaweiBuds.SERIAL))
+        else bt.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType).invoke(bt, channel) as android.bluetooth.BluetoothSocket
+        try {
+            socket.connect()
+        } catch (e: IOException) {
+            runCatching { socket.close() }
+            throw LinkException("Couldn't reach the earbuds: ${e.message}", busy = false)
+        }
+        return object : Connection {
+            override fun read(into: ByteArray): Int = try { socket.inputStream.read(into) } catch (e: IOException) { -1 }
+            override fun write(bytes: ByteArray) { socket.outputStream.write(bytes); socket.outputStream.flush() }
+            override fun close() { runCatching { socket.close() } }
+        }
     }
 
     private fun socket(bt: BluetoothDevice): Connection {

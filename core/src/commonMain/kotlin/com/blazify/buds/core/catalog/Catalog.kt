@@ -7,9 +7,15 @@ enum class Support {
     /** Every setting: modes, sound, touch controls, devices. */
     Full,
 
+    /** Battery for each earbud and the case, and the model's details, from the earbuds themselves. */
+    Battery,
+
     /** What the phone or computer itself knows for any earbuds: battery and the connection. */
     Basic,
 }
+
+/** Which protocol a model speaks, for picking its driver. */
+enum class Family { Soundcore, Huawei, None }
 
 /** What a device looks like, for its picture. */
 enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
@@ -19,6 +25,7 @@ data class Model(
     val name: String,
     val support: Support,
     val pairing: List<String>,
+    val family: Family = Family.None,
 )
 
 /**
@@ -34,6 +41,13 @@ object Catalog {
             "Press and hold the button on the case for 3 seconds, until the light flashes white.",
             "Pick \"soundcore Liberty 4 NC\" in your Bluetooth settings.",
         ),
+        Family.Soundcore,
+    )
+
+    private val HONOR_PAIRING = listOf(
+        "Put both earbuds in the case and leave the lid open.",
+        "Press and hold the button on the case for 2 seconds, until the light flashes.",
+        "Pick your earbuds in your Bluetooth settings, then come back here.",
     )
 
     private val GENERIC_PAIRING = listOf(
@@ -44,8 +58,17 @@ object Catalog {
 
     fun model(device: Device): Model = when {
         device.name.contains("Liberty 4 NC", ignoreCase = true) -> LIBERTY_4_NC
+        // Honor and Huawei earbuds share one protocol; Honor Choice ones call themselves "Earbuds X…".
+        HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Battery, HONOR_PAIRING, Family.Huawei)
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
     }
+
+    private val HUAWEI_NAMES = listOf(
+        Regex("^Earbuds X\\d", RegexOption.IGNORE_CASE),
+        Regex("^HONOR (Earbuds|Choice|Magic)", RegexOption.IGNORE_CASE),
+        Regex("^HUAWEI FreeBuds", RegexOption.IGNORE_CASE),
+        Regex("^FreeBuds", RegexOption.IGNORE_CASE),
+    )
 
     /** Guessed from the name, as Bluetooth doesn't say what shape a device is. */
     fun kind(name: String): Kind {

@@ -188,11 +188,11 @@ private fun DeviceRow(row: Pair2, chosen: Boolean, onClick: () -> Unit) {
                 )
             }
             Text(
-                if (row.support == Support.Full) "Full control" else "Basics",
+                when (row.support) { Support.Full -> "Full control"; Support.Battery -> "Battery and details"; Support.Basic -> "Basics" },
                 style = MaterialTheme.typography.labelSmall,
-                color = if (row.support == Support.Full) palette.accent else palette.muted,
+                color = if (row.support != Support.Basic) palette.accent else palette.muted,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(if (row.support == Support.Full) palette.accent.copy(alpha = 0.12f) else palette.raised)
+                    .background(if (row.support != Support.Basic) palette.accent.copy(alpha = 0.12f) else palette.raised)
                     .padding(horizontal = 8.dp, vertical = 3.dp),
             )
         }

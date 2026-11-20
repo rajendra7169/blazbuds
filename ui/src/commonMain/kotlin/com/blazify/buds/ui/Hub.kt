@@ -107,7 +107,7 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
             hidden.remove(at)
         }
         // On a first launch, the pairs the app can fully control are listed even before they connect.
-        if (known.isEmpty()) paired.values.filter { Catalog.model(it).support == Support.Full }.forEach { known[it.address] = it.name }
+        if (known.isEmpty()) paired.values.filter { Catalog.model(it).support != Support.Basic }.forEach { known[it.address] = it.name }
         address?.let { at -> if (at !in known && chosenName != null) known[at] = chosenName!! }
         save()
         list.value = known.filterKeys { it !in hidden }.map { (at, name) ->
@@ -117,7 +117,7 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         }.sortedByDescending { it.device.connected }
         if (chosen.value == null) {
             val pick = list.value.firstOrNull { it.device.address == address }
-                ?: list.value.firstOrNull { it.device.connected && it.support == Support.Full }
+                ?: list.value.firstOrNull { it.device.connected && it.support != Support.Basic }
             if (pick != null) {
                 choose(pick.device)
             } else if (address != null && chosenName != null) {

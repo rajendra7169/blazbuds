@@ -64,10 +64,18 @@ object LinuxPlatform : Platform {
 
     override suspend fun peek(device: Device): Pair<Boolean, Int?> = LinuxBluetooth.info(device.address)
 
-    override fun open(device: Device, scope: CoroutineScope): Buds = when (Catalog.model(device).support) {
-        Support.Full -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { LinuxBluetooth.open(device.address, A3947.SERVICE) })
+    override fun open(device: Device, scope: CoroutineScope): Buds = when (Catalog.model(device).family) {
+        com.blazify.buds.core.catalog.Family.Soundcore -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { LinuxBluetooth.open(device.address, A3947.SERVICE) })
             .also { it.start() }
-        Support.Basic -> BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() }
+        com.blazify.buds.core.catalog.Family.Huawei -> com.blazify.buds.core.huawei.HuaweiBuds(
+            device.name, scope,
+            listOf(
+                { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) },
+                { LinuxBluetooth.rfcomm(device.address, 1) },
+                { LinuxBluetooth.rfcomm(device.address, 16) },
+            ),
+        ).also { it.start() }
+        com.blazify.buds.core.catalog.Family.None -> BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() }
     }
 
     override val hasBluetoothSettings: Boolean = true
