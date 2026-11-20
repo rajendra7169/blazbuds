@@ -136,23 +136,23 @@ class AndroidPlatform(
             android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, rate, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, size)
         }.getOrNull()?.takeIf { it.state == android.media.AudioRecord.STATE_INITIALIZED } ?: return null
         val main = android.os.Handler(android.os.Looper.getMainLooper())
-        @Volatile var going = true
+        val going = java.util.concurrent.atomic.AtomicBoolean(true)
         val worker = Thread({
             val noise = com.blazify.buds.core.earprint.RoomNoise()
             val chunk = ShortArray(rate / 10)
             runCatching { record.startRecording() }
-            while (going) {
+            while (going.get()) {
                 val got = record.read(chunk, 0, chunk.size)
                 if (got > 0) {
                     val level = noise.level(chunk, got, rate)
-                    main.post { if (going) onLevel(level) }
+                    main.post { if (going.get()) onLevel(level) }
                 }
             }
             runCatching { record.stop() }
             record.release()
         }, "blazbuds-room")
         worker.start()
-        return { going = false }
+        return { going.set(false) }
     }
 
     override fun steadyVolume(on: Boolean) {

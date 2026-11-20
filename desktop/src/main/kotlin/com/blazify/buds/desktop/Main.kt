@@ -85,22 +85,22 @@ object LinuxPlatform : Platform {
         val rate = 16_000f
         val format = javax.sound.sampled.AudioFormat(rate, 16, 1, true, false)
         val line = runCatching { javax.sound.sampled.AudioSystem.getTargetDataLine(format).also { it.open(format) } }.getOrNull() ?: return null
-        @Volatile var going = true
+        val going = java.util.concurrent.atomic.AtomicBoolean(true)
         Thread({
             val noise = com.blazify.buds.core.earprint.RoomNoise()
             val bytes = ByteArray(rate.toInt() / 10 * 2)
             val samples = ShortArray(bytes.size / 2)
             line.start()
-            while (going) {
+            while (going.get()) {
                 val got = line.read(bytes, 0, bytes.size)
                 for (i in 0 until got / 2) samples[i] = ((bytes[i * 2 + 1].toInt() shl 8) or (bytes[i * 2].toInt() and 0xFF)).toShort()
                 val level = noise.level(samples, got / 2, rate.toInt())
-                javax.swing.SwingUtilities.invokeLater { if (going) onLevel(level) }
+                javax.swing.SwingUtilities.invokeLater { if (going.get()) onLevel(level) }
             }
             line.stop()
             line.close()
         }, "blazbuds-room").apply { isDaemon = true }.start()
-        return { going = false }
+        return { going.set(false) }
     }
 
     override fun playSound(samples: ShortArray, loop: Boolean) {
