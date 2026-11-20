@@ -25,7 +25,7 @@ object EarPrint {
      * and lifted by about a third of the difference, never more than 6 dB. Ages past 45 get a little more treble, where
      * hearing usually fades first.
      */
-    fun curve(thresholds: Map<Int, Double>, age: AgeRange = AgeRange.Under30): List<Double> {
+    fun curve(thresholds: Map<Int, Double>, age: AgeRange = AgeRange.From18): List<Double> {
         val known = TEST_PITCHES.filter { it in thresholds }
         if (known.isEmpty()) return List(BANDS.size) { 0.0 }
         val middle = known.map { thresholds.getValue(it) }.sorted().let { it[it.size / 2] }
@@ -58,10 +58,13 @@ object EarPrint {
 }
 
 enum class AgeRange(val label: String, val trebleLift: Double) {
-    Under30("Under 30", 0.0),
-    From30("30–44", 0.5),
-    From45("45–59", 1.5),
-    From60("60 or over", 2.5),
+    Under18("Under 18", 0.0),
+    From18("18–29", 0.0),
+    From30("30–39", 0.3),
+    From40("40–49", 0.8),
+    From50("50–59", 1.5),
+    From60("60–69", 2.5),
+    From70("70 or over", 3.5),
 }
 
 /**
