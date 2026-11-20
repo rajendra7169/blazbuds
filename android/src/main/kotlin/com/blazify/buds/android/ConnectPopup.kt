@@ -39,6 +39,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.blazify.buds.R
 import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.ui.LocalPrefs
 import com.blazify.buds.ui.Prefs
@@ -129,11 +130,17 @@ object ConnectPopup {
             windows.addView(view, params)
             showing = view
             owner.start()
-        }.onFailure { scope.cancel(); return }
+            android.util.Log.i(TAG, "card shown for $name")
+        }.onFailure {
+            android.util.Log.w(TAG, "card could not show: $it")
+            scope.cancel()
+            return
+        }
         // The batteries: from the app's own link when it has one, else a short look of its own.
         scope.launch {
             val live = Remote.live?.state?.value?.takeIf { it.isReady && it.name.isNotBlank() }
             state.value = live ?: Remote.battery(app)
+            android.util.Log.i(TAG, "card battery: ${state.value?.let { "L ${it.left?.percent} R ${it.right?.percent} case ${it.case?.percent}" } ?: "not read"}")
         }
     }
 
@@ -166,13 +173,53 @@ class ConnectReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != BluetoothDevice.ACTION_ACL_CONNECTED) return
         val store = Settings()
-        if (!store.getBoolean(Prefs.CONNECT_POPUP, true) || !ConnectPopup.allowed(context) || ConnectPopup.appInFront) return
-        @Suppress("DEPRECATION")
-        val device: BluetoothDevice = (if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) else intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)) ?: return
+        val on = store.getBoolean(Prefs.CONNECT_POPUP, true)
+        val allowed = ConnectPopup.allowed(context)
+        android.util.Log.i(TAG, "connected: popup on=$on, allowed over apps=$allowed, app in front=${ConnectPopup.appInFront}")
+        if (!on || ConnectPopup.appInFront) return
+        if (!allowed) {
+            // The card is on but the phone hasn't allowed it over other apps: say so once, with the way to allow it.
+            if (Remote.chosen()?.address.equals(intentDevice(intent)?.address, ignoreCase = true) && !store.getBoolean(NUDGED, false)) {
+                store.putBoolean(NUDGED, true)
+                nudge(context)
+            }
+            return
+        }
+        val device = intentDevice(intent) ?: return
         // Only earbuds the app knows: the pair it was last using.
         val chosen = Remote.chosen() ?: return
-        if (!chosen.address.equals(device.address, ignoreCase = true)) return
+        if (!chosen.address.equals(device.address, ignoreCase = true)) {
+            android.util.Log.i(TAG, "connected: not the chosen pair, no card")
+            return
+        }
+        android.util.Log.i(TAG, "connected: ${chosen.name}, card in a moment")
         // A moment for the earbuds to settle before the card asks them anything.
         Handler(Looper.getMainLooper()).postDelayed({ ConnectPopup.show(context, chosen.address, chosen.name) }, 1_200)
     }
+}
+
+private const val TAG = "BlazbudsConnect"
+private const val NUDGED = "connect_popup_nudged"
+
+@Suppress("DEPRECATION")
+private fun intentDevice(intent: Intent): BluetoothDevice? =
+    if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) else intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+
+/** The one notice that the card needs a permission, opening the phone's page for it. */
+private fun nudge(context: Context) {
+    val manager = context.getSystemService(android.app.NotificationManager::class.java) ?: return
+    val channel = "connect_card"
+    manager.createNotificationChannel(android.app.NotificationChannel(channel, "Connect card", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+    val allow = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + context.packageName))
+    val tap = android.app.PendingIntent.getActivity(context, 7, allow, android.app.PendingIntent.FLAG_IMMUTABLE)
+    val text = "Allow Blazbuds to show over other apps, and the case and each battery appear as you open the case."
+    val notice = android.app.Notification.Builder(context, channel)
+        .setSmallIcon(R.drawable.ic_tile)
+        .setContentTitle("See your battery as you open the case")
+        .setContentText(text)
+        .setStyle(android.app.Notification.BigTextStyle().bigText(text))
+        .setContentIntent(tap)
+        .setAutoCancel(true)
+        .build()
+    runCatching { manager.notify(channel.hashCode(), notice) }
 }
