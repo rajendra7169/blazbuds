@@ -54,6 +54,13 @@ enum class SamsungModel(
     val pinch: Boolean get() = this == Buds3 || this == Buds3Pro || this == Buds3Fe || this == Buds4 || this == Buds4Pro
 
     /**
+     * A curve of the person's own beside the presets: nine bands from 63 Hz to 16 kHz, each a whole step from −10 to
+     * +10. GalaxyBudsClient lists it for the Buds3, Buds3 Pro, Buds3 FE, Buds4 and Buds4 Pro only; the older ones have
+     * the five presets and nothing more.
+     */
+    val customEq: Boolean get() = this == Buds3 || this == Buds3Pro || this == Buds3Fe || this == Buds4 || this == Buds4Pro
+
+    /**
      * How many strengths manual noise cancelling has, 0 for one fixed strength: low and high on the Buds Pro, Buds FE,
      * Buds Core and Buds3 FE, as GalaxyBudsClient lists them, and five on the Buds3 Pro, as Gadgetbridge sets them.
      */

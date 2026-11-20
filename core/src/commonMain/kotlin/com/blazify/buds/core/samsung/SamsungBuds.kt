@@ -34,11 +34,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.log2
+import kotlin.math.roundToInt
 
 /**
  * Samsung Galaxy Buds, from the 2019 Buds to the Buds4 Pro: battery for each earbud and the case (and which are
- * charging, where the model says), the noise control each model has, the five sound presets, what touch and hold does
- * on each ear, the touch lock, the firmware, and making the earbuds ring to be found.
+ * charging, where the model says), the noise control each model has with its strengths where there are any, voice
+ * detect on the Pro models, the five sound presets and, from the Buds3 on, a nine-band curve of the person's own, what
+ * touch and hold does on each ear, the touch lock, the firmware, and making the earbuds ring to be found.
  *
  * The earbuds tell everything on their own: a full status on connecting and after most changes, a short one when a
  * battery moves, and a note when a setting is changed on the earbuds. A change made here shows at once and is put
@@ -69,6 +72,15 @@ class SamsungBuds(
 
     /** Whether noise cancelling, when picked, is the adaptive kind; the last one chosen. */
     private var adaptiveChosen = false
+
+    /** The person's own curve in the earbuds' steps, as last sent or read back; null until known. */
+    private var curve: List<Int>? = null
+
+    /**
+     * Whether the person's own curve is the sound they chose here. The earbuds forget the curve when they are switched
+     * off (and the Buds4 Pro when the noise control changes), so then it is sent again, as GalaxyBudsClient does.
+     */
+    private var curveChosen = false
 
     fun start() {
         if (runner != null) return
@@ -137,22 +149,36 @@ class SamsungBuds(
                 val read = SamsungStatus.extended(model, p) ?: return
                 revision = read.revision
                 status = read
+                val fresh = !greeted
+                // A preset picked elsewhere, on the phone or by another app, ends the person's own curve; the first
+                // status after connecting doesn't count, as the earbuds may have just forgotten it.
+                if (!fresh && read.preset != null && read.preset != CUSTOM_PRESET) curveChosen = false
                 publish()
-                if (!greeted) {
+                if (fresh) {
                     greeted = true
                     // As Samsung's own app does: say who we are, then ask for the firmware.
                     scope.launch {
                         send(MANAGER_INFO, 1, 1, 34)
                         send(DEBUG_GET_ALL_DATA)
+                        if (model.customEq) {
+                            if (curveChosen) sendCurve() else send(CUSTOM_EQUALIZE_RECV)
+                        }
                     }
                 }
+            }
+            CUSTOM_EQUALIZE_RECV -> if (model.customEq && !curveChosen) customBands(p)?.let {
+                curve = it
+                publish()
             }
             SamsungStatus.STATUS -> {
                 val read = SamsungStatus.basic(model, p, revision) ?: return
                 status = (status ?: read).copy(left = read.left, right = read.right, case = read.case ?: status?.case, coupled = read.coupled, charging = read.charging ?: status?.charging)
                 publish()
             }
-            NOISE_CONTROLS_UPDATE -> if (model.noise == SamsungModel.Noise.Controls && first != null) setNoise(first)
+            NOISE_CONTROLS_UPDATE -> if (model.noise == SamsungModel.Noise.Controls && first != null) {
+                setNoise(first)
+                curveAgain()
+            }
             AMBIENT_MODE_UPDATED -> if (model.noise == SamsungModel.Noise.Ambient && first != null) setNoise(if (first == 1) 2 else 0)
             NOISE_REDUCTION_MODE_UPDATE -> if (model.noise == SamsungModel.Noise.Cancelling && first != null) setNoise(if (first == 1) 1 else 0)
             AMBIENT_VOICE_FOCUS -> if (model == SamsungModel.Buds && first != null) {
@@ -184,7 +210,8 @@ class SamsungBuds(
                 status = status?.copy(cancelLevel = value)
                 publish()
             }
-            EQUALIZER -> if (model != SamsungModel.Buds && value <= 5) {
+            EQUALIZER -> if (model != SamsungModel.Buds && (value <= 5 || (model.customEq && value == CUSTOM_PRESET))) {
+                if (value != CUSTOM_PRESET) curveChosen = false
                 status = status?.copy(preset = value)
                 publish()
             }
@@ -198,6 +225,20 @@ class SamsungBuds(
     private fun setNoise(mode: Int) {
         status = status?.copy(noise = mode)
         publish()
+    }
+
+    /** Sends the person's own curve, then picks it, as GalaxyBudsClient does. */
+    private suspend fun sendCurve() {
+        val steps = curve ?: return
+        status = status?.copy(preset = CUSTOM_PRESET)
+        publish()
+        send(CUSTOM_EQUALIZE_SEND, steps.size, *steps.toIntArray())
+        send(EQUALIZER, CUSTOM_PRESET)
+    }
+
+    /** The Buds4 Pro drop the curve when the noise control changes, so it goes again; GalaxyBudsClient saw it on no other. */
+    private fun curveAgain() {
+        if (model == SamsungModel.Buds4Pro && curveChosen) scope.launch { sendCurve() }
     }
 
     /** Puts what the earbuds have said into the state, as the screens know it. */
@@ -239,7 +280,14 @@ class SamsungBuds(
             )
         }
         val equalizer = s.preset?.let { preset ->
-            Equalizer(preset, PRESETS.map { (id, label) -> EqPreset(id, label, emptyList()) }, emptyList(), emptyList(), custom = false)
+            val presets = PRESETS.map { (id, label) -> EqPreset(id, label, emptyList()) }
+            if (model.customEq) {
+                // The earbuds' steps shown as decibels, within what the screens draw.
+                val gains = (curve ?: List(BANDS.size) { 0 }).map { it.toDouble().coerceIn(Equalizer.MIN_DB, Equalizer.MAX_DB) }
+                Equalizer(if (preset == CUSTOM_PRESET) Equalizer.CUSTOM else preset, presets, BANDS, gains, custom = true)
+            } else {
+                Equalizer(preset, presets, emptyList(), emptyList(), custom = false)
+            }
         }
         val codes = model.holdCodes
         fun action(ear: Ear, code: Int?): TouchAction? {
@@ -313,6 +361,7 @@ class SamsungBuds(
                     SamsungModel.Noise.Ambient -> send(SET_AMBIENT_MODE, if (mode == 2) 1 else 0)
                     SamsungModel.Noise.Cancelling -> send(SET_NOISE_REDUCTION, if (mode == 1) 1 else 0)
                 }
+                curveAgain()
             }
             is Change.Cancelling -> {
                 if (model.adaptive) {
@@ -322,6 +371,7 @@ class SamsungBuds(
                     if (s.noise != mode || change.level == null) {
                         setNoise(mode)
                         send(NOISE_CONTROLS, mode)
+                        curveAgain()
                     }
                 }
                 val level = change.level
@@ -339,12 +389,18 @@ class SamsungBuds(
                 send(AMBIENT_VOICE_FOCUS, if (on) 1 else 0)
             }
             is Change.Preset -> if (change.id in 0..5) {
+                curveChosen = false
                 status = s.copy(preset = change.id)
                 publish()
                 // The 2019 Buds take "on" and the preset counted from 0, plus 5 for the version without Dolby Atmos;
                 // "off" still carries a preset, Dynamic, as GalaxyBudsClient sends.
                 if (model == SamsungModel.Buds) send(EQUALIZER, if (change.id == 0) 0 else 1, if (change.id == 0) 7 else change.id - 1 + 5)
                 else send(EQUALIZER, change.id)
+            }
+            is Change.Bands -> if (model.customEq && change.left.isNotEmpty()) {
+                curve = steps(change.left)
+                curveChosen = true
+                sendCurve()
             }
             is Change.Touch -> if (change.press == Press.Long) {
                 val hold = when (change.action) {
@@ -445,6 +501,55 @@ class SamsungBuds(
 
         /** Samsung's presets, numbered as the earbuds count them from the Buds+ on. */
         val PRESETS = listOf(0 to "Normal", 1 to "Bass boost", 2 to "Soft", 3 to "Dynamic", 4 to "Clear", 5 to "Treble boost")
+
+        // The person's own curve, Buds3 and later. Adapted from GalaxyBudsClient's SetCustomEqualizerEncoder and
+        // CustomEqualizerDataDecoder (Tim Schneeberger, GPL-3.0).
+
+        /** Asks for the curve the earbuds hold; the answer comes back under the same number. */
+        const val CUSTOM_EQUALIZE_RECV = 0x69
+
+        /** Sets the curve: the number of bands, then each band's step. On the 2019 Buds this number is something else. */
+        const val CUSTOM_EQUALIZE_SEND = 0x89
+
+        /** The equalizer setting that plays the person's own curve, after the five presets and "off". */
+        const val CUSTOM_PRESET = 7
+
+        /** The centre of each band, in hertz. */
+        val BANDS = listOf(63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+
+        /**
+         * The curve in the earbuds' answer: how many presets, how many bands, a table of every preset but the flat
+         * first one, and then the person's own bands, each a signed byte. Null when it isn't the nine bands known here.
+         */
+        fun customBands(p: ByteArray): List<Int>? {
+            if (p.size < 2) return null
+            val presets = p[0].toInt() and 0xFF
+            val bands = p[1].toInt() and 0xFF
+            if (presets < 1 || bands != BANDS.size) return null
+            val from = 2 + (presets - 1) * bands
+            if (from + bands > p.size) return null
+            return List(bands) { p[from + it].toInt().coerceIn(-10, 10) }
+        }
+
+        /**
+         * A curve as the earbuds' nine steps, each taken as a decibel, from −10 to +10. Nine bands go as they are; the
+         * app's usual eight (100 Hz to 12.8 kHz, an octave apart) are read at each of Samsung's frequencies along the
+         * octaves; any other count is spread over the nine.
+         */
+        fun steps(gains: List<Double>): List<Int> {
+            val n = BANDS.size
+            fun at(i: Int): Double = when (gains.size) {
+                n -> gains[i]
+                8 -> {
+                    val x = log2(BANDS[i] / 100.0).coerceIn(0.0, 7.0)
+                    val low = x.toInt().coerceAtMost(6)
+                    val t = x - low
+                    gains[low] * (1 - t) + gains[low + 1] * t
+                }
+                else -> gains[(i * (gains.size - 1) + (n - 1) / 2) / (n - 1)]
+            }
+            return List(n) { at(it).roundToInt().coerceIn(-10, 10) }
+        }
 
         private val MONTHS = "ABCDEFGHIJKL"
         private val YEARS = "OPQRSTUVWXYZ"

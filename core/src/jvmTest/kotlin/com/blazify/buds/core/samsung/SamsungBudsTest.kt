@@ -4,6 +4,7 @@ import com.blazify.buds.core.link.Connection
 import com.blazify.buds.core.model.CancelStyle
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
+import com.blazify.buds.core.model.Equalizer
 import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Toggle
@@ -180,16 +181,77 @@ class SamsungBudsTest {
     }
 
     @Test
+    fun buds3ShowTheirOwnCurveAndSendANewOne() = withBuds(SamsungModel.Buds3, status(9 to SamsungBuds.CUSTOM_PRESET)) { buds, fake ->
+        // Playing the person's own curve: the app asks the earbuds for it.
+        assertEquals(0, fake.next(SamsungBuds.CUSTOM_EQUALIZE_RECV).payload.size)
+        val own = byteArrayOf(3, 2, 1, 0, 0, 0, -1, -2, -8)
+        fake.incoming.add(SamsungMessage.encode(SamsungMessage(SamsungBuds.CUSTOM_EQUALIZE_RECV, byteArrayOf(7, 9) + ByteArray(54) + own), legacy = false))
+        val eq = withTimeout(3_000) { buds.state.first { it.equalizer?.left?.firstOrNull() == 3.0 } }.equalizer!!
+        assertEquals(true, eq.custom)
+        assertEquals(Equalizer.CUSTOM, eq.presetId)
+        assertEquals(SamsungBuds.BANDS, eq.frequencies)
+        // −8 is past what the screens draw, so it shows as −6.
+        assertEquals(listOf(3.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -6.0), eq.left)
+
+        // A curve of the app's usual eight bands goes as nine steps, then the earbuds are told to play it.
+        buds.apply(Change.Bands(listOf(6.0, 3.0, 0.0, 0.0, 0.0, 0.0, -3.0, -6.0)))
+        assertContentEquals(byteArrayOf(9, 6, 5, 2, 0, 0, 0, -1, -4, -6), fake.next(SamsungBuds.CUSTOM_EQUALIZE_SEND).payload)
+        assertContentEquals(byteArrayOf(7), fake.next(SamsungBuds.EQUALIZER).payload)
+        assertEquals(listOf(6.0, 5.0, 2.0, 0.0, 0.0, 0.0, -1.0, -4.0, -6.0), buds.state.value.equalizer!!.left)
+
+        // A preset again; the earbuds' acknowledgement of 7 is the curve.
+        buds.apply(Change.Preset(3))
+        assertContentEquals(byteArrayOf(3), fake.next(SamsungBuds.EQUALIZER).payload)
+        assertEquals(3, buds.state.value.equalizer!!.presetId)
+        fake.incoming.add(ack(SamsungBuds.EQUALIZER, SamsungBuds.CUSTOM_PRESET))
+        withTimeout(3_000) { buds.state.first { it.equalizer?.presetId == Equalizer.CUSTOM } }
+    }
+
+    @Test
+    fun theCurveGoesAgainWhenTheEarbudsMayHaveForgottenIt() = runBlocking<Unit> {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // Two connections one after the other; the earbuds were switched off in between and say "Normal".
+        val fakes = LinkedBlockingQueue(listOf(FakeBuds(status(9 to 0)), FakeBuds(status(9 to 0))))
+        val opened = LinkedBlockingQueue<FakeBuds>()
+        val buds = SamsungBuds("Galaxy Buds4 Pro", SamsungModel.Buds4Pro, scope, { fakes.poll()!!.also { opened.add(it) } }).also { it.start() }
+        try {
+            val first = opened.poll(5, TimeUnit.SECONDS)!!
+            withTimeout(5_000) { buds.state.first { it.equalizer != null } }
+            assertNotNull(first.next(SamsungBuds.CUSTOM_EQUALIZE_RECV))
+            buds.apply(Change.Bands(List(9) { 2.0 }))
+            assertContentEquals(byteArrayOf(9, 2, 2, 2, 2, 2, 2, 2, 2, 2), first.next(SamsungBuds.CUSTOM_EQUALIZE_SEND).payload)
+
+            // The Buds4 Pro drop it when the noise control changes on the earbuds.
+            first.incoming.add(SamsungMessage.encode(SamsungMessage(SamsungBuds.NOISE_CONTROLS_UPDATE, byteArrayOf(2)), legacy = false))
+            assertContentEquals(byteArrayOf(9, 2, 2, 2, 2, 2, 2, 2, 2, 2), first.next(SamsungBuds.CUSTOM_EQUALIZE_SEND).payload)
+
+            // And every pair forgets it when switched off: on the next connection it goes again, not asked for.
+            first.close()
+            val second = opened.poll(10, TimeUnit.SECONDS)!!
+            assertContentEquals(byteArrayOf(9, 2, 2, 2, 2, 2, 2, 2, 2, 2), second.next(SamsungBuds.CUSTOM_EQUALIZE_SEND).payload)
+            assertContentEquals(byteArrayOf(7), second.next(SamsungBuds.EQUALIZER).payload)
+            withTimeout(3_000) { buds.state.first { it.equalizer?.presetId == Equalizer.CUSTOM } }
+        } finally {
+            buds.close()
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun buds2HaveOneCancellingStrength() = withBuds(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10) { buds, fake ->
         assertEquals(emptyList(), buds.state.value.sound!!.options.cancelStyles)
         assertEquals(false, buds.state.value.sound!!.options.levels)
         assertEquals(null, buds.state.value.toggles[Toggle.SpeakToChat])
+        // Presets only: no curve to draw, and none is sent.
+        assertEquals(false, buds.state.value.equalizer!!.custom)
+        buds.apply(Change.Bands(List(8) { 1.0 }))
         buds.apply(Change.Cancelling(CancelStyle.Manual, level = 1))
         buds.ring(left = true, right = true)
         // Nothing went out for the strength: the next message is the ring.
         while (true) {
             val message = fake.sent.poll(3, TimeUnit.SECONDS) ?: error("nothing sent")
             assertNotEquals(SamsungBuds.NOISE_REDUCTION_LEVEL, message.id)
+            assertNotEquals(SamsungBuds.CUSTOM_EQUALIZE_SEND, message.id)
             if (message.id == SamsungBuds.FIND_MY_EARBUDS_START) break
         }
     }

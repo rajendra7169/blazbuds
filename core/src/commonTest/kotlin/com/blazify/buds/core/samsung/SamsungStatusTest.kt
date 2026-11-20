@@ -104,6 +104,30 @@ class SamsungStatusTest {
     }
 
     @Test
+    fun readsTheCustomCurveAfterThePresetTable() {
+        // Seven presets of nine bands, the flat first one left out, then the person's own nine.
+        val table = ByteArray(6 * 9) { 5 }
+        val own = byteArrayOf(3, 2, 1, 0, 0, 0, -1, -2, -8)
+        assertEquals(own.map { it.toInt() }, SamsungBuds.customBands(byteArrayOf(7, 9) + table + own))
+        // Cut short, or bands of a count not known here.
+        assertNull(SamsungBuds.customBands(byteArrayOf(7, 9) + table + own.copyOf(5)))
+        assertNull(SamsungBuds.customBands(byteArrayOf(7, 10) + ByteArray(80)))
+        assertNull(SamsungBuds.customBands(byteArrayOf(0, 9) + own))
+    }
+
+    @Test
+    fun turnsTheAppsCurveIntoNineSteps() {
+        val nine = listOf(1.0, 2.0, 3.0, -1.0, 0.4, 0.6, 12.0, -12.0, -2.6)
+        assertEquals(listOf(1, 2, 3, -1, 0, 1, 10, -10, -3), SamsungBuds.steps(nine))
+        // The usual eight bands sit an octave apart from 100 Hz; 63 Hz takes the first, 16 kHz the last, and the rest
+        // fall a third of an octave above each of the eight.
+        val eight = listOf(6.0, 3.0, 0.0, 0.0, 0.0, 0.0, -3.0, -6.0)
+        assertEquals(listOf(6, 5, 2, 0, 0, 0, -1, -4, -6), SamsungBuds.steps(eight))
+        // Any other count is spread over the nine.
+        assertEquals(listOf(1, 1, 2, 2, 2, 2, 3, 3, 3), SamsungBuds.steps(listOf(1.0, 2.0, 3.0)))
+    }
+
+    @Test
     fun voiceDetectOnTheProModelsOnly() {
         assertEquals(true, status(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13).voiceDetect)
         assertEquals(false, status(SamsungModel.BudsPro, SamsungCaptures.BUDS_PRO_REV10).voiceDetect)
