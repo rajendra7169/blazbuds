@@ -94,7 +94,8 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         if (eq.preset != null) editing = null else if (matching != null) editing = matching.name
     }
     val mine = editing?.takeIf { eq.preset == null }?.let { n -> prefs.sounds.firstOrNull { it.name == n } }
-    var custom by remember { mutableStateOf(eq.preset == null) }
+    // Opens where the sound playing is: on Custom when it's one of the person's own sounds, else on Presets.
+    var custom by remember { mutableStateOf(eq.preset == null && matching != null) }
     fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
         share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Custom › Add a code and paste:\n${sound.code()}")
 
