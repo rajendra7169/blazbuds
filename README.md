@@ -36,6 +36,7 @@ On a computer it also lives in the tray: battery and mode in the menu, and a sma
 | Earbuds | What works |
 |---|---|
 | Soundcore Liberty 4 NC | Everything above |
+| Other Soundcore earbuds and headphones (Liberty, Life, Space, P, A, R, C, V and Sport series, Sleep A30) | Battery, listening modes, equalizer, touch controls and switches, as far as each model has them; not yet tried on the earbuds themselves |
 | Any other Bluetooth earbuds | The basics: connection and battery, where the phone or computer can read it |
 
 More brands are on the way. The app is built so each new brand plugs into the same screens.
@@ -68,7 +69,7 @@ You need JDK 21.
 
 ## Credits
 
-The Soundcore protocol is understood thanks to the work of the [OpenSCQ30](https://github.com/Oppzippy/OpenSCQ30) and [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge) projects. Text is set in [Figtree](https://github.com/erikdkennedy/figtree), under the SIL Open Font License.
+The Soundcore protocol is understood thanks to the work of the [OpenSCQ30](https://github.com/Oppzippy/OpenSCQ30) and [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge) projects. What each Soundcore model besides the Liberty 4 NC holds, and how to change it, is carried over from OpenSCQ30 (GPL-3.0), model by model. Text is set in [Figtree](https://github.com/erikdkennedy/figtree), under the SIL Open Font License.
 
 Blazbuds is not made by or connected with Anker or Soundcore.
 
