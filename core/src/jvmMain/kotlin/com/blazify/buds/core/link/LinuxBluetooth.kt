@@ -34,11 +34,29 @@ object LinuxBluetooth : DesktopBluetooth {
 
     private val c: C by lazy { Native.load("c", C::class.java) }
 
-    /** Opens the earbuds' service [uuid], looking up its channel first. */
+    /**
+     * The channel each pair's service was last found on. Reconnecting then skips the lookup, which talks to the
+     * earbuds while their music link may still be settling; a channel that stops working is looked up afresh.
+     */
+    private val knownChannels = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /** Opens the earbuds' service [uuid], looking up its channel first unless it is already known. */
     override fun open(address: String, uuid: String, timeoutMs: Int): Connection {
+        val key = address.uppercase() + "/" + uuid.lowercase()
+        knownChannels[key]?.let { known ->
+            try {
+                return rfcomm(address, known, timeoutMs)
+            } catch (e: LinkException) {
+                // Out of reach says nothing about the channel. A refusal looks the same as a channel that moved, so the
+                // next try looks it up afresh; anything else is looked up at once.
+                if (e.message?.contains("out of reach") == true) throw e
+                knownChannels.remove(key)
+                if (e.busy) throw e
+            }
+        }
         val channel = channel(address, uuid, timeoutMs)
             ?: throw LinkException("These earbuds don't offer the control service")
-        return rfcomm(address, channel, timeoutMs)
+        return rfcomm(address, channel, timeoutMs).also { knownChannels[key] = channel }
     }
 
     fun channel(address: String, uuid: String, timeoutMs: Int = 6000): Int? {
