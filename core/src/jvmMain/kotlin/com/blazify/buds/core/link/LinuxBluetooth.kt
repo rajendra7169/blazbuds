@@ -35,15 +35,17 @@ object LinuxBluetooth : DesktopBluetooth {
     private val c: C by lazy { Native.load("c", C::class.java) }
 
     /**
-     * The channel each pair's service was last found on. Reconnecting then skips the lookup, which talks to the
-     * earbuds while their music link may still be settling; a channel that stops working is looked up afresh.
+     * The channel each pair's service was last found on, and when. Reconnecting soon after (as the earbuds restart)
+     * skips the lookup, which talks to the earbuds while their music link is still settling. A channel is trusted for
+     * ten minutes only, so one that moved (after a firmware update, say) but still connects to something heals itself.
      */
-    private val knownChannels = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val knownChannels = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Long>>()
+    private const val TRUST_MS = 10 * 60 * 1000L
 
     /** Opens the earbuds' service [uuid], looking up its channel first unless it is already known. */
     override fun open(address: String, uuid: String, timeoutMs: Int): Connection {
         val key = address.uppercase() + "/" + uuid.lowercase()
-        knownChannels[key]?.let { known ->
+        knownChannels[key]?.takeIf { System.currentTimeMillis() - it.second < TRUST_MS }?.first?.let { known ->
             try {
                 return rfcomm(address, known, timeoutMs)
             } catch (e: LinkException) {
@@ -56,7 +58,7 @@ object LinuxBluetooth : DesktopBluetooth {
         }
         val channel = channel(address, uuid, timeoutMs)
             ?: throw LinkException("These earbuds don't offer the control service")
-        return rfcomm(address, channel, timeoutMs).also { knownChannels[key] = channel }
+        return rfcomm(address, channel, timeoutMs).also { knownChannels[key] = channel to System.currentTimeMillis() }
     }
 
     fun channel(address: String, uuid: String, timeoutMs: Int = 6000): Int? {
