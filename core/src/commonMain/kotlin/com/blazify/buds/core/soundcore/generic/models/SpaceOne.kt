@@ -19,7 +19,7 @@ internal val SPACE_LOW_BATTERY = Packet.command(0x01, 0xAF)
 val A3035 = SoundcoreModel(
     code = "A3035",
     name = "Space One",
-    service = SoundcoreModel.service("A3035"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7b3035",
     layout = listOf(
         Piece.SingleLevel,
         Piece.Skip(1), // unknown
@@ -68,7 +68,7 @@ val A3035 = SoundcoreModel(
 val A3062 = SoundcoreModel(
     code = "A3062",
     name = "Space One Pro",
-    service = SoundcoreModel.service("A3062"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7b3062",
     layout = listOf(
         Piece.SingleBattery,
         Piece.Firmware,

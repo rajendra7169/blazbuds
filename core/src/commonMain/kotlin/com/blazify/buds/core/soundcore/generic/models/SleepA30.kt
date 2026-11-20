@@ -73,7 +73,7 @@ val SLEEP_A30_LAYOUT = ButtonLayout(
 val D1301 = SoundcoreModel(
     code = "D1301",
     name = "Sleep A30",
-    service = SoundcoreModel.service("D1301"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7d1301",
     layout = listOf(
         Piece.Tws,
         Piece.DualLevel,

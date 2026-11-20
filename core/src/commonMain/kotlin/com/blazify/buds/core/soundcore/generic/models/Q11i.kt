@@ -18,7 +18,7 @@ private val Q11I_PRESETS: List<SoundcorePreset> = EqSetup.PRESETS_TYPE_2.filter 
 val A3005 = SoundcoreModel(
     code = "A3005",
     name = "Q11i",
-    service = SoundcoreModel.service("A3005"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7b3005",
     layout = listOf(
         Piece.SingleBattery,
         Piece.Firmware,

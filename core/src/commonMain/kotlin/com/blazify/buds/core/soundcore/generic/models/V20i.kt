@@ -91,7 +91,7 @@ private fun v20iEqualizer(p: Parsed, presetId: Int, tenths: IntArray): List<Step
 val A3876 = SoundcoreModel(
     code = "A3876",
     name = "V20i",
-    service = SoundcoreModel.service("A3876"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7b3876",
     layout = listOf(
         Piece.Tws,
         Piece.DualLevel,

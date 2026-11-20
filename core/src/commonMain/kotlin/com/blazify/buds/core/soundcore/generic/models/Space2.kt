@@ -84,7 +84,7 @@ private object Space2Extras : ModelExtras {
 val D1402 = SoundcoreModel(
     code = "D1402",
     name = "Space 2",
-    service = SoundcoreModel.service("D1402"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7d1402",
     layout = listOf(
         Piece.SingleBattery,
         Piece.Firmware,

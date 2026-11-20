@@ -126,7 +126,7 @@ private fun spaceQ45Equalizer(p: Parsed, presetId: Int, tenths: IntArray): List<
 val A3040 = SoundcoreModel(
     code = "A3040",
     name = "Space Q45",
-    service = SoundcoreModel.service("A3040"),
+    service = "0cf12d31-fac3-4553-bd80-d6832e7b3040",
     layout = listOf(
         Piece.SingleLevel,
         Piece.Skip(1), // unknown
