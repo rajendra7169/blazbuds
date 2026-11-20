@@ -70,8 +70,12 @@ class Shots {
             shot(dir, "earbuds-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Earbuds) }
             shot(dir, "add-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Add) }
             shot(dir, "help-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
+            shot(dir, "settings-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Settings) }
+            shot(dir, "changelog-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Changelog) }
             shot(dir, "find-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Find) }
             shot(dir, "fit-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Fit) }
+            shot(dir, "settings-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Settings) }
+            shot(dir, "changelog-phone-$look", 412, 915) { BudsApp(DemoBuds(), prefs(theme), Place.Changelog) }
             shot(dir, "sound-custom-$look", 412, 915) {
                 val night = listOf(3.0, 2.0, 0.5, -1.0, -0.5, 1.0, 2.5, 2.0)
                 val buds = remember { DemoBuds().also { kotlinx.coroutines.runBlocking { it.apply(com.blazify.buds.core.model.Change.Bands(night)) } } }
@@ -121,7 +125,7 @@ class Shots {
                 }
             }
             shot(dir, "connect-phone-$look", 412, 915) { BudsApp(DemoBuds(connected = false), prefs(theme), Place.Connect) }
-            shot(dir, "panel-$look", 360, 330) {
+            shot(dir, "panel-$look", 360, 372) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) {
                     androidx.compose.runtime.CompositionLocalProvider(LocalPrefs provides prefs(theme)) { QuickPanel(buds.state.value, {}, {}) }
