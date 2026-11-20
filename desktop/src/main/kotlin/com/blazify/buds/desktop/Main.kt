@@ -256,7 +256,26 @@ private fun BudsState.batteryLine(): String {
     return if (!isReady) "Not connected" else parts.joinToString(" · ").ifEmpty { "Connected" }
 }
 
-fun main(args: Array<String>) = application {
+/**
+ * The name Linux desktops match a window to its menu entry by. Java would call it after the main class, so GNOME's
+ * dash and Alt+Tab showed a plain gear; giving it the menu entry's own name ("blazbuds-Blazbuds", as the package
+ * installs it) brings the logo back. Must run before the first window opens.
+ */
+private fun nameTheWindowClass() {
+    if (System.getProperty("os.name").orEmpty().startsWith("Windows")) return
+    runCatching {
+        // The toolkit picks its own name as it starts, so start it first, then rename it before any window exists.
+        val toolkit = java.awt.Toolkit.getDefaultToolkit()
+        toolkit.javaClass.getDeclaredField("awtAppClassName").apply { isAccessible = true }.set(null, "blazbuds-Blazbuds")
+    }
+}
+
+fun main(args: Array<String>) {
+    nameTheWindowClass()
+    app(args)
+}
+
+private fun app(args: Array<String>) = application {
     val prefs = remember { Prefs() }
     val scope = rememberCoroutineScope()
     val demo = "--demo" in args

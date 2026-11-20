@@ -24,7 +24,8 @@ compose.desktop {
     application {
         mainClass = "com.blazify.buds.desktop.MainKt"
         // A small app: a small heap the collector gives back.
-        jvmArgs("-Xmx160m", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1")
+        // The last one lets the app name its window class, so the Linux dash shows its logo instead of a gear.
+        jvmArgs("-Xmx160m", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED")
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.Msi, TargetFormat.Exe)
             packageName = "Blazbuds"
