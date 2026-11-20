@@ -165,6 +165,37 @@ class SonyProtocolTest {
     }
 
     @Test
+    fun voiceGuidance() {
+        // The XM5's first answer ends with both tables enabled (0); a set one answer has no such byte.
+        assertTrue(Sony.hasTable2(hex("01 00 03 00 30 18 00 00")))
+        assertFalse(Sony.hasTable2(hex("01 00 03 00 30 18 00 01")))
+        assertFalse(Sony.hasTable2(hex("01 00 40 10")))
+        // Table two's functions from the XM5's report: 42 is voice guidance with languages and volume, type 1.
+        val table2 = Sony.functions(SonySet.Two, hex("07 00 0b 42 3d 53 ff 54 ff f1 ff 60 ff 61 ff f2 ff 63 ff f8 30 32 04 31 ff"))
+        assertEquals(0x01, Sony.voiceGuidanceType(table2))
+        assertEquals(0x00, Sony.voiceGuidanceType(setOf(0x40)))
+        assertEquals(0x02, Sony.voiceGuidanceType(setOf(0x44)))
+        assertEquals(0x03, Sony.voiceGuidanceType(setOf(0x45)))
+        assertNull(Sony.voiceGuidanceType(setOf(0x53, 0x54)))
+        // Set two: 0 is on; the XM5 answered 47 01 00 01, on, in English.
+        assertEquals("46 01", Sony.voiceGuidance(SonySet.Two, 0x01).text())
+        assertEquals(true, Sony.voiceGuidanceOn(SonySet.Two, 0x01, hex("47 01 00 01")))
+        assertEquals(false, Sony.voiceGuidanceOn(SonySet.Two, 0x01, hex("49 01 01 01")))
+        assertNull(Sony.voiceGuidanceOn(SonySet.Two, 0x00, hex("47 01 00 01")))
+        assertEquals(0x01, Sony.voiceLanguage(0x01, hex("47 01 00 01")))
+        assertNull(Sony.voiceLanguage(0x03, hex("47 03 00")))
+        assertEquals("48 01 01", Sony.setVoiceGuidance(SonySet.Two, 0x01, false, 0x01).text())
+        assertEquals("48 02 00 03", Sony.setVoiceGuidance(SonySet.Two, 0x02, true, 0x03).text())
+        assertEquals("48 03 00", Sony.setVoiceGuidance(SonySet.Two, 0x03, true).text())
+        // Set one, as Gadgetbridge writes it: 46 01 01, 1 on.
+        assertEquals("46 01 01", Sony.voiceGuidance(SonySet.One, 0x01).text())
+        assertEquals(true, Sony.voiceGuidanceOn(SonySet.One, 0x01, hex("47 01 01 01")))
+        assertEquals("48 01 01 00", Sony.setVoiceGuidance(SonySet.One, 0x01, false).text())
+        assertTrue(SonyFeatures.from(SonySet.One, setOf(0x62, 0x39)).voiceGuidance)
+        assertFalse(SonyFeatures.from(SonySet.Two, setOf(0x39)).voiceGuidance)
+    }
+
+    @Test
     fun setOneNoiseControlMatchesGadgetbridge() {
         val cancelling = SonyNoise(SonySet.One, hex("67 02 01 00 01 01 00 00"))
         assertEquals(ListeningMode.NoiseCancelling, cancelling.mode)

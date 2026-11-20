@@ -32,6 +32,8 @@ data class SonyFeatures(
     val autoOff: Int?,
     /** The kind the touch sensors' functions are asked with. */
     val keys: Int?,
+    /** Set one's voice guidance (function `39`); set two lists its voice guidance in table two instead. */
+    val voiceGuidance: Boolean = false,
 ) {
     companion object {
         fun from(set: SonySet, functions: Set<Int>): SonyFeatures = when (set) {
@@ -55,6 +57,7 @@ data class SonyFeatures(
                 speakToChat = 0x05.takeIf { 0xF5 in functions },
                 autoOff = 0x04.takeIf { 0xF4 in functions },
                 keys = 0x06.takeIf { 0xF6 in functions },
+                voiceGuidance = 0x39 in functions,
             )
             SonySet.Two -> SonyFeatures(
                 set,
@@ -549,6 +552,53 @@ object Sony {
     }
 
     fun setKeys(kind: Int, presets: List<Int>): ByteArray = bytes(0xF8, kind, presets.size, *presets.toIntArray())
+
+    /**
+     * Whether a set two pair has a second command table, from the last byte of its first answer (0 is enabled, as
+     * in libmdr's `ConnectRetProtocolInfo`). Set one's voice guidance goes on table two all the same, as in
+     * Gadgetbridge.
+     */
+    fun hasTable2(reply: ByteArray): Boolean = reply.size >= 8 && reply[7].toInt() == 0x00
+
+    /**
+     * The voice guidance type for set two's table two functions: `40` type 0, `41` and `42` type 1, `44` type 2,
+     * `45` type 3 (Sony's `VoiceGuidanceInquiredType`, from PairFree's notes); null when none is listed.
+     */
+    fun voiceGuidanceType(functions: Set<Int>): Int? = when {
+        0x42 in functions || 0x41 in functions -> 0x01
+        0x40 in functions -> 0x00
+        0x44 in functions -> 0x02
+        0x45 in functions -> 0x03
+        else -> null
+    }
+
+    /** Asks for voice guidance on table two: set one's `46 01 01`, set two's `46 type`. */
+    fun voiceGuidance(set: SonySet, type: Int): ByteArray =
+        if (set == SonySet.One) bytes(0x46, 0x01, 0x01) else bytes(0x46, type)
+
+    /**
+     * Voice guidance from a `47` answer or `49` news: set one `47 01 01 value`, 1 on; set two `47 type value`, 0 on,
+     * where types 1 and 2 add the language.
+     */
+    fun voiceGuidanceOn(set: SonySet, type: Int, reply: ByteArray): Boolean? {
+        val p = reply.map { it.toInt() and 0xFF }
+        if (p.isEmpty() || (p[0] != 0x47 && p[0] != 0x49)) return null
+        return when (set) {
+            SonySet.One -> if (p.size >= 4 && p[1] == 0x01 && p[2] == 0x01) p[3] == 1 else null
+            SonySet.Two -> if (p.size >= 3 && p[1] == type) p[2] == 0 else null
+        }
+    }
+
+    /** The language byte set two's types 1 and 2 add to their voice guidance answer. */
+    fun voiceLanguage(type: Int, reply: ByteArray): Int? =
+        if (type == 0x01 || type == 0x02) reply.getOrNull(3)?.toInt()?.and(0xFF) else null
+
+    /** Turns voice guidance on or off; set two's type 2 sends its language back, as Sony's app does. */
+    fun setVoiceGuidance(set: SonySet, type: Int, on: Boolean, language: Int? = null): ByteArray = when {
+        set == SonySet.One -> bytes(0x48, 0x01, 0x01, if (on) 1 else 0)
+        type == 0x02 && language != null -> bytes(0x48, type, if (on) 0 else 1, language)
+        else -> bytes(0x48, type, if (on) 0 else 1)
+    }
 
     /** Touch key functions: the noise control switch, play and pause, and nothing. */
     const val KEY_NOISE = 0x00

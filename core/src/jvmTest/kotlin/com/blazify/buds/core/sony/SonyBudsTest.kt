@@ -53,20 +53,24 @@ class SonyBudsTest {
             for (frame in reader.feed(bytes, bytes.size)) {
                 if (frame.isAck) continue
                 out.add(SonyFrame.ack(frame.seq))
+                // Table two's messages are written and looked up with "2 " in front.
+                val table = if (frame.kind == SonyFrame.TABLE2) "2 " else ""
                 val said = SonyFrame.hex(frame.payload)
-                heard += said
+                heard += table + said
                 val command = frame.payload[0].toInt() and 0xFF
                 val type = said.substring(3, 5)
                 val rest = said.substring(2)
-                // Set commands: 68 noise, 58 equalizer, F8 system, 28 power, E8 audio; each one's question is two less.
-                val answer = if (command in listOf(0x68, 0x58, 0xF8, 0x28, 0xE8)) {
-                    answers["%02x %s".format(command - 2, type)] = "%02x".format(command - 1) + rest
+                // Set commands: 68 noise, 58 equalizer, F8 system, 28 power, E8 audio, and table two's 48 voice
+                // guidance; each one's question is two less.
+                val sets = if (table.isEmpty()) listOf(0x68, 0x58, 0xF8, 0x28, 0xE8) else listOf(0x48)
+                val answer = if (command in sets) {
+                    answers[table + "%02x %s".format(command - 2, type)] = "%02x".format(command - 1) + rest
                     "%02x".format(command + 1) + rest
                 } else {
-                    answers[said]
+                    answers[table + said]
                 }
                 if (answer != null) {
-                    out.add(SonyFrame.encode(SonyFrame.TABLE1, seq, answer.split(" ").map { it.toInt(16).toByte() }.toByteArray()))
+                    out.add(SonyFrame.encode(frame.kind, seq, answer.split(" ").map { it.toInt(16).toByte() }.toByteArray()))
                     seq = 1 - seq
                 }
             }
@@ -156,6 +160,36 @@ class SonyBudsTest {
             assertTrue("68 17 01 01 01 01 07" in earbuds.heard)
             assertEquals(7, buds.state.value.sound!!.ambientLevel)
             assertEquals(TransparencyStyle.Voice, buds.state.value.sound!!.transparencyStyle)
+        } finally {
+            buds.close()
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun theXm5sVoiceGuidanceIsOnTableTwo() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // Table two's functions and voice guidance as the XM5 in PairFree's device report answered them.
+        val earbuds = FakeXm5(
+            xm5 + mapOf(
+                "2 06 00" to "07 00 0b 42 3d 53 ff 54 ff f1 ff 60 ff 61 ff f2 ff 63 ff f8 30 32 04 31 ff",
+                "2 46 01" to "47 01 00 01",
+            ),
+        )
+        val buds = SonyBuds("WF-1000XM5", scope, listOf({ earbuds }))
+        buds.start()
+        try {
+            val ready = withTimeout(15_000) { buds.state.first { Toggle.VoicePrompt in it.toggles } }
+            assertEquals(true, ready.toggles[Toggle.VoicePrompt])
+            assertTrue("2 06 00" in earbuds.heard)
+            // The equalizer's own 06 00 on table one is not mistaken for table two's.
+            assertTrue("06 00" in earbuds.heard)
+
+            buds.apply(Change.Switch(Toggle.VoicePrompt, false))
+            delay(300)
+            // Function 42 is type 1, and set two writes off as 1, without the language.
+            assertTrue("2 48 01 01" in earbuds.heard, "${earbuds.heard}")
+            assertEquals(false, buds.state.value.toggles[Toggle.VoicePrompt])
         } finally {
             buds.close()
             scope.cancel()

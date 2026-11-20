@@ -37,9 +37,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Sony earbuds and headphones (WH-1000XM3 to XM6, WF-1000XM3 to XM6, the LinkBuds, WF-C500 to C710N, WH-CH720N and
  * others): battery for headphones, or each earbud and the case, with charging; noise cancelling, ambient sound and
- * normal, with focus on voice and the ambient sound level; the equalizer's presets and a curve of the person's own; the touch keys; DSEE upscaling,
- * speak-to-chat, pause when taken off and automatic power off; and the model and firmware. Each pair lists the
- * functions it has on connecting, and only those are asked for and shown.
+ * normal, with focus on voice and the ambient sound level; the equalizer's presets and a curve of the person's own;
+ * the touch keys; DSEE upscaling, speak-to-chat, pause when taken off, automatic power off and voice guidance; and the
+ * model and firmware. Each pair lists the functions it has on connecting, and only those are asked for and shown.
  *
  * They talk on one of two serial-port services, set two's first, then set one's; each way in [opens] is tried until
  * one answers.
@@ -81,6 +81,12 @@ class SonyBuds(
     private var offChoices: List<Int>? = null
     private var offSetting: Pair<Int, Int>? = null
     private var keys: List<Int>? = null
+    /** Whether set two's pair has a second table, where its voice guidance is. */
+    private var table2 = false
+    /** The voice guidance type the pair asks with, its switch and (set two) its language. */
+    private var voiceType: Int? = null
+    private var voicePrompt: Boolean? = null
+    private var voiceLanguage: Int? = null
     private val earbuds = Regex("^(WF-|LinkBuds)", RegexOption.IGNORE_CASE).containsMatchIn(name)
 
     fun start() {
@@ -125,7 +131,7 @@ class SonyBuds(
                 var got: ByteArray? = null
                 while (got == null) {
                     val frame = incoming.receive()
-                    if (frame.payload.firstOrNull()?.toInt() == 0x01) got = frame.payload
+                    if (frame.kind == SonyFrame.TABLE1 && frame.payload.firstOrNull()?.toInt() == 0x01) got = frame.payload
                 }
                 got
             }
@@ -146,10 +152,14 @@ class SonyBuds(
         // An answer of any other length is taken as the newer set.
         val speaks = Sony.setOf(first) ?: SonySet.Two
         set = speaks
-        log("command set $speaks")
+        table2 = speaks == SonySet.Two && Sony.hasTable2(first)
+        log("command set $speaks${if (table2) ", two tables" else ""}")
         flow.update { it.copy(link = Link.Connected) }
         val handling = scope.launch {
-            for (frame in incoming) runCatching { handle(frame.payload) }.onFailure { log("handle: ${it.message}") }
+            for (frame in incoming) {
+                runCatching { if (frame.kind == SonyFrame.TABLE2) handleTable2(frame.payload) else handle(frame.payload) }
+                    .onFailure { log("handle: ${it.message}") }
+            }
         }
         send(Sony.deviceInfo(Sony.MODEL))
         send(Sony.deviceInfo(Sony.FIRMWARE))
@@ -182,6 +192,10 @@ class SonyBuds(
         offChoices = null
         offSetting = null
         keys = null
+        table2 = false
+        voiceType = null
+        voicePrompt = null
+        voiceLanguage = null
     }
 
     /** Asks for everything the pair listed. */
@@ -203,17 +217,23 @@ class SonyBuds(
         f.speakToChat?.let { send(Sony.system(it)) }
         f.autoOff?.let { send(Sony.autoOffCapability(f.set, it)); send(Sony.autoOff(f.set, it)) }
         if (earbuds) f.keys?.let { send(Sony.system(it)) }
+        // Voice guidance lives on table two: set one lists it in table one, set two in table two's own functions.
+        if (f.set == SonySet.One && f.voiceGuidance) {
+            voiceType = 0x01
+            send(Sony.voiceGuidance(f.set, 0x01), SonyFrame.TABLE2)
+        }
+        if (f.set == SonySet.Two && table2) send(Sony.supportFunctions(), SonyFrame.TABLE2)
     }
 
-    /** Sends one message and waits for its acknowledgement, sending it again if none comes. */
-    private suspend fun send(payload: ByteArray) {
+    /** Sends one message (on table one unless [table] says two) and waits for its acknowledgement, sending it again if none comes. */
+    private suspend fun send(payload: ByteArray, table: Int = SonyFrame.TABLE1) {
         val link = connection ?: return
         sending.withLock {
             repeat(5) { attempt ->
                 val waiting = CompletableDeferred<Int>()
                 acked = waiting
-                if (attempt == 0) log("-> ${SonyFrame.hex(payload)}")
-                write(link, SonyFrame.encode(SonyFrame.TABLE1, seq, payload))
+                if (attempt == 0) log("${if (table == SonyFrame.TABLE2) "2" else ""}-> ${SonyFrame.hex(payload)}")
+                write(link, SonyFrame.encode(table, seq, payload))
                 val next = withTimeoutOrNull(750) { waiting.await() }
                 if (next != null) {
                     seq = next
@@ -244,7 +264,7 @@ class SonyBuds(
                 val before = lastIn
                 lastIn = frame
                 if (before != null && before.seq == frame.seq && before.payload.contentEquals(frame.payload)) continue
-                if (frame.kind == SonyFrame.TABLE1) incoming.trySend(frame)
+                if (frame.kind == SonyFrame.TABLE1 || frame.kind == SonyFrame.TABLE2) incoming.trySend(frame)
             }
         }
     }
@@ -316,6 +336,28 @@ class SonyBuds(
         }
     }
 
+    /** Table two's answers: set two's second list of functions, and voice guidance in both sets. */
+    private fun handleTable2(payload: ByteArray) {
+        if (payload.isEmpty()) return
+        log("<-2 ${SonyFrame.hex(payload)}")
+        val speaks = set ?: return
+        when (payload[0].toInt() and 0xFF) {
+            0x07 -> if (speaks == SonySet.Two && voiceType == null) {
+                val type = Sony.voiceGuidanceType(Sony.functions(speaks, payload)) ?: return
+                voiceType = type
+                scope.launch { runCatching { send(Sony.voiceGuidance(speaks, type), SonyFrame.TABLE2) } }
+            }
+            0x47, 0x49 -> {
+                val type = voiceType ?: return
+                Sony.voiceGuidanceOn(speaks, type, payload)?.let {
+                    voicePrompt = it
+                    if (speaks == SonySet.Two) Sony.voiceLanguage(type, payload)?.let { language -> voiceLanguage = language }
+                    publish()
+                }
+            }
+        }
+    }
+
     /** Takes in the noise control the earbuds report, remembering the ambient sound level for when it reads 0. */
     private fun heard(n: SonyNoise) {
         noise = n
@@ -359,6 +401,7 @@ class SonyBuds(
             upscaling?.let { put(Toggle.Upscaling, it) }
             wearPause?.let { put(Toggle.WearDetection, it) }
             speakToChat?.let { put(Toggle.SpeakToChat, it) }
+            voicePrompt?.let { put(Toggle.VoicePrompt, it) }
         }
         val autoPowerOff = offChoices?.let { ids ->
             val (active, _) = offSetting ?: return@let null
@@ -473,6 +516,13 @@ class SonyBuds(
                         publish()
                         send(Sony.setSpeakToChat(speaks, kind, change.on, preview))
                         send(Sony.system(kind))
+                    }
+                    Toggle.VoicePrompt -> voiceType?.let { type ->
+                        if (voicePrompt == null) return@let
+                        voicePrompt = change.on
+                        publish()
+                        send(Sony.setVoiceGuidance(speaks, type, change.on, voiceLanguage), SonyFrame.TABLE2)
+                        send(Sony.voiceGuidance(speaks, type), SonyFrame.TABLE2)
                     }
                     else -> {}
                 }
