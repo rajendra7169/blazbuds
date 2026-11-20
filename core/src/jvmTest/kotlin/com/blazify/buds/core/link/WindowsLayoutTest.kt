@@ -121,3 +121,43 @@ class WindowsLayoutTest {
         assertEquals(16, WindowsLayout.getInt(channel, 26))
     }
 }
+
+/** What a failed Windows connection tells the app: busy errors let it wait, the rest say why. */
+class WindowsErrorsTest {
+    private fun error(code: Int) = assertFailsWith<LinkException> { WindowsBluetooth.fail(code) }
+
+    @Test
+    fun refusedOrInUseMeansBusy() {
+        assertTrue(error(10061).busy)
+        assertTrue(error(10048).busy)
+    }
+
+    @Test
+    fun aMissingServiceIsNotBusySoSoundcoreCanTryItsSerialPort() {
+        val e = error(10108)
+        assertFalse(e.busy)
+        assertEquals("These earbuds don't offer the control service", e.message)
+    }
+
+    @Test
+    fun outOfReachAndUnknownErrorsAreNotBusy() {
+        listOf(10060, 10064, 10065, 10004, 10038, 10050, 1234).forEach { assertFalse(error(it).busy, "error $it") }
+        assertEquals("Couldn't connect to the earbuds (error 1234)", error(1234).message)
+    }
+
+    @Test
+    fun anInvalidSocketIsAllOnes() {
+        assertTrue(WindowsBluetooth.Socket(-1).invalid)
+        assertFalse(WindowsBluetooth.Socket(0x1A4).invalid)
+    }
+
+    @Test
+    fun jnaCanReturnASocketAsWideAsAPointer() {
+        // JNA builds a returned SOCKET through its no-argument constructor.
+        val converter = com.sun.jna.NativeMappedConverter.getInstance(WindowsBluetooth.Socket::class.java)
+        val expected = if (com.sun.jna.Native.POINTER_SIZE == 8) java.lang.Long::class.java else java.lang.Integer::class.java
+        assertEquals(expected, converter.nativeType())
+        val socket = converter.fromNative(-1L, null) as WindowsBluetooth.Socket
+        assertTrue(socket.invalid)
+    }
+}

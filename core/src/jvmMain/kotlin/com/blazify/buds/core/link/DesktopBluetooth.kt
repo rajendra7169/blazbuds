@@ -16,4 +16,10 @@ interface DesktopBluetooth {
 
     /** Whether the computer has a Bluetooth radio that is on, where the system can tell. */
     fun radioOn(): Boolean = true
+
+    companion object {
+        /** The Bluetooth of the computer this runs on. */
+        fun here(): DesktopBluetooth =
+            if (System.getProperty("os.name").orEmpty().startsWith("Windows")) WindowsBluetooth else LinuxBluetooth
+    }
 }
