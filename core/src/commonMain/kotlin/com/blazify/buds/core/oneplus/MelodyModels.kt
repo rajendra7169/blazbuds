@@ -1,6 +1,7 @@
 package com.blazify.buds.core.oneplus
 
 import com.blazify.buds.core.oneplus.MelodyModel.Companion.BASS_BANDS
+import com.blazify.buds.core.oneplus.MelodyModel.Companion.CODEC_PICKER
 import com.blazify.buds.core.oneplus.MelodyModel.Companion.CUSTOM_EQ
 import com.blazify.buds.core.oneplus.MelodyModel.Companion.HEAD_TRACKING
 import com.blazify.buds.core.oneplus.MelodyModel.Companion.HOLD_ANC_ONE
@@ -77,7 +78,7 @@ internal val MELODY_MODELS: List<MelodyModel> = listOf(
     MelodyModel(0x063414, "OnePlus Buds Pro 2R", ask = "05 04 0B 0C 0F 11 18 06 1D 1C", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "7:Hans Zimmer Soundscape Tuning@165|0:Balanced|3:Bold|2:Clear Vocals|1:Bass", taps = "16:516 17:8805 18:8801 20:0", flags = CUSTOM_EQ),
     MelodyModel(0x063810, "OPPO Enco Air2 Pro", ask = "05 04 06", anc = "5:0 1:1 2:2", eq = "0:Nature Balance|1:Bass boost|2:Clear Vocals", taps = "1:516 2:33380 3:41475 6:4632 11:0"),
     MelodyModel(0x063812, "realme Buds N1 Pro", ask = "05 04 06 09 18", anc = "5:3(7:5 4:3 8:4 3:2) 1:0 2:1", eq = "2:Clear Vocals|0:Nature Balance|3:Clear Bass|1:Bass boost", taps = "2:581 3:12921 11:0", holdMask = 8833, flags = WIND or SHARED_HOLD),
-    MelodyModel(0x063C10, "OPPO Enco X2", ask = "05 04 0B 0C 11 13 18 06", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8 6:9)", eq = "3:Tuned by Joe Hisaishi|0:Dynaudio Real|1:Dynaudio Simple & Clear|2:Dynaudio Punchy|4:Enco X Classic@112", taps = "16:612 17:615 18:615 5:3584 20:0"),
+    MelodyModel(0x063C10, "OPPO Enco X2", ask = "05 04 0B 0C 11 13 18 06", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8 6:9)", eq = "3:Tuned by Joe Hisaishi|0:Dynaudio Real|1:Dynaudio Simple & Clear|2:Dynaudio Punchy|4:Enco X Classic@112", taps = "16:612 17:615 18:615 5:3584 20:0", flags = CODEC_PICKER),
     MelodyModel(0x063C12, "realme Buds T310", ask = "05 06 09 11 1B 1D", anc = "5:3(4:3 8:4 3:2) 1:0 2:1", eq = "2:Clear Vocals|0:Nature Balance|3:Clear Bass|1:Bass boost", taps = "2:581 3:8825 11:0", holdMask = 8833, flags = CUSTOM_EQ or WIND or SPATIAL_TOGGLE or SHARED_HOLD or BASS_BANDS),
     MelodyModel(0x063C14, "OnePlus Buds 3", ask = "05 04 0B 11 18 06 1B 1D", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "0:Balanced|2:Clear Vocals|1:Bass|3:Bold@119", taps = "1:516 2:8805 3:8801 27:0 5:3584", flags = CUSTOM_EQ),
     MelodyModel(0x064010, "OPPO Enco Free2i", ask = "05 04 0C 11 06", anc = "5:0 1:1 2:2", eq = "0:Classic|1:Dynamic bass|2:Clear Vocals|3:Clear", taps = "1:516 2:612 3:8707 11:0 5:3584"),
@@ -100,10 +101,10 @@ internal val MELODY_MODELS: List<MelodyModel> = listOf(
     MelodyModel(0x065810, "OPPO Enco R2", ask = "05 11 06 1B", eq = "0:Reno Featured (Sunrise Glow)|1:Bass boost|2:Clear Vocals", taps = "1:516 2:8807 3:8803 4:536"),
     MelodyModel(0x065852, "realme Buds T200x", ask = "05 06 11 1D", anc = "5:3 1:0 2:1", eq = "2:Clear Vocals|0:Nature Balance|3:Clear Bass|1:Bass boost", taps = "2:637 3:8829 11:0", holdMask = 8833, flags = CUSTOM_EQ or NO_FIND or SHARED_HOLD),
     MelodyModel(0x065854, "OnePlus Nord Buds 3r", ask = "05 11 06 1B 1E", eq = "0:Balanced|2:Clear Vocals|1:Bass", taps = "1:516 2:8805 3:3154529 6:536", flags = CUSTOM_EQ),
-    MelodyModel(0x065C10, "OPPO Enco Air3 Pro", ask = "05 04 0B 0C 11 18 06 1B", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "0:Nature Balance|1:Bass boost|2:Natural Inspiration", taps = "1:516 2:8807 3:8803 6:536 11:0"),
+    MelodyModel(0x065C10, "OPPO Enco Air3 Pro", ask = "05 04 0B 0C 11 18 06 1B", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "0:Nature Balance|1:Bass boost|2:Natural Inspiration", taps = "1:516 2:8807 3:8803 6:536 11:0", flags = CODEC_PICKER),
     MelodyModel(0x065C12, "realme Buds Clip", ask = "05 06 11 1B", eq = "2:Clear Vocals|0:Nature Balance|3:Clear Bass|1:Bass boost", taps = "2:581 3:8825", flags = SPATIAL_TOGGLE or BASS_BANDS),
     MelodyModel(0x065C14, "OnePlus Open Buds", eq = "0:Default|1:Vibrant|2:Pure vocals|3:Bass", taps = "2:8805 3:3154553 4:536"),
-    MelodyModel(0x066010, "OPPO Enco Free3", ask = "05 04 0B 0C 11 18 06 1B", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "0:Nature Balance|1:Bass boost|2:Natural Inspiration", taps = "1:516 2:8807 3:8803 6:536 11:0"),
+    MelodyModel(0x066010, "OPPO Enco Free3", ask = "05 04 0B 0C 11 18 06 1B", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "0:Nature Balance|1:Bass boost|2:Natural Inspiration", taps = "1:516 2:8807 3:8803 6:536 11:0", flags = CODEC_PICKER),
     MelodyModel(0x066012, "realme TechLife Buds", ask = "05 06 11 1B", eq = "2:Clear Vocals|0:Nature Balance|3:Clear Bass|1:Bass boost", taps = "2:581 3:8825", flags = SPATIAL_TOGGLE),
     MelodyModel(0x066054, "OnePlus Buds 3V", ask = "05 11 06 1B 1E", eq = "0:Balanced|2:Clear Vocals|1:Bass", taps = "1:516 2:8805 3:3154529 6:536", flags = CUSTOM_EQ),
     MelodyModel(0x066414, "OnePlus Buds Ace 3", ask = "05 04 0B 11 18 06 1B 1D 27 28 37", anc = "5:1(7:7 4:4 8:5 3:6) 1:0(1:3) 2:2(2:8)", eq = "0:Balanced|2:Clear Vocals|1:Bass", taps = "1:516 2:8805 3:3154529 5:3584 11:0", holdMask = 8833, bands = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000), flags = CUSTOM_EQ),

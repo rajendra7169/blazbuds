@@ -83,6 +83,8 @@ class MelodyModel(
         const val BASS_BANDS = 256
         /** 3D sound with head tracking, set through its own command, not the switch. */
         const val HEAD_TRACKING = 512
+        /** High-quality audio is a codec choice on these, not the switch, where the earbuds list their codecs. */
+        const val CODEC_PICKER = 1024
 
         /** The model with this Bluetooth name exactly, else the one with this product id; one matching both wins. */
         fun find(name: String?, productId: Int?): MelodyModel? {
