@@ -197,8 +197,16 @@ private fun DeveloperPanel() {
             style = MaterialTheme.typography.bodyMedium,
             color = palette.muted,
         )
+        Spacer(Modifier.height(12.dp))
+        val uri = LocalUriHandler.current
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice("GitHub", false, icon = BudsIcons.GitHub) { uri.openUri(PROFILE_URL) }
+            Choice("Website", false, icon = BudsIcons.Globe) { uri.openUri(WEBSITE_URL) }
+        }
     }
 }
+
+private const val WEBSITE_URL = "https://rajendrapandey.info.np"
 
 private data class OtherApp(val name: String, val about: String, val logo: org.jetbrains.compose.resources.DrawableResource, val url: String)
 
