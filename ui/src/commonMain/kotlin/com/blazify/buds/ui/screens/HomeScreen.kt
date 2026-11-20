@@ -220,7 +220,7 @@ private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
         } else {
             BatteryRow(state.left, com.blazify.buds.ui.caseBattery(state), state.right)
         }
-        if (state.sound == null && state.isReady) {
+        if (state.sound == null && state.equalizer == null && state.controls == null && state.toggles.isEmpty() && state.isReady) {
             Hint("These earbuds get the basics: connection and battery. Full control comes as their brand is added.", Modifier.padding(top = 8.dp))
         }
     }
