@@ -6,7 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import com.blazify.buds.ui.blocks.sideways
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -252,7 +252,7 @@ private fun Scenes(state: BudsState, change: (Change) -> Unit) {
     if (state.sound == null) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionTitle("Scenes")
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.sideways(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Scene.DEFAULTS.forEach { scene ->
                 Choice(scene.name, scene.matches(state), icon = scene.icon()) { scene.changes().forEach(change) }
             }
@@ -277,7 +277,7 @@ private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
         Spacer(Modifier.height(4.dp))
         EqCurve(eq.left)
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.sideways(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Your own sound first when it is the one playing.
             if (eq.preset == null) Choice("Custom", selected = true) { goTab(Tab.Sound) }
             eq.presets.forEach { preset -> Choice(preset.name, preset.id == eq.presetId) { change(Change.Preset(preset.id)) } }

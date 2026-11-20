@@ -5,7 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.horizontalScroll
+import com.blazify.buds.ui.blocks.sideways
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -159,7 +159,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth().sideways(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             cards.chunked(2).forEach { pair ->
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { pair.forEach { it() } }
             }
@@ -431,7 +431,7 @@ fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit
         Panel {
             SectionTitle("Change listening mode goes through")
             Spacer(Modifier.height(4.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.sideways(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ListeningMode.entries.forEach { mode ->
                     val on = mode in sound.cycle
                     Choice(mode.label(), on) {
@@ -533,7 +533,7 @@ fun PromptsSection(state: BudsState, change: (Change) -> Unit) {
         Panel {
             SwitchRow(BudsIcons.Power, "Turn off when not in use", off.enabled, { change(Change.PowerOff(it, off.minutes)) }, color = com.blazify.buds.ui.blocks.Hue.Red)
             if (off.enabled) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.sideways(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     off.choices.forEach { minutes -> Choice("$minutes min", minutes == off.minutes) { change(Change.PowerOff(true, minutes)) } }
                 }
             }
@@ -613,7 +613,7 @@ fun SafeVolumeSection(state: BudsState, change: (Change) -> Unit) {
         SectionTitle("Safe volume")
         SwitchRow(BudsIcons.Ear, "Limit the volume", limit.enabled, { change(Change.SafeVolume(it, limit.decibels)) }, detail = "The earbuds never play louder than this", color = com.blazify.buds.ui.blocks.Hue.Green)
         if (limit.enabled) {
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.sideways().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 limit.choices.forEach { db -> Choice("$db dB", db == limit.decibels) { change(Change.SafeVolume(true, db)) } }
             }
             Hint("85 dB or less is safe for hours of listening; above that, the louder it is, the shorter the time.", Modifier.padding(top = 8.dp))
