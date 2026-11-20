@@ -34,6 +34,8 @@ data class SonyFeatures(
     val keys: Int?,
     /** Set one's voice guidance (function `39`); set two lists its voice guidance in table two instead. */
     val voiceGuidance: Boolean = false,
+    /** The kind "priority on sound quality" (the connection mode) is asked with. */
+    val soundQuality: Int? = null,
 ) {
     companion object {
         fun from(set: SonySet, functions: Set<Int>): SonyFeatures = when (set) {
@@ -58,6 +60,7 @@ data class SonyFeatures(
                 autoOff = 0x04.takeIf { 0xF4 in functions },
                 keys = 0x06.takeIf { 0xF6 in functions },
                 voiceGuidance = 0x39 in functions,
+                soundQuality = 0x01.takeIf { 0xE1 in functions },
             )
             SonySet.Two -> SonyFeatures(
                 set,
@@ -87,6 +90,8 @@ data class SonyFeatures(
                 speakToChat = when { 0xFC in functions -> 0x0C; 0xF2 in functions -> 0x02; else -> null },
                 autoOff = when { 0x25 in functions -> 0x05; 0x24 in functions -> 0x04; else -> null },
                 keys = 0x03.takeIf { 0xF3 in functions },
+                // E3 is the same choice with the LDAC status, the kind Sony's app uses where both are listed.
+                soundQuality = when { 0xE3 in functions -> 0x02; 0xE1 in functions -> 0x00; else -> null },
             )
         }
     }
@@ -476,6 +481,26 @@ object Sony {
             else -> null
         }
     }
+
+    /** Asks for an audio setting of [kind] (`E6`): the connection mode here, upscaling in [upscaling]. */
+    fun audio(kind: Int): ByteArray = bytes(0xE6, kind)
+
+    /**
+     * "Priority on sound quality" from an `E7`/`E9` answer of [kind]: set one `E7 01 00 value`, set two `E7 type
+     * value`; 0 is sound quality, 1 a stable connection, 2 (set two, beta) low latency. Only 0 counts as on.
+     */
+    fun soundQualityOn(set: SonySet, kind: Int, reply: ByteArray): Boolean? {
+        val p = reply.map { it.toInt() and 0xFF }
+        if (p.size < 3 || (p[0] != 0xE7 && p[0] != 0xE9) || p[1] != kind) return null
+        return when (set) {
+            SonySet.One -> if (p.size >= 4) p[3] == 0 else null
+            SonySet.Two -> p[2] == 0
+        }
+    }
+
+    /** Chooses sound quality (on) or a stable connection (off). */
+    fun setSoundQuality(set: SonySet, kind: Int, on: Boolean): ByteArray =
+        if (set == SonySet.One) bytes(0xE8, kind, 0x00, if (on) 0 else 1) else bytes(0xE8, kind, if (on) 0 else 1)
 
     fun setUpscaling(set: SonySet, on: Boolean): ByteArray =
         if (set == SonySet.One) bytes(0xE8, 0x02, 0x00, if (on) 1 else 0) else bytes(0xE8, 0x01, if (on) 1 else 0)

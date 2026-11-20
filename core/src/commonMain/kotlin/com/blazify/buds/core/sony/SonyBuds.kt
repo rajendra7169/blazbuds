@@ -38,8 +38,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Sony earbuds and headphones (WH-1000XM3 to XM6, WF-1000XM3 to XM6, the LinkBuds, WF-C500 to C710N, WH-CH720N and
  * others): battery for headphones, or each earbud and the case, with charging; noise cancelling, ambient sound and
  * normal, with focus on voice and the ambient sound level; the equalizer's presets and a curve of the person's own;
- * the touch keys; DSEE upscaling, speak-to-chat, pause when taken off, automatic power off and voice guidance; and the
- * model and firmware. Each pair lists the functions it has on connecting, and only those are asked for and shown.
+ * the touch keys; DSEE upscaling, priority on sound quality, speak-to-chat, pause when taken off, automatic power off and
+ * voice guidance; and the model and firmware. Each pair lists the functions it has on connecting, and only those are asked for and shown.
  *
  * They talk on one of two serial-port services, set two's first, then set one's; each way in [opens] is tried until
  * one answers.
@@ -75,6 +75,7 @@ class SonyBuds(
     private var ambientLevel: Int? = null
     private var eq: SonyEq? = null
     private var upscaling: Boolean? = null
+    private var soundQuality: Boolean? = null
     private var wearPause: Boolean? = null
     private var speakToChat: Boolean? = null
     private var preview = 1
@@ -187,6 +188,7 @@ class SonyBuds(
         ambientLevel = null
         eq = null
         upscaling = null
+        soundQuality = null
         wearPause = null
         speakToChat = null
         offChoices = null
@@ -213,6 +215,7 @@ class SonyBuds(
             send(Sony.eqSetting(type))
         }
         if (f.upscaling) send(Sony.upscaling(f.set))
+        f.soundQuality?.let { send(Sony.audio(it)) }
         if (f.wearPause) send(Sony.system(Sony.wearPauseKind(f.set)))
         f.speakToChat?.let { send(Sony.system(it)) }
         f.autoOff?.let { send(Sony.autoOffCapability(f.set, it)); send(Sony.autoOff(f.set, it)) }
@@ -312,7 +315,15 @@ class SonyBuds(
                 if (type != null && type == features?.noise) Sony.ambientSteps(payload)?.let { ambientSteps = it; publish() }
             }
             command in listOf(0x51, 0x5B, 0x57, 0x59) -> if (eq?.read(payload) == true) publish()
-            command == 0xE7 || command == 0xE9 -> Sony.upscalingOn(speaks, payload)?.let { upscaling = it; publish() }
+            command == 0xE7 || command == 0xE9 -> {
+                val quality = features?.soundQuality?.let { Sony.soundQualityOn(speaks, it, payload) }
+                if (quality != null) {
+                    soundQuality = quality
+                    publish()
+                } else {
+                    Sony.upscalingOn(speaks, payload)?.let { upscaling = it; publish() }
+                }
+            }
             command == 0xF1 || command == 0x21 -> features?.autoOff?.let { kind ->
                 Sony.autoOffChoices(speaks, kind, payload)?.let { offChoices = it; publish() }
             }
@@ -399,6 +410,7 @@ class SonyBuds(
         }
         val toggles = buildMap {
             upscaling?.let { put(Toggle.Upscaling, it) }
+            soundQuality?.let { put(Toggle.Ldac, it) }
             wearPause?.let { put(Toggle.WearDetection, it) }
             speakToChat?.let { put(Toggle.SpeakToChat, it) }
             voicePrompt?.let { put(Toggle.VoicePrompt, it) }
@@ -504,6 +516,12 @@ class SonyBuds(
                         publish()
                         send(Sony.setUpscaling(speaks, change.on))
                         send(Sony.upscaling(speaks))
+                    }
+                    Toggle.Ldac -> f.soundQuality?.let { kind ->
+                        soundQuality = change.on
+                        publish()
+                        send(Sony.setSoundQuality(speaks, kind, change.on))
+                        send(Sony.audio(kind))
                     }
                     Toggle.WearDetection -> if (f.wearPause) {
                         wearPause = change.on

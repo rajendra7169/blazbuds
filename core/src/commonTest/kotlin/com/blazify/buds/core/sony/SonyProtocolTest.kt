@@ -165,6 +165,26 @@ class SonyProtocolTest {
     }
 
     @Test
+    fun priorityOnSoundQuality() {
+        // Set one: function E1, E7 01 00 value, as Gadgetbridge writes it; 0 is sound quality.
+        assertEquals(0x01, SonyFeatures.from(SonySet.One, setOf(0xE1)).soundQuality)
+        assertEquals("e6 01", Sony.audio(0x01).text())
+        assertEquals(true, Sony.soundQualityOn(SonySet.One, 0x01, hex("e7 01 00 00")))
+        assertEquals(false, Sony.soundQualityOn(SonySet.One, 0x01, hex("e9 01 00 01")))
+        assertNull(Sony.soundQualityOn(SonySet.One, 0x01, hex("e7 02 00 01")))
+        assertEquals("e8 01 00 00", Sony.setSoundQuality(SonySet.One, 0x01, true).text())
+        // Set two: E3 (type 2, with the LDAC status) over E1 (type 0); low latency (2) is not sound quality.
+        assertEquals(0x02, SonyFeatures.from(SonySet.Two, setOf(0xE1, 0xE3)).soundQuality)
+        assertEquals(0x00, SonyFeatures.from(SonySet.Two, setOf(0xE1)).soundQuality)
+        assertNull(SonyFeatures.from(SonySet.Two, setOf(0xE2, 0xE7)).soundQuality)
+        assertEquals(true, Sony.soundQualityOn(SonySet.Two, 0x02, hex("e7 02 00")))
+        assertEquals(false, Sony.soundQualityOn(SonySet.Two, 0x02, hex("e7 02 02")))
+        // Upscaling's answer (type 1) is not taken for it.
+        assertNull(Sony.soundQualityOn(SonySet.Two, 0x02, hex("e7 01 00")))
+        assertEquals("e8 02 01", Sony.setSoundQuality(SonySet.Two, 0x02, false).text())
+    }
+
+    @Test
     fun voiceGuidance() {
         // The XM5's first answer ends with both tables enabled (0); a set one answer has no such byte.
         assertTrue(Sony.hasTable2(hex("01 00 03 00 30 18 00 00")))

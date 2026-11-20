@@ -203,9 +203,11 @@ class SonyBudsTest {
     private val setOne = mapOf(
         "00 00" to "01 00 02 00",
         "04 01" to "05 01 0a 57 48 2d 31 30 30 30 58 4d 33",
-        "06 00" to "07 00 01 62",
+        "06 00" to "07 00 02 62 e1",
         "60 02" to "61 02 02 01 01 02 00 0f 01 0f",
         "66 02" to "67 02 01 02 02 01 00 00",
+        // Connection mode: a stable connection (1).
+        "e6 01" to "e7 01 00 01",
     )
 
     @Test
@@ -229,6 +231,13 @@ class SonyBudsTest {
             // The second time into ambient sound brings back level 5, not 0.
             assertEquals("68 02 11 02 00 01 00 05", earbuds.heard.last { it.startsWith("68") })
             assertEquals(5, buds.state.value.sound!!.ambientLevel)
+
+            // Priority on sound quality shows on the high-quality switch.
+            assertEquals(false, buds.state.value.toggles[Toggle.Ldac])
+            buds.apply(Change.Switch(Toggle.Ldac, true))
+            delay(200)
+            assertTrue("e8 01 00 00" in earbuds.heard)
+            assertEquals(true, buds.state.value.toggles[Toggle.Ldac])
         } finally {
             buds.close()
             scope.cancel()
