@@ -88,15 +88,13 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
         ) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
-            // Ask GitHub for a newer version at most every six hours, and only when the person lets it.
+            // Ask GitHub for a newer version when the app starts and every twelve hours while it keeps running (the
+            // computer app lives in the tray for days), only while the person lets it.
             LaunchedEffect(prefs.checkUpdates) {
-                if (!prefs.checkUpdates) return@LaunchedEffect
-                @OptIn(kotlin.time.ExperimentalTime::class)
-                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
-                if (now - prefs.lastUpdateCheck < 6 * 60 * 60 * 1000L && prefs.knownUpdate != null) return@LaunchedEffect
-                val found = Updates.latest() ?: return@LaunchedEffect
-                prefs.lastUpdateCheck = now
-                if (Updates.isNewer(found.version)) prefs.knownUpdate = found
+                while (prefs.checkUpdates) {
+                    Updates.latest()?.let { found -> if (Updates.isNewer(found.version)) prefs.knownUpdate = found }
+                    kotlinx.coroutines.delay(12 * 60 * 60 * 1000L)
+                }
             }
             val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()

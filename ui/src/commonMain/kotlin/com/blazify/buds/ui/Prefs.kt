@@ -78,15 +78,9 @@ class Prefs(private val store: Settings = Settings()) {
         store.putString(DISMISSED_UPDATE, version)
     }
 
-    /** When GitHub was last asked, in milliseconds since 1970, so it is asked at most every few hours. */
-    var lastUpdateCheck: Long
-        get() = store.getLong(LAST_UPDATE_CHECK, 0L)
-        set(value) = store.putLong(LAST_UPDATE_CHECK, value)
-
     private companion object {
         const val CHECK_UPDATES = "check_updates"
         const val DISMISSED_UPDATE = "dismissed_update"
-        const val LAST_UPDATE_CHECK = "last_update_check"
         const val THEME = "theme"
         const val REDUCE_MOTION = "reduce_motion"
         const val SOUNDS = "my_sounds"
