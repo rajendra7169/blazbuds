@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 
 /** Whose Bluetooth settings the pairing guide draws. */
 enum class SystemLook { Android, Ios, Linux, Windows, Mac }
@@ -118,9 +121,15 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     }
 
     suspend fun reload() {
-        bluetooth.value = platform.bluetoothOn()
-        val paired = platform.paired().associateBy { it.address }
-        val looks = paired.values.associate { device -> device.address to platform.peek(device) }
+        // Asking the system about Bluetooth can take a while (on Linux it runs bluetoothctl once per pair), so it is
+        // done away from the screen's thread; the page refreshes every few seconds and would hitch each time.
+        val (on, paired, looks) = withContext(Dispatchers.IO) {
+            val on = platform.bluetoothOn()
+            val paired = platform.paired().associateBy { it.address }
+            Triple(on, paired, paired.values.associate { device -> device.address to platform.peek(device) })
+        }
+        bluetooth.value = on
+        val before = known.toMap() to hidden.toSet()
         // Anything connected now joins the list, and comes back if it had been removed.
         looks.filter { it.value.first }.keys.forEach { at ->
             val device = paired.getValue(at)
@@ -130,7 +139,8 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         // On a first launch, the pairs the app can fully control are listed even before they connect.
         if (known.isEmpty()) paired.values.filter { Catalog.model(it).support != Support.Basic }.forEach { known[it.address] = it.name }
         address?.let { at -> if (at !in known && chosenName != null) known[at] = chosenName!! }
-        save()
+        // Written only when something changed, not on every refresh.
+        if (before != (known.toMap() to hidden.toSet())) save()
         list.value = known.filterKeys { it !in hidden }.map { (at, name) ->
             val look = looks[at]
             val device = Device(paired[at]?.name ?: name, at, look?.first == true)
