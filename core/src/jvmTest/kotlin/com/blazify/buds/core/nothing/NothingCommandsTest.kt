@@ -1,5 +1,6 @@
 package com.blazify.buds.core.nothing
 
+import com.blazify.buds.core.model.FitResult
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -67,6 +68,16 @@ class NothingCommandsTest {
         val first = NothingCommands.advancedCurve(NothingCommands.advancedCurve(wild))!!.first()
         assertEquals(NothingCommands.Band(hz = 20f, gain = 12f, q = 10f), first)
         assertContentEquals(hex("00 00 40 c1"), NothingCommands.advancedCurve(wild).copyOfRange(2, 6))
+    }
+
+    @Test
+    fun theFitResultIsZeroForAGoodSeal() {
+        assertEquals(FitResult(left = true, right = true), NothingCommands.fit(hex("00 00")))
+        assertEquals(FitResult(left = false, right = true), NothingCommands.fit(hex("01 00")))
+        // 2: that earbud wasn't heard, out of the ear or not connected.
+        assertEquals(FitResult(left = true, right = null), NothingCommands.fit(hex("00 02")))
+        assertEquals(null, NothingCommands.fit(hex("02 02")))
+        assertEquals(null, NothingCommands.fit(hex("00")))
     }
 
     @Test

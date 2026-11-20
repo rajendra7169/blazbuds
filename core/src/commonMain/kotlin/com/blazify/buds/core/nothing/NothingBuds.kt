@@ -10,6 +10,7 @@ import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.EqPreset
 import com.blazify.buds.core.model.Equalizer
+import com.blazify.buds.core.model.FitResult
 import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
@@ -46,7 +47,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * the model has Nothing's "Advanced" equalizer, else bass, mid and treble), double, triple and long press on each
  * earbud, pause when taken out, low lag, bass boost and spatial audio, and the firmware. Each shows only once the
  * earbuds answer for it. A model the app doesn't know by number still gets battery, noise control, presets and the
- * switches it answers for. They can also beep to be found.
+ * switches it answers for. They can also beep to be found, and most with ear tips can test how well the tips seal.
  *
  * Written from nada by chukfinley and nadamas by ezvk (itself a fork of SoaOaoS's something-x), all MIT licensed;
  * protocol facts from Gadgetbridge, ear (web), PairFree, BudsLink by maniacx, swift-nothing-ear by bestK1ngArthur
@@ -68,6 +69,7 @@ class NothingBuds(
     private val waiting = mutableMapOf<Int, CompletableDeferred<NothingFrame>>()
     private var activated = false
     @kotlin.concurrent.Volatile private var watching = true
+    @kotlin.concurrent.Volatile private var fitting: CompletableDeferred<FitResult>? = null
 
     // What the earbuds have said; null until (unless) they answer.
     private var model: NothingModel? = null
@@ -138,6 +140,7 @@ class NothingBuds(
                     link = Link.Connected,
                     model = model?.name ?: (if (id != null) "Nothing $id" else "Nothing"),
                     canRing = model != null,
+                    canFitTest = model?.fitTest == true,
                 )
             }
             readAll()
@@ -213,6 +216,10 @@ class NothingBuds(
             C.READ_BATTERY, C.BATTERY_NEWS -> {
                 val levels = C.batteries(p)
                 flow.update { it.copy(left = levels[C.LEFT], right = levels[C.RIGHT], case = levels[C.CASE], overall = levels[C.WHOLE]) }
+                return
+            }
+            C.FIT_NEWS -> {
+                C.fit(p)?.let { fitting?.complete(it) }
                 return
             }
             C.READ_FIRMWARE -> {
@@ -477,6 +484,27 @@ class NothingBuds(
         command(C.RING, byteArrayOf(C.RIGHT.toByte(), if (right) 1 else 0))
     }
 
+    /**
+     * The ear tip fit test, as ear (web) and BudsLink run it: start it, the earbuds play a short tone, and a moment
+     * later send each side's seal as news. Stopped again if no result comes; null then, or when neither side was
+     * heard.
+     */
+    override suspend fun fitTest(): FitResult? {
+        if (model?.fitTest != true || connection == null) return null
+        val result = CompletableDeferred<FitResult>()
+        fitting = result
+        try {
+            val started = command(C.FIT_TEST, byteArrayOf(1)) ?: return null
+            if (!started.ok) return null
+            return withTimeoutOrNull(FIT_WAIT) { result.await() } ?: run {
+                command(C.FIT_TEST, byteArrayOf(0))
+                null
+            }
+        } finally {
+            fitting = null
+        }
+    }
+
     override fun watch(on: Boolean) {
         watching = on
         if (on) wake.trySend(Unit)
@@ -517,6 +545,9 @@ class NothingBuds(
         /** The strength nearest a step from 1 to 5, the stronger one when two are as near. */
         internal fun nearest(step: Int, strengths: List<Int>): Int? =
             strengths.minWithOrNull(compareBy<Int> { kotlin.math.abs(STEPS.getValue(it) - step) }.thenByDescending { STEPS.getValue(it) })
+
+        /** How long the fit test may take before it is given up: the tone plays for a few seconds. */
+        private const val FIT_WAIT = 20_000L
 
         /** The equalizer mode BudsLink reads as the eight-band sound being on. */
         private const val ADVANCED_PRESET = 6

@@ -6,6 +6,7 @@ import com.blazify.buds.core.model.CancelStyle
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.Equalizer
+import com.blazify.buds.core.model.FitResult
 import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
@@ -31,7 +32,12 @@ import kotlin.test.assertTrue
 class NothingBudsTest {
     private fun hex(s: String) = s.replace(" ", "").chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 
-    private inner class FakeEar(private val answers: Map<Int, String>, private val needsWaking: Boolean = false) : Connection {
+    /** [news] is what the earbuds send by themselves after a change, keyed by the change as `f014 01`. */
+    private inner class FakeEar(
+        private val answers: Map<Int, String>,
+        private val needsWaking: Boolean = false,
+        private val news: Map<String, Pair<Int, String>> = emptyMap(),
+    ) : Connection {
         private val out = LinkedBlockingQueue<ByteArray>()
         private val reader = NothingFrame.Reader()
         val writes = CopyOnWriteArrayList<Pair<Int, ByteArray>>()
@@ -57,6 +63,9 @@ class NothingBudsTest {
                     else -> NothingFrame.UNSUPPORTED
                 }
                 out.add(reply(frame.command and 0x7FFF, result, hex(answers[frame.command].takeIf { result == NothingFrame.OK } ?: ""), frame.number))
+                news[NothingFrame.hex4(frame.command) + " " + NothingFrame.hex(frame.payload)]?.takeIf { awake }?.let { (command, body) ->
+                    out.add(reply(command, NothingFrame.OK, hex(body), 0))
+                }
             }
         }
 
@@ -209,6 +218,29 @@ class NothingBudsTest {
         val ear = FakeEar(withAdvanced(on = true))
         withEar(ear) { buds -> buds.apply(Change.Preset(3)) }
         assertEquals(listOf("f04f 00 00", "f010 03 00"), sentNow(ear))
+    }
+
+    @Test
+    fun theFitTestReadsEachSidesSeal() {
+        // Left sealed well (0), right poorly (1).
+        val ear = FakeEar(nothingEar, news = mapOf("f014 01" to (NothingCommands.FIT_NEWS to "00 01")))
+        withEar(ear) { buds ->
+            assertTrue(buds.state.value.canFitTest)
+            assertEquals(FitResult(left = true, right = false), buds.fitTest())
+        }
+        assertEquals(listOf("f014 01"), sentNow(ear))
+    }
+
+    @Test
+    fun earbudsWithoutTipsHaveNoFitTest() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val buds = NothingBuds("Nothing Ear (open)", scope, { FakeEar(nothingEar + (0xC01C to "74 b1")) })
+        buds.start()
+        val state = withTimeout(15_000) { buds.state.first { it.link == Link.Connected && it.controls != null } }
+        assertEquals(false, state.canFitTest)
+        assertNull(buds.fitTest())
+        buds.close()
+        scope.cancel()
     }
 
     private fun sentNow(ear: FakeEar) = ear.writes.map { (command, payload) -> NothingFrame.hex4(command) + " " + NothingFrame.hex(payload) }

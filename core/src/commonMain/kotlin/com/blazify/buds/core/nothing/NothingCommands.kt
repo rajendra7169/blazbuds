@@ -1,12 +1,14 @@
 package com.blazify.buds.core.nothing
 
 import com.blazify.buds.core.model.Battery
+import com.blazify.buds.core.model.FitResult
 import kotlin.math.pow
 
 /**
  * The commands Blazbuds sends to Nothing and CMF earbuds, and how to read and write what they carry. The numbers and
  * layouts follow nada and nadamas (MIT) and, for facts only, Gadgetbridge, ear (web) and PairFree's notes on Nothing's
- * own app; the eight-band sound also follows BudsLink, swift-nothing-ear and Nothing Linux (GPL-3.0).
+ * own app; the eight-band sound and the ear tip fit test also follow BudsLink, swift-nothing-ear and Nothing Linux
+ * (GPL-3.0).
  */
 object NothingCommands {
     /** The protocol version; asking first is how Nothing's app wakes the protocol up. */
@@ -18,6 +20,8 @@ object NothingCommands {
     const val READ_BATTERY = 0xC007
     const val READ_EXTRA = 0xC00E
     const val SET_NOISE = 0xF00F
+    /** Starts (1) or stops (0) the ear tip fit test; the result comes as [FIT_NEWS]. */
+    const val FIT_TEST = 0xF014
     const val SET_EQ = 0xF010
     const val READ_KEYS = 0xC018
     const val READ_MODEL = 0xC01C
@@ -43,6 +47,18 @@ object NothingCommands {
     /** News the earbuds send by themselves. */
     const val BATTERY_NEWS = 0xE001
     const val NOISE_NEWS = 0xE003
+    const val FIT_NEWS = 0xE00D
+
+    /**
+     * The fit test's result: a byte for the left earbud, then the right; 0 a good seal, 1 a poor one, 2 not heard
+     * (the earbud out or not connected). This is how ear (web) and BudsLink read it and colour it; Nothing Linux reads
+     * the bytes the other way round, so this is the one thing to check first on real earbuds.
+     */
+    fun fit(payload: ByteArray): FitResult? {
+        if (payload.size < 2) return null
+        fun seal(b: Byte): Boolean? = when (b.toInt()) { 0 -> true; 1 -> false; else -> null }
+        return FitResult(seal(payload[0]), seal(payload[1])).takeIf { it.left != null || it.right != null }
+    }
 
     /** Asks for the noise report's three groups. */
     val NOISE_GROUPS = byteArrayOf(3)
