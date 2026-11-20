@@ -47,12 +47,18 @@ fun NavBar(items: List<NavItem>, selected: Int, onPick: (Int) -> Unit) {
     }
 }
 
+/** How wide the side rail is; popups shift by half of it so they sit in the middle of the page beside it. */
+val RailWidth = 96.dp
+
+/** How far popups move right to stay centred on the page: half the rail when there is one, else nothing. */
+val LocalPopupShift = androidx.compose.runtime.staticCompositionLocalOf { 0.dp }
+
 /** The same tabs down the side of a tablet or computer window. */
 @Composable
 fun NavRail(items: List<NavItem>, selected: Int, onPick: (Int) -> Unit, top: @Composable () -> Unit = {}) {
     val palette = LocalPalette.current
     Column(
-        Modifier.width(96.dp).fillMaxHeight().background(palette.card).windowInsetsPadding(WindowInsets.systemBars).padding(vertical = 16.dp),
+        Modifier.width(RailWidth).fillMaxHeight().background(palette.card).windowInsetsPadding(WindowInsets.systemBars).padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

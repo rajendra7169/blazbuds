@@ -222,7 +222,10 @@ private fun Tabs(tab: Tab, pick: (Tab) -> Unit, content: @Composable () -> Unit)
         if (maxWidth >= 600.dp) {
             Row(Modifier.fillMaxSize()) {
                 NavRail(TABS, tab.ordinal, { pick(Tab.entries[it]) }) { LogoMark(size = 30.dp) }
-                Box(Modifier.weight(1f)) { content() }
+                // Popups are centred on the whole window; moving them half the rail puts them over the page.
+                Box(Modifier.weight(1f)) {
+                    androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalPopupShift provides com.blazify.buds.ui.blocks.RailWidth / 2) { content() }
+                }
             }
         } else {
             Column(Modifier.fillMaxSize()) {

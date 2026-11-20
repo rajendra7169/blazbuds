@@ -193,6 +193,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     deleting?.let { sound ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { deleting = null },
+            modifier = Modifier.offset(x = com.blazify.buds.ui.blocks.LocalPopupShift.current),
             containerColor = palette.card,
             title = { Text("Delete ${sound.name}?", color = palette.text) },
             text = { Text("It goes from your sounds. If it's playing now, the earbuds keep it until you choose another.", color = palette.muted) },
@@ -347,6 +348,7 @@ private fun NameDialog(title: String, start: String, hint: String, confirm: Stri
     var text by remember { mutableStateOf(start) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = { onDone("") },
+        modifier = Modifier.offset(x = com.blazify.buds.ui.blocks.LocalPopupShift.current),
         containerColor = palette.card,
         title = { Text(title, color = palette.text) },
         text = {
@@ -455,6 +457,7 @@ fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit
     if (press != null) {
         androidx.compose.material3.ModalBottomSheet(
             onDismissRequest = { picking = null },
+            modifier = Modifier.offset(x = com.blazify.buds.ui.blocks.LocalPopupShift.current),
             containerColor = palette.card,
             contentColor = palette.text,
         ) {
