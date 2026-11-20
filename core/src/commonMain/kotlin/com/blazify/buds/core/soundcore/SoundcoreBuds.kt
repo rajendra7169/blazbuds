@@ -70,6 +70,13 @@ class SoundcoreBuds(
     private var runner: Job? = null
     private val wake = Channel<Unit>(Channel.CONFLATED)
 
+    /**
+     * When a switch that restarts the earbuds (best quality, two devices) was made. They drop the link a moment later
+     * and come back about seven seconds after; reconnecting the control channel while their music link is still
+     * settling made the first seconds of music cut out, so for a drop soon after a switch the app waits it out.
+     */
+    private var restartedAt: kotlin.time.TimeSource.Monotonic.ValueTimeMark? = null
+
     fun start() {
         if (runner != null) return
         runner = scope.launch {
@@ -92,6 +99,15 @@ class SoundcoreBuds(
                 connection?.close()
                 connection = null
                 failAll()
+                val restart = restartedAt?.takeIf { it.elapsedNow().inWholeMilliseconds < RESTART_WINDOW }
+                if (restart != null) {
+                    // Restarting on purpose: say "connecting", not "lost", and come back once the music has settled.
+                    restartedAt = null
+                    flow.update { it.copy(link = Link.Connecting) }
+                    delay(RESTART_HOLD)
+                    wait = 2_000L
+                    continue
+                }
                 flow.update { it.copy(link = if (busy) Link.Busy else Link.Lost) }
                 // Try again soon, a little less often each time, or at once when asked to.
                 withTimeoutOrNull(wait) { wake.receive() }
@@ -236,6 +252,12 @@ class SoundcoreBuds(
         val DROP = CompletableDeferred<Packet>()
         val SOUND_SETTLE = 3.seconds
         const val POLL = 3_000L
+
+        /** A drop this soon after a restarting switch is that restart. */
+        private const val RESTART_WINDOW = 20_000L
+
+        /** How long to leave the earbuds alone after such a drop: back in about 7 s, music settled a few after. */
+        private const val RESTART_HOLD = 12_000L
     }
 
     /** The devices the earbuds remember, which can come over several messages. */
@@ -322,6 +344,7 @@ class SoundcoreBuds(
             ack(A3947.LDAC_SET, byteArrayOf(if (change.on) 1 else 0)).also {
                 if (it) {
                     ldac = change.on
+                    restartedAt = kotlin.time.TimeSource.Monotonic.markNow()
                     // Turning it on also turns two devices off in the earbuds; read back what they now have.
                     delay(1_500)
                     refresh()
@@ -348,6 +371,7 @@ class SoundcoreBuds(
         is Change.TwoDevices -> ack(A3947.TWO_DEVICES_SET, byteArrayOf(if (change.on) 1 else 0)).also {
             if (it) {
                 now[A3947.TWO_DEVICES] = if (change.on) 1 else 0
+                restartedAt = kotlin.time.TimeSource.Monotonic.markNow()
                 if (change.on) {
                     ldac = false
                     loadHosts()
