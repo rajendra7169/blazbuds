@@ -18,7 +18,7 @@ dependencies {
     implementation(libs.settings)
 }
 
-val appVersion = "0.1.0"
+val appVersion = "1.2.0"
 
 compose.desktop {
     application {
