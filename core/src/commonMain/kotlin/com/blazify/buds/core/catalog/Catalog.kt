@@ -15,7 +15,7 @@ enum class Support {
 }
 
 /** Which protocol a model speaks, for picking its driver. */
-enum class Family { Soundcore, Huawei, Jieli, Samsung, Nothing, None }
+enum class Family { Soundcore, Huawei, Jieli, Samsung, Nothing, Melody, None }
 
 /** What a device looks like, for its picture. */
 enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
@@ -60,6 +60,10 @@ object Catalog {
         device.name.contains("Liberty 4 NC", ignoreCase = true) -> LIBERTY_4_NC
         // Honor and Huawei earbuds share one protocol; Honor Choice ones call themselves "Earbuds X…".
         HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Battery, HONOR_PAIRING, Family.Huawei)
+        // OnePlus, OPPO and realme earbuds that HeyMelody or realme Link control; realme ones only by their exact names,
+        // as some realme earbuds speak something else.
+        MELODY_NAMES.any { it.containsMatchIn(device.name) } || com.blazify.buds.core.oneplus.MelodyModel.knows(device.name) ->
+            Model(device.name, Support.Full, GENERIC_PAIRING, Family.Melody)
         // Earbuds on a JieLi chip with their maker's app (checked: Ultima Boom Sleek).
         JIELI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Jieli)
         // Galaxy Buds+, Buds Live, Buds Pro, Buds2, Buds3, Buds FE and the rest, by the name Samsung gives them.
@@ -80,6 +84,13 @@ object Catalog {
         Regex("^Nothing (Ear|Headphone)", RegexOption.IGNORE_CASE),
         Regex("^Ear \\(", RegexOption.IGNORE_CASE),
         Regex("^CMF (Buds|Neckband|Headphone)", RegexOption.IGNORE_CASE),
+    )
+
+    private val MELODY_NAMES = listOf(
+        Regex("^OnePlus (Nord )?Buds", RegexOption.IGNORE_CASE),
+        Regex("^OnePlus Bullets ?Wireless", RegexOption.IGNORE_CASE),
+        Regex("^Nord Buds", RegexOption.IGNORE_CASE),
+        Regex("^OPPO Enco", RegexOption.IGNORE_CASE),
     )
 
     private val HUAWEI_NAMES = listOf(

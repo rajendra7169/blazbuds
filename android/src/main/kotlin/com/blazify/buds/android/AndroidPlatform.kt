@@ -62,6 +62,12 @@ class AndroidPlatform(
                 com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { socket(bt, model.service) }, { Log.i(TAG, it) }).also { it.start() }
             }
             Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { socket(bt, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }, { Log.i(TAG, it) }).also { it.start() }
+            Family.Melody -> com.blazify.buds.core.oneplus.MelodyBuds(
+                device.name, scope,
+                // HeyMelody's own channel, then the plain serial port some realme earbuds use.
+                listOf({ socket(bt, com.blazify.buds.core.oneplus.Melody.SERVICE) }, { serial(bt, null) }),
+                { Log.i(TAG, it) },
+            ).also { it.start() }
             Family.None -> unknown(device, bt, scope)
         }
         return buds

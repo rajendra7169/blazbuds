@@ -1,5 +1,8 @@
 package com.blazify.buds.core.oneplus
 
+import com.blazify.buds.core.catalog.Catalog
+import com.blazify.buds.core.catalog.Family
+import com.blazify.buds.core.link.Device
 import com.blazify.buds.core.model.Battery
 import com.blazify.buds.core.model.CancelStyle
 import com.blazify.buds.core.model.ListeningMode
@@ -187,6 +190,15 @@ class MelodyTest {
         assertNull(Melody.answer(one("AA 07 00 00 01 01 04 00 00"), now))
         assertNull(Melody.answer(one("AA 07 00 00 00 85 02 00 00"), now))
         assertNull(Melody.answer(one("AA 0D 00 00 04 02 FF 06 00 01 02 01 64 02 64"), now))
+    }
+
+    @Test
+    fun theCatalogSendsTheseEarbudsHere() {
+        fun family(name: String) = Catalog.model(Device(name, "00:11:22:33:44:55", true)).family
+        listOf("OnePlus Buds 3", "OnePlus Nord Buds 2", "OnePlus Buds Pro 2", "OPPO Enco X2", "realme Buds Air7 Pro", "realme Buds T200 Lite")
+            .forEach { assertEquals(Family.Melody, family(it), it) }
+        // realme earbuds not in the list may speak something else.
+        assertEquals(Family.None, family("realme Buds Q"))
     }
 
     @Test
