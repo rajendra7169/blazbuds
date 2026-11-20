@@ -267,7 +267,8 @@ private fun Scene.icon() = when (id) {
 
 @Composable
 private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) -> Unit) {
-    val eq = state.equalizer ?: return
+    // Earbuds with only a few fixed presets have no curve to draw; their presets live on the Sound tab.
+    val eq = state.equalizer?.takeIf { it.custom } ?: return
     Panel {
         SectionTitle("Sound", action = "Edit") { goTab(Tab.Sound) }
         Spacer(Modifier.height(4.dp))
