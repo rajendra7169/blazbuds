@@ -84,6 +84,7 @@ object LinuxPlatform : Platform {
         com.blazify.buds.core.catalog.Family.Samsung -> com.blazify.buds.core.samsung.SamsungModel.of(device.name)!!.let { model ->
             com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { LinuxBluetooth.open(device.address, model.service) }).also { it.start() }
         }
+        com.blazify.buds.core.catalog.Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { LinuxBluetooth.open(device.address, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }).also { it.start() }
         com.blazify.buds.core.catalog.Family.None -> {
             // Unknown earbuds: try JieLi's login once (many budget pairs use that chip), remember, else the basics.
             val basic = { BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() } }

@@ -15,7 +15,7 @@ enum class Support {
 }
 
 /** Which protocol a model speaks, for picking its driver. */
-enum class Family { Soundcore, Huawei, Jieli, Samsung, None }
+enum class Family { Soundcore, Huawei, Jieli, Samsung, Nothing, None }
 
 /** What a device looks like, for its picture. */
 enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
@@ -64,6 +64,7 @@ object Catalog {
         JIELI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Jieli)
         // Galaxy Buds+, Buds Live, Buds Pro, Buds2, Buds3, Buds FE and the rest, by the name Samsung gives them.
         com.blazify.buds.core.samsung.SamsungModel.of(device.name) != null -> Model(device.name, Support.Full, SAMSUNG_PAIRING, Family.Samsung)
+        NOTHING_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Nothing)
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
     }
 
@@ -73,6 +74,13 @@ object Catalog {
     )
 
     private val JIELI_NAMES = listOf(Regex("^Ultima ", RegexOption.IGNORE_CASE))
+
+    /** Nothing and CMF earbuds and headphones; older Nothing ones call themselves just "Ear (2)" or "ear (1)". */
+    private val NOTHING_NAMES = listOf(
+        Regex("^Nothing (Ear|Headphone)", RegexOption.IGNORE_CASE),
+        Regex("^Ear \\(", RegexOption.IGNORE_CASE),
+        Regex("^CMF (Buds|Neckband|Headphone)", RegexOption.IGNORE_CASE),
+    )
 
     private val HUAWEI_NAMES = listOf(
         Regex("^Earbuds X\\d", RegexOption.IGNORE_CASE),

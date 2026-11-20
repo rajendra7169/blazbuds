@@ -61,6 +61,7 @@ class AndroidPlatform(
             Family.Samsung -> com.blazify.buds.core.samsung.SamsungModel.of(device.name)!!.let { model ->
                 com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { socket(bt, model.service) }, { Log.i(TAG, it) }).also { it.start() }
             }
+            Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { socket(bt, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }, { Log.i(TAG, it) }).also { it.start() }
             Family.None -> unknown(device, bt, scope)
         }
         return buds
