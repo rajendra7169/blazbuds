@@ -24,11 +24,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +59,7 @@ import com.blazify.buds.core.model.Travel
 import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.theme.LocalPalette
 import com.blazify.buds.ui.theme.Motion
+import kotlin.math.roundToInt
 
 /** What sits under the mode switch: the choices that belong to the chosen mode, swapped in as the mode changes. */
 @Composable
@@ -64,6 +70,7 @@ fun ModeDetails(
     onTransparency: (TransparencyStyle) -> Unit,
     onWind: (Boolean) -> Unit,
     onEnvironment: (Boolean) -> Unit = {},
+    onAmbientLevel: (Int) -> Unit = {},
 ) {
     AnimatedContent(
         sound.mode,
@@ -112,17 +119,21 @@ fun ModeDetails(
                     }
                     if (sound.options.wind) SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
-                ListeningMode.Transparency -> if (!sound.options.transparencyStyles) {
-                    Hint("Lets the world in, as if you weren't wearing them.")
-                } else {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Choice("Everything", sound.transparencyStyle == TransparencyStyle.Full, Modifier.weight(1f), centered = true) { onTransparency(TransparencyStyle.Full) }
-                        Choice("Voices", sound.transparencyStyle == TransparencyStyle.Voice, Modifier.weight(1f), icon = BudsIcons.Voice, centered = true) {
-                            onTransparency(TransparencyStyle.Voice)
+                ListeningMode.Transparency -> {
+                    if (!sound.options.transparencyStyles) {
+                        Hint("Lets the world in, as if you weren't wearing them.")
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Choice("Everything", sound.transparencyStyle == TransparencyStyle.Full, Modifier.weight(1f), centered = true) { onTransparency(TransparencyStyle.Full) }
+                            Choice("Voices", sound.transparencyStyle == TransparencyStyle.Voice, Modifier.weight(1f), icon = BudsIcons.Voice, centered = true) {
+                                onTransparency(TransparencyStyle.Voice)
+                            }
                         }
+                        Hint(if (sound.transparencyStyle == TransparencyStyle.Voice) "Brings voices through clearly and keeps other sounds down." else "Lets the world in, as if you weren't wearing them.")
                     }
-                    Hint(if (sound.transparencyStyle == TransparencyStyle.Voice) "Brings voices through clearly and keeps other sounds down." else "Lets the world in, as if you weren't wearing them.")
-                    if (sound.options.wind) SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
+                    // Only earbuds whose transparency has a strength say how many steps it has.
+                    if (sound.options.ambientLevels > 0) AmbientLevel(sound.ambientLevel, sound.options.ambientLevels, onAmbientLevel)
+                    if (sound.options.transparencyStyles && sound.options.wind) SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
                 ListeningMode.Normal -> Hint("No cancelling and no passthrough: the longest battery.")
             }
@@ -195,6 +206,45 @@ fun LevelSteps(level: Int, steps: Int = 5, onPick: (Int) -> Unit) {
         Row(Modifier.fillMaxWidth()) {
             Text("Lightest", style = MaterialTheme.typography.labelSmall, color = palette.muted, modifier = Modifier.weight(1f))
             Text("Strongest", style = MaterialTheme.typography.labelSmall, color = palette.muted)
+        }
+    }
+}
+
+/**
+ * How much of the world transparency lets in, from 1 to [steps] (twenty on Sony's): a slider that sends its value
+ * once let go, with the level shown as it moves.
+ */
+@Composable
+fun AmbientLevel(level: Int, steps: Int, onPick: (Int) -> Unit) {
+    val palette = LocalPalette.current
+    var moving by remember { mutableStateOf<Int?>(null) }
+    val shown = (moving ?: level).coerceIn(1, steps)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Ambient level", style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
+            Text("$shown of $steps", style = MaterialTheme.typography.labelLarge, color = palette.transparency)
+        }
+        Slider(
+            value = shown.toFloat(),
+            onValueChange = { moving = it.roundToInt().coerceIn(1, steps) },
+            onValueChangeFinished = {
+                moving?.let { if (it != level) onPick(it) }
+                moving = null
+            },
+            valueRange = 1f..steps.toFloat(),
+            steps = (steps - 2).coerceAtLeast(0),
+            colors = SliderDefaults.colors(
+                thumbColor = palette.transparency,
+                activeTrackColor = palette.transparency,
+                inactiveTrackColor = palette.raised,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Ambient level $shown of $steps" },
+        )
+        Row(Modifier.fillMaxWidth()) {
+            Text("Less", style = MaterialTheme.typography.labelSmall, color = palette.muted, modifier = Modifier.weight(1f))
+            Text("More", style = MaterialTheme.typography.labelSmall, color = palette.muted)
         }
     }
 }

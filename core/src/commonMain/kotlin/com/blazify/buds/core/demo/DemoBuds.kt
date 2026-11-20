@@ -112,6 +112,7 @@ fun BudsState.with(change: Change): BudsState = when (change) {
         ),
     )
     is Change.TransparencyKind -> copy(sound = sound?.copy(mode = ListeningMode.Transparency, transparencyStyle = change.style))
+    is Change.AmbientLevel -> copy(sound = sound?.copy(mode = ListeningMode.Transparency, ambientLevel = change.level))
     is Change.Wind -> copy(sound = sound?.copy(windReduction = change.on))
     is Change.Environment -> copy(sound = sound?.copy(environmentDetection = change.on))
     is Change.ModeCycle -> copy(sound = sound?.copy(cycle = change.modes))

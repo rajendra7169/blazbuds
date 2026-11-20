@@ -104,6 +104,8 @@ data class Sound(
     val manualLevel: Int = 5,
     val travel: Travel = Travel.Plane,
     val transparencyStyle: TransparencyStyle = TransparencyStyle.Full,
+    /** How much of the world transparency lets in, from 1 to [SoundOptions.ambientLevels]; unused without levels. */
+    val ambientLevel: Int = 0,
     val windReduction: Boolean = false,
     /** Adaptive cancelling also adjusts to the surroundings, not only to the fit. */
     val environmentDetection: Boolean = true,
@@ -127,6 +129,8 @@ data class SoundOptions(
     val levels: Boolean = true,
     /** How many steps the manual cancelling strength has. */
     val manualLevels: Int = 5,
+    /** How many steps transparency's strength has (Sony's ambient sound has 20); 0 when it has no level to set. */
+    val ambientLevels: Int = 0,
 )
 
 data class Equalizer(
@@ -235,6 +239,8 @@ sealed interface Change {
     data class Mode(val mode: ListeningMode) : Change
     data class Cancelling(val style: CancelStyle, val level: Int? = null, val travel: Travel? = null) : Change
     data class TransparencyKind(val style: TransparencyStyle) : Change
+    /** Transparency's strength, from 1 to [SoundOptions.ambientLevels]. */
+    data class AmbientLevel(val level: Int) : Change
     data class Wind(val on: Boolean) : Change
     data class Environment(val on: Boolean) : Change
     data class ModeCycle(val modes: Set<ListeningMode>) : Change

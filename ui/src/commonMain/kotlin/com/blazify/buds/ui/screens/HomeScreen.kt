@@ -242,6 +242,7 @@ private fun Listening(state: BudsState, change: (Change) -> Unit) {
             onTransparency = { change(Change.TransparencyKind(it)) },
             onWind = { change(Change.Wind(it)) },
             onEnvironment = { change(Change.Environment(it)) },
+            onAmbientLevel = { change(Change.AmbientLevel(it)) },
         )
     }
 }

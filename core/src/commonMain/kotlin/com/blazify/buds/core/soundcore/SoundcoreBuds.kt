@@ -383,6 +383,8 @@ class SoundcoreBuds(
             }
         }
         is Change.HearingTestMode -> ack(A3947.HEARING_TEST, byteArrayOf(if (change.on) 1 else 0))
+        // The Liberty 4 NC's transparency has no level.
+        is Change.AmbientLevel -> false
         Change.ResetControls -> ack(A3947.BUTTON_RESET, ByteArray(0)).also { if (it) refresh() }
     }
 
