@@ -97,6 +97,8 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
         share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Custom › Add a code and paste:\n${sound.code()}")
 
+    ThreeDCard(state, change)
+    Spacer(Modifier.height(14.dp))
     TwoWay("Presets", "Custom", onSecond = custom) { custom = it }
     Spacer(Modifier.height(14.dp))
     if (!custom) {
@@ -648,6 +650,90 @@ private fun EarPrintCard(print: com.blazify.buds.core.model.EarPrintState, ready
             )
         } else {
             Icon(BudsIcons.Forward, null, tint = palette.text, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/**
+ * Real 3D, to hear the difference: a sound made in the app that travels round the head, drawn as a dot circling a
+ * head seen from above. Below it, the earbuds' own surround switch, which only widens the sound a little.
+ */
+@Composable
+private fun ThreeDCard(state: BudsState, change: (Change) -> Unit) {
+    val palette = LocalPalette.current
+    val sound = com.blazify.buds.ui.LocalSoundOut.current
+    var playing by remember { mutableStateOf(false) }
+    var samples by remember { mutableStateOf<ShortArray?>(null) }
+    var seconds by remember { mutableStateOf(0.0) }
+    LaunchedEffect(playing) {
+        if (!playing) return@LaunchedEffect
+        val made = samples ?: kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            com.blazify.buds.core.earprint.TestSounds.circling()
+        }.also { samples = it }
+        sound.play(made, loop = true)
+        val start = androidx.compose.runtime.withFrameNanos { it }
+        while (true) androidx.compose.runtime.withFrameNanos { seconds = (it - start) / 1e9 }
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { if (playing) sound.stop() } }
+    Panel(padding = 14.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            HeadFromAbove(if (playing) com.blazify.buds.core.earprint.TestSounds.angleAt(seconds).toFloat() else null, Modifier.size(92.dp))
+            Column(Modifier.weight(1f)) {
+                Text("3D sound", style = MaterialTheme.typography.titleLarge, color = palette.text)
+                Text(
+                    if (playing) "Close your eyes: the sound goes round your head, to the right first." else "Hear a sound travel round your head, made by this app.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                Choice(if (playing) "Stop" else "Play", playing, icon = if (playing) null else BudsIcons.Play) {
+                    if (playing) sound.stop()
+                    playing = !playing
+                    seconds = 0.0
+                }
+            }
+        }
+        if (Toggle.Surround in state.toggles) {
+            SwitchRow(
+                Toggle.Surround.icon(), "Earbuds' surround", state.toggles[Toggle.Surround] == true,
+                { change(Change.Switch(Toggle.Surround, it)) },
+                detail = "Built into the earbuds: it only widens the sound a little, it doesn't move it round you",
+                color = Toggle.Surround.hue(),
+            )
+        }
+    }
+}
+
+/** A head seen from above, nose up, with the sound as a glowing dot going round it at [angle] radians. */
+@Composable
+private fun HeadFromAbove(angle: Float?, modifier: Modifier) {
+    val palette = LocalPalette.current
+    androidx.compose.foundation.Canvas(modifier) {
+        val c = center
+        val r = size.minDimension / 2
+        val head = r * 0.36f
+        // The path the sound takes.
+        drawCircle(palette.line, r * 0.82f, c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 6f))))
+        // Head, nose and ears.
+        drawCircle(palette.raised, head, c)
+        drawCircle(palette.muted, head, c, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+        val nose = androidx.compose.ui.graphics.Path().apply {
+            moveTo(c.x - head * 0.22f, c.y - head * 0.92f); lineTo(c.x, c.y - head * 1.3f); lineTo(c.x + head * 0.22f, c.y - head * 0.92f)
+        }
+        drawPath(nose, palette.muted, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx(), join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        for (sideX in listOf(-1f, 1f)) {
+            drawRoundRect(
+                palette.accent,
+                topLeft = androidx.compose.ui.geometry.Offset(c.x + sideX * head - (if (sideX < 0) head * 0.22f else 0f), c.y - head * 0.3f),
+                size = androidx.compose.ui.geometry.Size(head * 0.22f, head * 0.6f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(head * 0.11f),
+            )
+        }
+        if (angle != null) {
+            // Clockwise from straight ahead, seen from above.
+            val p = androidx.compose.ui.geometry.Offset(c.x + kotlin.math.sin(angle) * r * 0.82f, c.y - kotlin.math.cos(angle) * r * 0.82f)
+            drawCircle(palette.accent.copy(alpha = 0.25f), r * 0.2f, p)
+            drawCircle(palette.accent, r * 0.1f, p)
         }
     }
 }

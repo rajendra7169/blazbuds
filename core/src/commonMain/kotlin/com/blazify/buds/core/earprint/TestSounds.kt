@@ -102,4 +102,115 @@ object TestSounds {
             }
         }
     }
+
+    /** How long one trip round the head takes in [circling], in seconds. */
+    const val CIRCLE_SECONDS = 6.0
+
+    /**
+     * A sound that travels round the head, twice, made to loop: a shaker and a soft pluck heard as if from a few
+     * steps away. Each ear gets it as it would in a room: a moment later and a little duller in the ear turned away
+     * from it, darker when it is behind, with a few faint echoes so it sits outside the head rather than inside it.
+     * Angle 0 is straight ahead and it moves to the right first; [angleAt] says where it is at any moment.
+     */
+    fun circling(): ShortArray {
+        val frames = (RATE * CIRCLE_SECONDS * 2).toInt()
+        val source = DoubleArray(frames)
+        val random = kotlin.random.Random(11)
+        // The shaker: short bursts of bright noise on every sixteenth note at 100 beats a minute.
+        val sixteenth = 60.0 / 100 / 4
+        var t0 = 0.0
+        var step = 0
+        while (t0 < frames.toDouble() / RATE) {
+            val start = (t0 * RATE).toInt()
+            val loud = if (step % 4 == 0) 0.55 else if (step % 2 == 0) 0.35 else 0.22
+            var hp = 0.0
+            var last = 0.0
+            for (i in 0 until (0.09 * RATE).toInt()) {
+                val f = start + i
+                if (f >= frames) break
+                val n = random.nextDouble() * 2 - 1
+                hp = 0.7 * (hp + n - last) // keep the hiss, lose the rumble
+                last = n
+                source[f] += hp * exp(-i / (0.018 * RATE)) * loud
+            }
+            // A soft pluck on each beat, rising through a chord.
+            if (step % 4 == 0) {
+                val notes = doubleArrayOf(220.0, 277.18, 329.63, 440.0, 329.63, 277.18)
+                val hz = notes[(step / 4) % notes.size]
+                for (i in 0 until (0.5 * RATE).toInt()) {
+                    val f = start + i
+                    if (f >= frames) break
+                    val t = i.toDouble() / RATE
+                    source[f] += (sin(2 * PI * hz * t) + 0.4 * sin(4 * PI * hz * t) + 0.15 * sin(6 * PI * hz * t)) * exp(-t * 6) * 0.25
+                }
+            }
+            t0 += sixteenth
+            step++
+        }
+        val left = DoubleArray(frames)
+        val right = DoubleArray(frames)
+        val headRadius = 0.0875
+        val speedOfSound = 343.0
+        var lowL = 0.0
+        var lowR = 0.0
+        var dark = 0.0
+        for (f in 0 until frames) {
+            val angle = angleAt(f.toDouble() / RATE)
+            val side = sin(angle) // +1 right, -1 left
+            val front = kotlin.math.cos(angle) // +1 ahead, -1 behind
+            // Arrives later at the far ear (Woodworth's model of a round head).
+            val lag = headRadius / speedOfSound * (kotlin.math.abs(asinSafe(side)) + kotlin.math.abs(side)) * RATE
+            fun at(delay: Double): Double {
+                val pos = f - delay
+                if (pos < 0) return source[((pos % frames) + frames).toInt() % frames]
+                val i = pos.toInt()
+                val frac = pos - i
+                return source[i] * (1 - frac) + source[(i + 1) % frames] * frac
+            }
+            val near = at(0.0)
+            val far = at(lag)
+            // Behind the head the outer ear hides the treble: darken both ears a little.
+            val behind = ((-front).coerceAtLeast(0.0))
+            dark += (0.25 + 0.6 * (1 - behind)) * (near - dark)
+            val nearSound = near * (1 - 0.35 * behind) + dark * 0.35 * behind
+            // The far ear is in the head's shadow: quieter, and duller the more the sound is to one side.
+            val shade = kotlin.math.abs(side)
+            val farGain = 1 - 0.65 * shade
+            val cut = 0.95 - 0.8 * shade
+            if (side >= 0) {
+                lowL += cut * (far - lowL)
+                left[f] = lowL * farGain
+                right[f] = nearSound
+            } else {
+                lowR += cut * (far - lowR)
+                right[f] = lowR * farGain
+                left[f] = nearSound
+            }
+        }
+        // A few faint early echoes, different in each ear, so it feels like a room around you.
+        val echoes = listOf(0.011 to 0.22, 0.017 to 0.16, 0.023 to 0.12, 0.031 to 0.08)
+        val outL = left.copyOf()
+        val outR = right.copyOf()
+        for ((k, echo) in echoes.withIndex()) {
+            val (seconds, gain) = echo
+            val dl = (seconds * RATE).toInt()
+            val dr = ((seconds + 0.0023 * (if (k % 2 == 0) 1 else -1)) * RATE).toInt()
+            for (f in 0 until frames) {
+                outL[f] += right[(f - dl + frames) % frames] * gain
+                outR[f] += left[(f - dr + frames) % frames] * gain
+            }
+        }
+        val peak = maxOf(outL.maxOf { kotlin.math.abs(it) }, outR.maxOf { kotlin.math.abs(it) }).coerceAtLeast(1e-6)
+        val out = ShortArray(frames * 2)
+        for (f in 0 until frames) {
+            out[f * 2] = (outL[f] / peak * 0.8 * Short.MAX_VALUE).toInt().toShort()
+            out[f * 2 + 1] = (outR[f] / peak * 0.8 * Short.MAX_VALUE).toInt().toShort()
+        }
+        return out
+    }
+
+    /** Where the circling sound is at [seconds] in: radians clockwise from straight ahead, seen from above. */
+    fun angleAt(seconds: Double): Double = 2 * PI * ((seconds / CIRCLE_SECONDS) % 1.0)
+
+    private fun asinSafe(x: Double) = kotlin.math.asin(x.coerceIn(-1.0, 1.0))
 }

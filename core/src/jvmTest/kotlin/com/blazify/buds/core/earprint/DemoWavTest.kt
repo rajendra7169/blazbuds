@@ -11,6 +11,7 @@ class DemoWavTest {
         dir.mkdirs()
         wav(File(dir, "demo.wav"), TestSounds.demo())
         wav(File(dir, "beep-1k-left.wav"), TestSounds.beeps(1000, -30.0, left = true, right = false))
+        wav(File(dir, "circling.wav"), TestSounds.circling())
     }
 
     private fun wav(file: File, samples: ShortArray) {
