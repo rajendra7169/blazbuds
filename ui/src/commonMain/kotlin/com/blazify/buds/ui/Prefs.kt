@@ -9,6 +9,9 @@ import com.russhwolf.settings.Settings
 
 /** The app's own choices, kept on the device: the look, and how much things move. */
 class Prefs(private val store: Settings = Settings()) {
+    /** Battery history and the low-battery alert. */
+    val battery = BatteryLog(store)
+
     var theme by mutableStateOf(runCatching { ThemeChoice.valueOf(store.getString(THEME, ThemeChoice.System.name)) }.getOrDefault(ThemeChoice.System))
         private set
     var reduceMotion by mutableStateOf(store.getBoolean(REDUCE_MOTION, false))

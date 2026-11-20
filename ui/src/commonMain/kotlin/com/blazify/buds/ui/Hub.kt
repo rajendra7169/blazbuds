@@ -8,6 +8,7 @@ import com.blazify.buds.core.model.Buds
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -56,6 +57,12 @@ interface Platform {
     /** Asks for the microphone where the system wants asking first; [done] says if it may be used. */
     fun askMicrophone(done: (Boolean) -> Unit) = done(true)
 
+    /** Shows a notice outside the app, like a low battery. */
+    fun notify(title: String, text: String) {}
+
+    /** Starts the look at the batteries every so often while the app is closed, where the platform allows it. */
+    fun watchBatteryInBackground() {}
+
     /** Holds the media volume at a set level for the hearing test, or puts it back as it was. */
     fun steadyVolume(on: Boolean) {}
 }
@@ -80,6 +87,20 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     private var chosenName: String? = store?.getStringOrNull(CHOSEN_NAME)
     private val bluetooth = MutableStateFlow(true)
     val bluetoothOn: StateFlow<Boolean> = bluetooth
+
+    /** Battery history and the low-battery alert, fed by every state the open pair reports. */
+    private val batteryLog = store?.let { BatteryLog(it) }
+
+    init {
+        scope.launch {
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            chosen.flatMapLatest { it?.state ?: kotlinx.coroutines.flow.emptyFlow() }.collect { state ->
+                if (state.link != com.blazify.buds.core.model.Link.Connected) return@collect
+                batteryLog?.look(state)?.let { platform.notify("Low battery", it) }
+            }
+        }
+        platform.watchBatteryInBackground()
+    }
     val look: SystemLook get() = platform.look
 
     /** Every pair that has connected, newest first: address to name. */
