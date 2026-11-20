@@ -170,6 +170,16 @@ class Shots {
                     }
                 }
             }
+            for (reading in listOf(false, true)) {
+                shot(dir, "connect-$look" + if (reading) "-reading" else "", 400, 420) {
+                    val buds = remember { DemoBuds() }
+                    BudsTheme(theme) {
+                        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background).padding(20.dp)) {
+                            com.blazify.buds.ui.blocks.ConnectCard("Liberty 4 NC", if (reading) null else buds.state.value, {}, {})
+                        }
+                    }
+                }
+            }
             shot(dir, "panel-$look", 360, 460) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) {
