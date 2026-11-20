@@ -205,8 +205,14 @@ class SoundcoreModel(
     companion object {
         const val SERIAL_PORT = "00001101-0000-1000-8000-00805f9b34fb"
 
-        /** Soundcore's own control service: the same for every model but for its last digits, the model number. */
-        fun service(code: String) = "0cf12d31-fac3-4553-bd80-d6832e7" + code.lowercase().padStart(5, '0').takeLast(5)
+        /**
+         * Soundcore's own control service: the same for every model but for its last digits, the model number, where
+         * an "A" model's letter is written as "b" (A3947 is ...d6832e7b3947) and a "D" model keeps its "d".
+         */
+        fun service(code: String): String {
+            val number = code.lowercase().let { if (it.startsWith("a")) "b" + it.drop(1) else it }
+            return "0cf12d31-fac3-4553-bd80-d6832e7" + number.padStart(5, '0').takeLast(5)
+        }
 
         val STATE = Packet.command(0x01, 0x01)
         val TWS = Packet.command(0x01, 0x02)
