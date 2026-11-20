@@ -36,6 +36,8 @@ data class NothingModel(
     val advanced: Boolean = false,
     /** The ear tip fit test: the models ear (web) runs it on, and the second CMF Buds Pro 2 from BudsLink. */
     val fitTest: Boolean = false,
+    /** Personalised noise cancelling: the Ear (2) in ear (web) and BudsLink, the Ear and Ear (3) in BudsLink. */
+    val personal: Boolean = false,
     val bass: Boolean = false,
     val spatial: Boolean = false,
     val inEar: Boolean = true,
@@ -75,12 +77,12 @@ data class NothingModel(
          */
         val ALL: List<NothingModel> = listOf(
             NothingModel("B181", "Nothing Ear (1)", noise = setOf(NothingNoise.HIGH, NothingNoise.LOW, NothingNoise.OFF, NothingNoise.TRANSPARENCY), taps = mapOf(Press.Triple to listOf(PR, NX, VA, N), Press.Long to listOf(NC, N))),
-            NothingModel("B155", "Nothing Ear (2)", curve = NothingCurve(140f, 0.8f, 980f, 0.7f, 3400f, 0.7f), advanced = true, fitTest = true, taps = EAR_TAPS),
+            NothingModel("B155", "Nothing Ear (2)", curve = NothingCurve(140f, 0.8f, 980f, 0.7f, 3400f, 0.7f), advanced = true, fitTest = true, personal = true, taps = EAR_TAPS),
             NothingModel("B157", "Nothing Ear (stick)", noise = setOf(NothingNoise.HIGH, NothingNoise.OFF), curve = NothingCurve(140f, 0.8f, 980f, 0.66f, 3500f, 1.0f), advanced = true, taps = OPEN_TAPS),
             NothingModel("B162", "Nothing Ear (a)", curve = EAR, fitTest = true, bass = true, taps = EAR_TAPS),
-            NothingModel("B171", "Nothing Ear", curve = EAR, advanced = true, fitTest = true, bass = true, taps = EAR_TAPS),
+            NothingModel("B171", "Nothing Ear", curve = EAR, advanced = true, fitTest = true, personal = true, bass = true, taps = EAR_TAPS),
             NothingModel(
-                "B173", "Nothing Ear (3)", curve = EAR, advanced = true, fitTest = true, bass = true, spatial = true,
+                "B173", "Nothing Ear (3)", curve = EAR, advanced = true, fitTest = true, personal = true, bass = true, spatial = true,
                 taps = mapOf(Press.Double to listOf(NX, PR, VA), Press.Triple to listOf(NX, PR, VA, N), Press.Long to listOf(NC, VA, UP, DN, N)),
             ),
             NothingModel("B174", "Nothing Ear (open)", noise = emptySet(), curve = EAR, advanced = true, inEar = false, taps = OPEN_TAPS),

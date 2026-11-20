@@ -45,7 +45,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * They say which model they are when asked, and the app then asks for what that model has: battery for each earbud
  * and the case, noise control with its strengths, the equalizer presets and the person's own sound (eight bands where
  * the model has Nothing's "Advanced" equalizer, else bass, mid and treble), double, triple and long press on each
- * earbud, pause when taken out, low lag, bass boost and spatial audio, and the firmware. Each shows only once the
+ * earbud, pause when taken out, low lag, bass boost, spatial audio, personalised noise cancelling, and the firmware. Each shows only once the
  * earbuds answer for it. A model the app doesn't know by number still gets battery, noise control, presets and the
  * switches it answers for. They can also beep to be found, and most with ear tips can test how well the tips seal.
  *
@@ -80,6 +80,7 @@ class NothingBuds(
     private var advancedOn: Boolean? = null
     private var advancedBands: List<C.Band>? = null
     private var inEar: Boolean? = null
+    private var personal: Boolean? = null
     private var lowLag: Boolean? = null
     private var bass: Pair<Boolean, Int>? = null
     private var spatial: ByteArray? = null
@@ -168,6 +169,7 @@ class NothingBuds(
         // The Ear (stick) has noise cancelling only from its x.x.2 firmware on.
         val stickWithout = known?.id == "B157" && flow.value.firmware?.split('.')?.getOrNull(2) != "2"
         if ((known == null || known.noise.isNotEmpty()) && !stickWithout) command(C.READ_NOISE, C.NOISE_GROUPS)
+        if (known?.personal == true) command(C.READ_PERSONAL)
         command(if (known?.eq == NothingEq.Dirac) C.READ_DIRAC else C.READ_EQ)
         if (known?.curve != null) command(C.READ_CURVE)
         if (known?.advanced == true && command(C.READ_ADVANCED)?.ok == true) command(C.READ_ADVANCED_CURVE, C.ADVANCED_PROFILE)
@@ -238,6 +240,7 @@ class NothingBuds(
             C.READ_ADVANCED -> advancedOn = p[0].toInt() == 1
             C.READ_ADVANCED_CURVE -> advancedBands = C.advancedCurve(p)?.takeIf { it.size == C.ADVANCED_BANDS.size } ?: advancedBands
             C.READ_EXTRA -> C.extras(p)[C.IN_EAR]?.let { inEar = it == 1 }
+            C.READ_PERSONAL -> personal = p[0].toInt() == 1
             C.READ_LOW_LAG -> lowLag = p[0].toInt() == 1
             C.READ_BASS -> bass = (p[0].toInt() == 1) to (p.getOrNull(1)?.toInt()?.and(0xFF) ?: 0)
             C.READ_SPATIAL -> spatial = p
@@ -269,6 +272,7 @@ class NothingBuds(
             lowLag?.let { put(Toggle.GamingMode, it) }
             bass?.let { put(Toggle.BassBoost, it.first) }
             spatial?.let { put(Toggle.Surround, it[0].toInt() != 0) }
+            personal?.let { put(Toggle.PersonalCancelling, it) }
         }
         flow.update { it.copy(sound = sound, equalizer = equalizer, controls = controls, toggles = toggles) }
     }
@@ -421,6 +425,12 @@ class NothingBuds(
                     // The strength stays as the earbuds had it; it is kept while the boost is off.
                     command(C.SET_BASS, byteArrayOf(if (change.on) 1 else 0, (level.takeIf { it > 0 } ?: BASS_LEVEL).toByte()))
                     command(C.READ_BASS)
+                }
+                Toggle.PersonalCancelling -> if (personal != null) {
+                    personal = change.on
+                    publish()
+                    command(C.SET_PERSONAL, byteArrayOf(if (change.on) 1 else 0))
+                    command(C.READ_PERSONAL)
                 }
                 Toggle.Surround -> spatial?.let { was ->
                     val on: Byte = if (change.on) 1 else 0

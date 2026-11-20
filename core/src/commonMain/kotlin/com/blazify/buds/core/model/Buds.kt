@@ -218,6 +218,9 @@ enum class Toggle {
 
     /** Clearer vocals in songs (realme's vocal enhancement). */
     VocalBoost,
+
+    /** Noise cancelling tuned to the shape of the person's ears (Nothing's personalised ANC). */
+    PersonalCancelling,
 }
 
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())

@@ -232,6 +232,16 @@ class NothingBudsTest {
     }
 
     @Test
+    fun personalisedCancellingIsASwitch() {
+        val ear = FakeEar(nothingEar + (0xC020 to "01"))
+        withEar(ear) { buds ->
+            assertEquals(true, buds.state.value.toggles[Toggle.PersonalCancelling])
+            buds.apply(Change.Switch(Toggle.PersonalCancelling, false))
+        }
+        assertEquals(listOf("f011 00"), sentNow(ear))
+    }
+
+    @Test
     fun earbudsWithoutTipsHaveNoFitTest() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val buds = NothingBuds("Nothing Ear (open)", scope, { FakeEar(nothingEar + (0xC01C to "74 b1")) })

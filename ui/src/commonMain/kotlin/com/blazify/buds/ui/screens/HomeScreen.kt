@@ -336,6 +336,7 @@ fun Toggle.label() = when (this) {
     Toggle.HiRes -> "High-quality audio"
     Toggle.HeadTracking -> "Head tracking"
     Toggle.VocalBoost -> "Vocal enhancement"
+    Toggle.PersonalCancelling -> "Personalised ANC"
 }
 
 fun Toggle.icon() = when (this) {
@@ -353,6 +354,7 @@ fun Toggle.icon() = when (this) {
     Toggle.HiRes -> BudsIcons.Hd
     Toggle.HeadTracking -> BudsIcons.Surround
     Toggle.VocalBoost -> BudsIcons.Voice
+    Toggle.PersonalCancelling -> BudsIcons.Cancelling
     else -> BudsIcons.Touch
 }
 

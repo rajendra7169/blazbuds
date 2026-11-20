@@ -7,8 +7,8 @@ import kotlin.math.pow
 /**
  * The commands Blazbuds sends to Nothing and CMF earbuds, and how to read and write what they carry. The numbers and
  * layouts follow nada and nadamas (MIT) and, for facts only, Gadgetbridge, ear (web) and PairFree's notes on Nothing's
- * own app; the eight-band sound and the ear tip fit test also follow BudsLink, swift-nothing-ear and Nothing Linux
- * (GPL-3.0).
+ * own app; the eight-band sound, the ear tip fit test and personalised noise cancelling also follow BudsLink,
+ * swift-nothing-ear and Nothing Linux (GPL-3.0).
  */
 object NothingCommands {
     /** The protocol version; asking first is how Nothing's app wakes the protocol up. */
@@ -23,11 +23,14 @@ object NothingCommands {
     /** Starts (1) or stops (0) the ear tip fit test; the result comes as [FIT_NEWS]. */
     const val FIT_TEST = 0xF014
     const val SET_EQ = 0xF010
+    /** Personalised noise cancelling: one byte, 1 on and 0 off, read with [READ_PERSONAL]. */
+    const val SET_PERSONAL = 0xF011
     const val READ_KEYS = 0xC018
     const val READ_MODEL = 0xC01C
     const val SET_DIRAC = 0xF01D
     const val READ_NOISE = 0xC01E
     const val READ_EQ = 0xC01F
+    const val READ_PERSONAL = 0xC020
     const val SET_LOW_LAG = 0xF040
     const val SET_CURVE = 0xF041
     const val READ_LOW_LAG = 0xC041

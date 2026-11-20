@@ -518,6 +518,7 @@ private val PROMPTS = listOf(
     Toggle.HeadTracking to "The 3D sound stays put as you turn your head",
     Toggle.HiRes to "More detail over LHDC or LDAC; the earbuds reconnect for a moment",
     Toggle.VocalBoost to "Clearer vocals in songs",
+    Toggle.PersonalCancelling to "Noise cancelling tuned to your ears",
 )
 
 @Composable
@@ -638,6 +639,7 @@ private fun Toggle.hue() = when (this) {
     Toggle.HiRes -> com.blazify.buds.ui.blocks.Hue.Orange
     Toggle.HeadTracking -> com.blazify.buds.ui.blocks.Hue.Indigo
     Toggle.VocalBoost -> com.blazify.buds.ui.blocks.Hue.Pink
+    Toggle.PersonalCancelling -> com.blazify.buds.ui.blocks.Hue.Indigo
 }
 
 /** The EarPrint at the top of the Sound tab: an invitation to make one, or the one there is with a switch. */
