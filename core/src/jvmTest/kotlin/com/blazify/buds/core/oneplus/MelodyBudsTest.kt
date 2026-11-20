@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -26,11 +27,17 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** The driver against pretend OnePlus Buds 4 that answer with the bytes real ones sent QuickBuds. */
+/**
+ * The driver against pretend OnePlus Buds 4 that answer with the bytes real ones sent QuickBuds; other models are the
+ * same pretend earbuds with their own product id and command list.
+ */
 class MelodyBudsTest {
     private fun hex(s: String) = s.split(" ").filter { it.isNotEmpty() }.map { it.toInt(16).toByte() }.toByteArray()
 
-    private class FakeBuds4 : Connection {
+    private class FakeBuds4(
+        private val bitmap: String = "00 FF 77 5A EA 67 0E 20 07",
+        private val product: String = "00 14 54 06",
+    ) : Connection {
         private val out = LinkedBlockingQueue<ByteArray>()
         private val reader = MelodyFrame.Reader()
         @Volatile private var closed = false
@@ -41,6 +48,8 @@ class MelodyBudsTest {
         val written = mutableListOf<MelodyMessage>()
         /** What the fit test reports after it starts: left good, right poor, as `04 <part> <seal>...` news. */
         var fit = "04 01 01 02 06"
+        /** 3D sound by type, for earbuds that take one: 0 off, 1 fixed, 2 head tracking. */
+        var spatialType = 0
 
         override fun read(into: ByteArray): Int {
             while (!closed) {
@@ -57,8 +66,8 @@ class MelodyBudsTest {
             for (m in reader.feed(bytes)) {
                 synchronized(written) { written += m }
                 val answer = when (m.command) {
-                    0x0100 -> hex("00 FF 77 5A EA 67 0E 20 07")
-                    0x0103 -> hex("00 14 54 06")
+                    0x0100 -> hex(bitmap)
+                    0x0103 -> hex(product)
                     0x0105 -> hex("00 04") + "1,2,138,2,2,138,3,1,01,3,2,105".encodeToByteArray()
                     0x0106 -> hex("00 03 01 5A 02 5A 03 50")
                     0x0108 -> hex(taps)
@@ -82,6 +91,12 @@ class MelodyBudsTest {
                         switches[m.at(0)] = m.at(1)
                         hex("00")
                     }
+                    0x012A -> byteArrayOf(0, spatialType.toByte())
+                    0x041E -> hex("00")
+                    0x0422 -> {
+                        spatialType = m.at(0)
+                        hex("00")
+                    }
                     0x0405 -> {
                         if (m.at(0) == 1) out.add(MelodyFrame.encode(Melody.NEWS, 0xFF, hex(fit)))
                         hex("00")
@@ -102,9 +117,9 @@ class MelodyBudsTest {
         }
     }
 
-    private fun <T> withBuds(fake: FakeBuds4, block: suspend (MelodyBuds) -> T): T = runBlocking {
+    private fun <T> withBuds(fake: FakeBuds4, name: String = "OnePlus Buds 4", block: suspend (MelodyBuds) -> T): T = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val buds = MelodyBuds("OnePlus Buds 4", scope, listOf({ fake }))
+        val buds = MelodyBuds(name, scope, listOf({ fake }))
         buds.start()
         try {
             block(buds)
@@ -134,7 +149,10 @@ class MelodyBudsTest {
             assertEquals(listOf(-1.0, -1.0, -2.0, 1.0, 2.0, 5.0), state.equalizer!!.left)
             assertEquals(TouchAction.PlayPause, state.controls!!.actions[Ear.Left to Press.Single])
             assertEquals(TouchAction.None, state.controls!!.actions[Ear.Right to Press.Single])
-            assertEquals(mapOf(Toggle.WearDetection to false, Toggle.GamingMode to false, Toggle.Surround to false, Toggle.DynamicBass to true), state.toggles)
+            assertEquals(
+                mapOf(Toggle.WearDetection to false, Toggle.GamingMode to false, Toggle.Surround to false, Toggle.HiRes to true, Toggle.DynamicBass to true),
+                state.toggles,
+            )
             assertEquals(true, state.multipoint?.enabled)
 
             buds.apply(Change.Mode(ListeningMode.Normal))
@@ -166,6 +184,93 @@ class MelodyBudsTest {
             // Started, then stopped once the verdict was in.
             val sent = synchronized(fake.written) { fake.written.filter { it.command == Melody.FIT_TEST }.map { it.at(0) } }
             assertEquals(listOf(1, 0), sent)
+        }
+    }
+
+    /** The messages sent with [command], once there is one. */
+    private suspend fun FakeBuds4.sent(command: Int): List<MelodyMessage> = withTimeout(5_000) {
+        var found = emptyList<MelodyMessage>()
+        while (found.isEmpty()) {
+            delay(20)
+            found = synchronized(written) { written.filter { it.command == command } }
+        }
+        found
+    }
+
+    private fun FakeBuds4.switchWrites(): List<Pair<Int, Int>> =
+        synchronized(written) { written.filter { it.command == Melody.SET_SWITCH }.map { it.at(0) to it.at(1) } }
+
+    @Test
+    fun threeDSoundAndHighQualityAudioTakeTurns() {
+        val fake = FakeBuds4()
+        withBuds(fake) { buds ->
+            buds.until { it.isReady && it.toggles[Toggle.HiRes] == true }
+            // 3D sound on turns high-quality audio off in the same go, 3D sound first.
+            buds.apply(Change.Switch(Toggle.Surround, true))
+            buds.until { it.toggles[Toggle.Surround] == true && it.toggles[Toggle.HiRes] == false }
+            assertEquals(listOf(0x1B to 1, 0x18 to 0), fake.switchWrites())
+            assertEquals(1, fake.switches[0x1B])
+            assertEquals(0, fake.switches[0x18])
+            // And the other way round.
+            buds.apply(Change.Switch(Toggle.HiRes, true))
+            buds.until { it.toggles[Toggle.Surround] == false && it.toggles[Toggle.HiRes] == true }
+            assertEquals(listOf(0x1B to 0, 0x18 to 1), fake.switchWrites().drop(2))
+        }
+    }
+
+    @Test
+    fun budsPro3TakeA3DTypeWithHeadTracking() {
+        // OnePlus Buds Pro 3: the same list as the Buds 4, plus the spatial type (bit 47).
+        val fake = FakeBuds4(bitmap = "00 FF 77 5A EA 67 8E 20 07", product = "00 14 40 06")
+        withBuds(fake, "OnePlus Buds Pro 3") { buds ->
+            val state = buds.until { it.isReady && Toggle.HeadTracking in it.toggles && it.toggles[Toggle.HiRes] != null }
+            assertEquals(false, state.toggles[Toggle.Surround])
+            assertEquals(false, state.toggles[Toggle.HeadTracking])
+            // Head tracking turns 3D sound on and, there, high-quality audio off.
+            buds.apply(Change.Switch(Toggle.HeadTracking, true))
+            buds.until { it.toggles[Toggle.HeadTracking] == true && it.toggles[Toggle.Surround] == true && it.toggles[Toggle.HiRes] == false }
+            assertEquals(Melody.SPATIAL_HEAD, fake.spatialType)
+            assertEquals(0, fake.switches[0x18])
+            // The 3D switch is not the way on these.
+            assertEquals(listOf(0x18 to 0), fake.switchWrites())
+            // Off, then on again, comes back with head tracking.
+            buds.apply(Change.Switch(Toggle.Surround, false))
+            buds.until { it.toggles[Toggle.Surround] == false }
+            assertEquals(Melody.SPATIAL_OFF, fake.spatialType)
+            buds.apply(Change.Switch(Toggle.Surround, true))
+            buds.until { it.toggles[Toggle.HeadTracking] == true }
+            assertEquals(Melody.SPATIAL_HEAD, fake.spatialType)
+            // Head tracking off keeps 3D sound, fixed.
+            buds.apply(Change.Switch(Toggle.HeadTracking, false))
+            buds.until { it.toggles[Toggle.HeadTracking] == false && it.toggles[Toggle.Surround] == true }
+            assertEquals(Melody.SPATIAL_FIXED, fake.spatialType)
+            // High-quality audio on turns the 3D type off first.
+            buds.apply(Change.Switch(Toggle.HiRes, true))
+            buds.until { it.toggles[Toggle.HiRes] == true && it.toggles[Toggle.Surround] == false }
+            assertEquals(Melody.SPATIAL_OFF, fake.spatialType)
+        }
+    }
+
+    @Test
+    fun realmeSetVocalsAnd3DSoundOnTheirOwn() {
+        val fake = FakeBuds4(product = "00 12 1C 06")
+        fake.switches[0x09] = 0
+        fake.switches[0x1B] = 1
+        fake.switches[0x18] = 0
+        withBuds(fake, "realme Buds Air 5 Pro") { buds ->
+            val state = buds.until { it.isReady && Toggle.VocalBoost in it.toggles && it.firmware != null }
+            assertEquals(true, state.toggles[Toggle.Surround])
+            assertEquals(false, state.toggles[Toggle.HiRes])
+            // realme Link hands 3D sound to the earbuds on connecting.
+            assertEquals(listOf(0), fake.sent(Melody.SPATIAL_SOURCE).map { it.at(0) })
+            buds.apply(Change.Switch(Toggle.VocalBoost, true))
+            buds.until { it.toggles[Toggle.VocalBoost] == true }
+            assertEquals(1, fake.switches[0x09])
+            // On realme the two never touch each other.
+            buds.apply(Change.Switch(Toggle.HiRes, true))
+            buds.until { it.toggles[Toggle.HiRes] == true }
+            assertEquals(listOf(0x09 to 1, 0x18 to 1), fake.switchWrites())
+            assertEquals(true, buds.state.value.toggles[Toggle.Surround])
         }
     }
 

@@ -515,6 +515,9 @@ private val PROMPTS = listOf(
     Toggle.SpeakToChat to "Quiets the music and lets voices in when you start talking",
     Toggle.Upscaling to "Brings back detail compressed music loses",
     Toggle.VoicePrompt to "Says the mode's name and other news out loud",
+    Toggle.HeadTracking to "The 3D sound stays put as you turn your head",
+    Toggle.HiRes to "More detail over LHDC or LDAC; the earbuds reconnect for a moment",
+    Toggle.VocalBoost to "Clearer vocals in songs",
 )
 
 @Composable
@@ -632,6 +635,9 @@ private fun Toggle.hue() = when (this) {
     Toggle.SpeakToChat -> com.blazify.buds.ui.blocks.Hue.Teal
     Toggle.Upscaling -> com.blazify.buds.ui.blocks.Hue.Orange
     Toggle.VoicePrompt -> com.blazify.buds.ui.blocks.Hue.Green
+    Toggle.HiRes -> com.blazify.buds.ui.blocks.Hue.Orange
+    Toggle.HeadTracking -> com.blazify.buds.ui.blocks.Hue.Indigo
+    Toggle.VocalBoost -> com.blazify.buds.ui.blocks.Hue.Pink
 }
 
 /** The EarPrint at the top of the Sound tab: an invitation to make one, or the one there is with a switch. */

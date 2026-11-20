@@ -48,8 +48,9 @@ import kotlin.math.roundToInt
  * modes, presets and touch choices from the list, and each setting is then asked for and shown only if the earbuds
  * both take its command and answer it. So each model gets just what it has: battery for each earbud and the case,
  * noise control with its levels and the hold's cycle, presets and the earbuds' own custom curve, the touches,
- * in-ear detection, low-latency game mode, 3D sound, the bass lift, wind noise reduction, two devices at once, the
- * firmware, and a sound to find them. Every change is read back, as the earbuds can accept a change and not make it.
+ * in-ear detection, low-latency game mode, 3D sound (with head tracking where the model has it), high-quality audio,
+ * vocal enhancement, the bass lift, wind noise reduction, two devices at once, the firmware, the ear tip fit test and a
+ * sound to find them. Every change is read back, as the earbuds can accept a change and not make it.
  *
  * [opens] are the ways in, tried in turn until one answers the handshake. On OnePlus, OPPO and realme phones the
  * system's own earbud settings may hold the channel; a refused channel then shows as busy.
@@ -86,6 +87,10 @@ class MelodyBuds(
     private var customs: List<Melody.CustomEq>? = null
     private var taps: List<Melody.Tap>? = null
     private var firmware: String? = null
+    /** 3D sound by type, on earbuds that take one: 0 off, 1 fixed, 2 following the head. */
+    private var spatialType: Int? = null
+    /** The type 3D sound goes back to when turned on again. */
+    private var spatialOn = Melody.SPATIAL_FIXED
     @kotlin.concurrent.Volatile private var fitWaiter: CompletableDeferred<FitResult?>? = null
 
     fun start() {
@@ -203,8 +208,14 @@ class MelodyBuds(
             request(Melody.CUSTOM_EQS)
         }
         if (m != null && m.touchRows.isNotEmpty() && has(Melody.SET_TAPS)) request(Melody.TAPS)
+        if (asksSpatialType()) request(Melody.SPATIAL_TYPE)
+        // realme Link hands 3D sound to the earbuds on every connect; without it their switch plays no effect.
+        if (m?.has(MelodyModel.SPATIAL_TOGGLE) == true && has(Melody.SPATIAL_SOURCE)) request(Melody.SPATIAL_SOURCE, byteArrayOf(0))
         publish()
     }
+
+    /** 3D sound set by type: earbuds that take the spatial type, but not the realme ones whose 3D sound is the switch. */
+    private fun asksSpatialType() = model?.has(MelodyModel.SPATIAL_TOGGLE) != true && has(Melody.SPATIAL_TYPE)
 
     private fun askIds(): List<Int> = model?.askIds ?: listOf(0x05, Melody.WEAR, Melody.GAME)
 
@@ -277,6 +288,8 @@ class MelodyBuds(
             CUSTOM_EQ_NEWS -> Melody.customEqs(p, 0)?.let { customs = it }
             Melody.TAPS or 0x8000 -> Melody.taps(p)?.takeIf { it.isNotEmpty() }?.let { taps = it }
             Melody.FIRMWARE or 0x8000 -> Melody.firmware(p)?.let { firmware = it }
+            Melody.SPATIAL_TYPE or 0x8000 -> if (fine && p.size >= 2) spatialNews(message.at(1))
+            Melody.SPATIAL_NEWS -> if (p.isNotEmpty()) spatialNews(message.at(0))
         }
         if (message.isAnswer) waiting[message.command]?.complete(message)
         publish()
@@ -294,6 +307,12 @@ class MelodyBuds(
         }
     }
 
+    private fun spatialNews(type: Int) {
+        if (type !in Melody.SPATIAL_OFF..Melody.SPATIAL_HEAD) return
+        spatialType = type
+        if (type != Melody.SPATIAL_OFF) spatialOn = type
+    }
+
     /** Levels for the parts named; a part left out keeps its last level. */
     private fun batteries(levels: Map<Int, Battery>?) {
         if (levels == null) return
@@ -307,7 +326,15 @@ class MelodyBuds(
         val toggles = buildMap {
             switch(Melody.WEAR)?.let { put(Toggle.WearDetection, it) }
             switch(Melody.GAME)?.let { put(Toggle.GamingMode, it) }
-            if (spatialBySwitch()) switch(Melody.SPATIAL)?.let { put(Toggle.Surround, it) }
+            val type = spatialType?.takeIf { asksSpatialType() && has(Melody.SET_SPATIAL_TYPE) }
+            if (type != null) {
+                put(Toggle.Surround, type != Melody.SPATIAL_OFF)
+                if (model?.has(MelodyModel.HEAD_TRACKING) == true) put(Toggle.HeadTracking, type == Melody.SPATIAL_HEAD)
+            } else if (spatialBySwitch()) {
+                switch(Melody.SPATIAL)?.let { put(Toggle.Surround, it) }
+            }
+            if (!codecPicker()) switch(Melody.HI_RES)?.let { put(Toggle.HiRes, it) }
+            switch(Melody.VOCAL)?.let { put(Toggle.VocalBoost, it) }
             switch(Melody.BASS)?.let { put(Toggle.DynamicBass, it) }
         }
         flow.update {
@@ -332,6 +359,12 @@ class MelodyBuds(
         if (m.has(MelodyModel.HEAD_TRACKING) || has(Melody.SPATIAL_TYPE)) return false
         return !m.heyMelody || has(Melody.BUDS_SPATIAL)
     }
+
+    /** OPPO Enco X2, Air3 Pro and Free3 pick a codec for high-quality audio, which this app doesn't offer, not the switch. */
+    private fun codecPicker() = model?.has(MelodyModel.CODEC_PICKER) == true && has(Melody.CODECS)
+
+    /** 3D sound and high-quality audio exclude each other, except on the realme models that set each alone. */
+    private fun exclusive() = model?.has(MelodyModel.SPATIAL_TOGGLE) != true
 
     private fun sound(wind: Boolean?): Sound? {
         val tree = noise ?: return null
@@ -500,7 +533,14 @@ class MelodyBuds(
             is Change.Switch -> when (change.toggle) {
                 Toggle.WearDetection -> setSwitch(Melody.WEAR, change.on)
                 Toggle.GamingMode -> setSwitch(Melody.GAME, change.on)
-                Toggle.Surround -> setSwitch(Melody.SPATIAL, change.on)
+                Toggle.Surround -> setSurround(if (change.on) spatialOn else Melody.SPATIAL_OFF)
+                Toggle.HeadTracking -> if (model?.has(MelodyModel.HEAD_TRACKING) == true && spatialType != null) {
+                    // Off keeps 3D sound on, fixed; off while 3D sound is off changes nothing.
+                    if (change.on) setSurround(Melody.SPATIAL_HEAD)
+                    else if (spatialType != Melody.SPATIAL_OFF) setSurround(Melody.SPATIAL_FIXED)
+                }
+                Toggle.HiRes -> setHiRes(change.on)
+                Toggle.VocalBoost -> setSwitch(Melody.VOCAL, change.on)
                 Toggle.DynamicBass -> setSwitch(Melody.BASS, change.on)
                 else -> {}
             }
@@ -535,14 +575,65 @@ class MelodyBuds(
         request(Melody.NOISE, byteArrayOf(1, 1))
     }
 
-    private suspend fun setSwitch(id: Int, on: Boolean) {
-        if (!has(Melody.SET_SWITCH) || id !in switches) return
-        switches[id] = if (on) 1 else 0
+    private suspend fun setSwitch(id: Int, on: Boolean) = setSwitches(id to on)
+
+    /** Sets switches the earbuds have, in the order given, then reads them back together. */
+    private suspend fun setSwitches(vararg changes: Pair<Int, Boolean>) {
+        val wanted = changes.filter { it.first in switches }
+        if (!has(Melody.SET_SWITCH) || wanted.isEmpty()) return
+        wanted.forEach { (id, on) -> switches[id] = if (on) 1 else 0 }
         publish()
-        request(Melody.SET_SWITCH, byteArrayOf(id.toByte(), if (on) 1 else 0))
+        for ((id, on) in wanted) request(Melody.SET_SWITCH, byteArrayOf(id.toByte(), if (on) 1 else 0))
         // Game mode takes about a second to apply; a read sooner gives the old value.
-        delay(if (id == Melody.GAME) 1_200 else 400)
-        request(Melody.SWITCHES, askList(listOf(id)))
+        delay(if (wanted.any { it.first == Melody.GAME }) 1_200 else 400)
+        request(Melody.SWITCHES, askList(wanted.map { it.first }))
+    }
+
+    /**
+     * 3D sound to [type], by its type where the earbuds take one, else by its switch. Where it excludes high-quality
+     * audio, turning it on turns that off in the same go, 3D sound first, as HeyMelody sends them.
+     */
+    private suspend fun setSurround(type: Int) {
+        val on = type != Melody.SPATIAL_OFF
+        val dropHiRes = on && exclusive() && switches[Melody.HI_RES] == 1
+        if (asksSpatialType()) {
+            // Not before the earbuds have said which type they play.
+            if (spatialType == null || !has(Melody.SET_SPATIAL_TYPE)) return
+            spatialNews(type)
+            publish()
+            request(Melody.SET_SPATIAL_TYPE, byteArrayOf(type.toByte()))
+            if (dropHiRes) {
+                delay(300)
+                setSwitch(Melody.HI_RES, false)
+            }
+            delay(400)
+            request(Melody.SPATIAL_TYPE)
+        } else if (dropHiRes) {
+            setSwitches(Melody.SPATIAL to true, Melody.HI_RES to false)
+        } else {
+            setSwitch(Melody.SPATIAL, on)
+        }
+    }
+
+    /**
+     * High-quality audio. Turning it on turns 3D sound off first where the two exclude each other. Earbuds that list
+     * their codecs refuse it unless the phone plays LHDC or LDAC, and the read-back then shows it off; once taken, the
+     * earbuds restart the link and come back a few seconds later, when everything is read again.
+     */
+    private suspend fun setHiRes(on: Boolean) {
+        if (codecPicker()) return
+        if (on && exclusive()) {
+            val type = spatialType?.takeIf { asksSpatialType() && has(Melody.SET_SPATIAL_TYPE) }
+            if (type != null && type != Melody.SPATIAL_OFF) {
+                spatialNews(Melody.SPATIAL_OFF)
+                publish()
+                request(Melody.SET_SPATIAL_TYPE, byteArrayOf(Melody.SPATIAL_OFF.toByte()))
+                delay(300)
+                return setSwitch(Melody.HI_RES, true)
+            }
+            if (switches[Melody.SPATIAL] == 1) return setSwitches(Melody.SPATIAL to false, Melody.HI_RES to true)
+        }
+        setSwitch(Melody.HI_RES, on)
     }
 
     private suspend fun setTouch(ear: Ear, press: Press, action: TouchAction) {

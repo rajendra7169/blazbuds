@@ -37,14 +37,25 @@ object Melody {
     const val PHONE_STATE = 0x0413
     const val SAVE_EQ = 0x0418
     const val GAME_SOUND = 0x0423
+    const val CODECS = 0x0123
     const val SPATIAL_TYPE = 0x012A
+    const val SPATIAL_SOURCE = 0x041E
+    const val SET_SPATIAL_TYPE = 0x0422
     const val BUDS_SPATIAL = 0xEF03
     const val SWITCH_NEWS = 0x0503
     const val EQ_NEWS = 0x0504
+    const val SPATIAL_NEWS = 0x0510
+
+    // The spatial types of 0x012A / 0x0422 / 0x0510.
+    const val SPATIAL_OFF = 0
+    const val SPATIAL_FIXED = 1
+    const val SPATIAL_HEAD = 2
 
     // What each switch id is (0x010D / 0x0403).
     const val WEAR = 0x04
     const val GAME = 0x06
+    const val VOCAL = 0x09
+    const val HI_RES = 0x18
     const val DUAL = 0x11
     const val SPATIAL = 0x1B
     const val WIND = 0x1A

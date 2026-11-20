@@ -332,6 +332,9 @@ fun Toggle.label() = when (this) {
     Toggle.SpeakToChat -> "Speak-to-chat"
     Toggle.Upscaling -> "Sound upscaling"
     Toggle.VoicePrompt -> "Voice prompts"
+    Toggle.HiRes -> "High-quality audio"
+    Toggle.HeadTracking -> "Head tracking"
+    Toggle.VocalBoost -> "Vocal enhancement"
 }
 
 fun Toggle.icon() = when (this) {
@@ -346,6 +349,9 @@ fun Toggle.icon() = when (this) {
     Toggle.SpeakToChat -> BudsIcons.Voice
     Toggle.Upscaling -> BudsIcons.Hd
     Toggle.VoicePrompt -> BudsIcons.Voice
+    Toggle.HiRes -> BudsIcons.Hd
+    Toggle.HeadTracking -> BudsIcons.Surround
+    Toggle.VocalBoost -> BudsIcons.Voice
     else -> BudsIcons.Touch
 }
 

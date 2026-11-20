@@ -205,6 +205,15 @@ enum class Toggle {
     Upscaling,
     /** Spoken prompts, such as the mode's name when it changes. */
     VoicePrompt,
+
+    /** A higher bitrate and sampling rate over LHDC or LDAC (OnePlus, OPPO and realme's high-quality audio). */
+    HiRes,
+
+    /** 3D sound that stays put as the head turns. */
+    HeadTracking,
+
+    /** Clearer vocals in songs (realme's vocal enhancement). */
+    VocalBoost,
 }
 
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())
