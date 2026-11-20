@@ -265,6 +265,7 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
     val palette = LocalPalette.current
     var which by remember { mutableIntStateOf(0) }
     PlaceFrame("Add device", back) {
+        WorksWith()
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             AddArt(size = 150.dp)
             Text("Pair your earbuds", style = MaterialTheme.typography.titleLarge, color = palette.text)
@@ -298,6 +299,45 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Choice("I've paired them", false, icon = BudsIcons.Refresh, onClick = lookAgain)
         }
+    }
+}
+
+/** A brand the app fully controls: some of its models, and what the app can do with them. */
+private data class Brand(val name: String, val models: String, val can: String)
+
+private val BRANDS = listOf(
+    Brand("Soundcore", "Liberty, Life, Space, P, A, R, Sport and Sleep series", "Battery, listening modes, sound and your own curve, touch controls, EarPrint on the Liberty 4 NC"),
+    Brand("Samsung Galaxy Buds", "Buds, Buds+, Live, Pro, Buds2, Buds FE, Buds3, Buds4", "Battery, noise cancelling and ambient, presets and, from Buds3, your own curve, touch lock"),
+    Brand("Sony", "WH-1000XM, WF-1000XM, LinkBuds, WF-C, WH-CH, ULT WEAR", "Battery, noise cancelling with ambient level, your own curve, speak-to-chat, touch"),
+    Brand("Nothing and CMF", "Ear, Ear (a), Ear (1) to (3), Ear (open), CMF Buds", "Battery, listening modes, Advanced equalizer, fit test, touch controls"),
+    Brand("OnePlus, OPPO and realme", "Buds, Nord Buds, Enco and realme Buds, 140 models", "Battery, listening modes, your own curve, 3D sound, fit test, touch"),
+    Brand("Honor and Huawei", "Honor Choice Earbuds X, FreeBuds", "Battery with the case, sound presets, touch controls, dual-connect"),
+    Brand("Ultima and JieLi earbuds", "Ultima Boom and many lower-priced pairs on the JieLi chip", "Battery with the case, sound presets and your own curve, touch, gaming mode"),
+)
+
+/** Which earbuds the app knows well, at the top of Add device, so people know before they pair. */
+@Composable
+private fun WorksWith() {
+    val palette = LocalPalette.current
+    var open by remember { mutableIntStateOf(-1) }
+    Panel(padding = 8.dp) {
+        SectionTitle("Works with", Modifier.padding(start = 8.dp, top = 6.dp))
+        BRANDS.forEachIndexed { i, brand ->
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { open = if (open == i) -1 else i }.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(BudsIcons.Check, null, tint = palette.good, modifier = Modifier.size(18.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(brand.name, style = MaterialTheme.typography.bodyLarge, color = palette.text)
+                        Text(brand.models, style = MaterialTheme.typography.bodySmall, color = palette.muted, maxLines = if (open == i) 3 else 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(if (open == i) BudsIcons.Close else BudsIcons.Plus, null, tint = palette.muted, modifier = Modifier.size(16.dp))
+                }
+                AnimatedVisibility(open == i) {
+                    Text(brand.can, style = MaterialTheme.typography.bodyMedium, color = palette.text, modifier = Modifier.padding(start = 28.dp, top = 6.dp))
+                }
+            }
+        }
+        Hint("Any other Bluetooth earbuds get battery and the basics. Missing yours? Ask in Help.", Modifier.padding(8.dp))
     }
 }
 
