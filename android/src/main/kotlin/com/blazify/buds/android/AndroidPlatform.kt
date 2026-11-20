@@ -109,6 +109,18 @@ class AndroidPlatform(
     private val audio get() = context.getSystemService(android.media.AudioManager::class.java)
 
     /** Plays the find sound as media, so it goes to the earbuds, louder while it plays and back after. */
+    override val overApps: com.blazify.buds.ui.OverApps = object : com.blazify.buds.ui.OverApps {
+        override fun allowed() = ConnectPopup.allowed(context)
+        override fun ask() {
+            runCatching {
+                context.startActivity(
+                    Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + context.packageName))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+        }
+    }
+
     override fun findSound(left: Boolean, right: Boolean) {
         if (!left && !right) {
             stopSound()

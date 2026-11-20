@@ -68,6 +68,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // While the app is in front, Home shows all the connect card would, so the card stays away.
+    override fun onResume() {
+        super.onResume()
+        ConnectPopup.appInFront = true
+    }
+
+    override fun onPause() {
+        ConnectPopup.appInFront = false
+        super.onPause()
+    }
+
     override fun onDestroy() {
         // A screen that closes lets go of the earbuds, so a new one can reach them.
         hub?.shutdown()

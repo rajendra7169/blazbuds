@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Only to ask GitHub whether a newer Blazbuds is out; can be switched off in Settings. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The card that greets the earbuds as they connect, over whatever is on screen; asked for in Settings. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
 
     <application
@@ -39,6 +41,13 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
         </receiver>
         <receiver android:name=".android.WidgetAction" android:exported="false" />
+
+        <!-- Hears the earbuds connect, even with the app closed, for the connect card. -->
+        <receiver android:name=".android.ConnectReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+            </intent-filter>
+        </receiver>
 
         <!-- A look at the batteries now and then while the app is closed. -->
         <service
