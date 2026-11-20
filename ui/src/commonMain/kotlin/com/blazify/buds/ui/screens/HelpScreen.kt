@@ -115,7 +115,8 @@ private fun ReportPanel(state: BudsState?, version: String) {
     val clipboard = LocalClipboardManager.current
     val uri = LocalUriHandler.current
     val look = LocalLook.current.name
-    var copied by remember { mutableStateOf(false) }
+    // 0 nothing copied yet, 1 the summary, 2 everything.
+    var copied by remember { mutableIntStateOf(0) }
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             HueDot(BudsIcons.Bug, Hue.Red)
@@ -125,11 +126,17 @@ private fun ReportPanel(state: BudsState?, version: String) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        Step("1", "Copy everything: the app, your system, the earbuds and what they said lately. Nothing personal is in it.")
+        Step("1", "Copy everything: the app, your system, the earbuds and what they said lately. Their messages can hold the names of devices they remember, so look it over before you post it; or copy just the summary.")
         Spacer(Modifier.height(8.dp))
-        Choice(if (copied) "Copied" else "Copy everything", copied, icon = if (copied) BudsIcons.Check else BudsIcons.Copy) {
-            clipboard.setText(AnnotatedString(details(state, version, look, withLog = true)))
-            copied = true
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice(if (copied == 2) "Copied" else "Copy everything", copied == 2, icon = if (copied == 2) BudsIcons.Check else BudsIcons.Copy) {
+                clipboard.setText(AnnotatedString(details(state, version, look, withLog = true)))
+                copied = 2
+            }
+            Choice(if (copied == 1) "Copied" else "Just the summary", copied == 1, icon = if (copied == 1) BudsIcons.Check else BudsIcons.Copy) {
+                clipboard.setText(AnnotatedString(details(state, version, look, withLog = false)))
+                copied = 1
+            }
         }
         Spacer(Modifier.height(12.dp))
         Step("2", "Open a report, say what happened, and paste what you copied under it.")

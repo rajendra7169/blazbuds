@@ -19,12 +19,18 @@ object Logbook {
 
     fun add(line: String) {
         val tenths = start.elapsedNow().inWholeMilliseconds / 100
-        val entry = "+${tenths / 10}.${tenths % 10}s $line"
+        val entry = "+${tenths / 10}.${tenths % 10}s ${hideAddresses(line)}"
         guarded {
             lines.addLast(entry)
             while (lines.size > KEEP) lines.removeFirst()
         }
     }
+
+    /** Device addresses written out (AA:BB:CC:DD:EE:FF) keep only their last two pairs: enough to tell them apart. */
+    fun hideAddresses(line: String): String =
+        ADDRESS.replace(line) { m -> "XX:XX:XX:XX:" + m.value.takeLast(5) }
+
+    private val ADDRESS = Regex("\\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\\b")
 
     /** Everything kept, oldest first. */
     fun all(): List<String> = guarded { lines.toList() }
