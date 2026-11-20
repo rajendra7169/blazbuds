@@ -3,6 +3,10 @@ package com.blazify.buds.ui.blocks
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -96,20 +100,79 @@ private fun DrawScope.speaker(body: Color, edge: Color, accent: Color) {
     }
 }
 
-/** The add picture: headphones with a plus badge, for adding a device. */
+/** Which picture the add art shows: headphones (0) or earbuds (1), changing by itself every few seconds. */
 @Composable
-fun AddArt(modifier: Modifier = Modifier, size: Dp = 120.dp) {
+fun rememberDeviceCycle(): Int {
+    var showing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(2_800)
+            showing = 1 - showing
+        }
+    }
+    return showing
+}
+
+/**
+ * The add picture, with a plus badge: headphones and earbuds taking turns, each settling in as the other fades and
+ * shrinks away, so it is plain the app is for both. With less motion they simply cross-fade.
+ */
+@Composable
+fun AddArt(modifier: Modifier = Modifier, size: Dp = 120.dp, showing: Int = rememberDeviceCycle()) {
     val palette = LocalPalette.current
     val body = if (palette.dark) Color(0xFF2A323A) else Color(0xFFE3E8EC)
     val edge = if (palette.dark) Color.White.copy(alpha = 0.18f) else Color.Black.copy(alpha = 0.10f)
-    Canvas(modifier.size(size)) {
-        headphones(body, edge, palette.accent)
-        val r = size.toPx() * 0.15f
-        val c = Offset(this.size.width * 0.8f, this.size.height * 0.24f)
-        drawCircle(palette.accent, r, c)
-        val arm = r * 0.5f
-        drawLine(palette.onAccent, Offset(c.x - arm, c.y), Offset(c.x + arm, c.y), strokeWidth = r * 0.22f, cap = StrokeCap.Round)
-        drawLine(palette.onAccent, Offset(c.x, c.y - arm), Offset(c.x, c.y + arm), strokeWidth = r * 0.22f, cap = StrokeCap.Round)
+    val still = LocalReduceMotion.current
+    val t by androidx.compose.animation.core.animateFloatAsState(
+        showing.toFloat(),
+        androidx.compose.animation.core.tween(700, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "device",
+    )
+    androidx.compose.foundation.layout.Box(modifier.size(size)) {
+        // Headphones fade and sink as the earbuds rise into place, and back again.
+        listOf(1f - t to 0, t to 1).forEach { (weight, which) ->
+            if (weight > 0.01f) {
+                Canvas(
+                    Modifier.size(size).graphicsLayer {
+                        alpha = weight
+                        val grow = if (still) 1f else 0.82f + 0.18f * weight
+                        scaleX = grow
+                        scaleY = grow
+                        translationY = if (still) 0f else (1f - weight) * this.size.height * 0.08f
+                    },
+                ) {
+                    if (which == 0) headphones(body, edge, palette.accent) else stemPair(body, edge, palette.accent)
+                }
+            }
+        }
+        Canvas(Modifier.size(size)) {
+            val r = size.toPx() * 0.15f
+            val c = Offset(this.size.width * 0.8f, this.size.height * 0.24f)
+            drawCircle(palette.accent, r, c)
+            val arm = r * 0.5f
+            drawLine(palette.onAccent, Offset(c.x - arm, c.y), Offset(c.x + arm, c.y), strokeWidth = r * 0.22f, cap = StrokeCap.Round)
+            drawLine(palette.onAccent, Offset(c.x, c.y - arm), Offset(c.x, c.y + arm), strokeWidth = r * 0.22f, cap = StrokeCap.Round)
+        }
+    }
+}
+
+/** "Pair your headphones" or "Pair your earbuds", the last word changing with the add picture. */
+@Composable
+fun DeviceWord(prefix: String, showing: Int, style: androidx.compose.ui.text.TextStyle, color: Color) {
+    androidx.compose.foundation.layout.Row {
+        androidx.compose.material3.Text(prefix, style = style, color = color)
+        androidx.compose.animation.AnimatedContent(
+            showing,
+            transitionSpec = {
+                (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(400)) +
+                    androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(400)) { it / 2 }) togetherWith
+                    (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(300)) +
+                        androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(300)) { -it / 2 })
+            },
+            label = "word",
+        ) { which ->
+            androidx.compose.material3.Text(if (which == 0) "headphones" else "earbuds", style = style, color = color)
+        }
     }
 }
 
