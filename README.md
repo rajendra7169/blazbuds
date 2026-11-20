@@ -41,7 +41,7 @@ On a computer it also lives in the tray: battery and mode in the menu, and a sma
 | Other Honor and Huawei earbuds (FreeBuds, Earbuds X) | Battery for each earbud and the case, listening modes where the pair has them, firmware; more as each model is tried |
 | Ultima Boom Sleek and other Ultima earbuds | Battery for each earbud and the case, the earbuds' own sound presets and your own curve, double tap, triple tap and press-and-hold on each side, gaming mode |
 | Other earbuds on the JieLi chip used by many lower-priced brands | Tried by themselves when an unknown pair connects; the same as Ultima when they answer |
-| Samsung Galaxy Buds, Buds+, Live, Pro, Buds2, Buds2 Pro, Buds FE, Buds Core, Buds3, Buds3 FE, Buds3 Pro, Buds4 and Buds4 Pro | Battery, noise cancelling and ambient sound, sound presets, touch controls, touch lock, firmware; not yet tried on the earbuds themselves |
+| Samsung Galaxy Buds, Buds+, Live, Pro, Buds2, Buds2 Pro, Buds FE, Buds Core, Buds3, Buds3 FE, Buds3 Pro, Buds4 and Buds4 Pro | Battery, noise cancelling and ambient sound, how strongly it cancels (Pro, FE, Core, Buds3 FE and Buds3 Pro), sound presets and, from the Buds3 on, your own nine-band curve, voice detect on the Pro models, touch controls, touch lock, firmware; not yet tried on the earbuds themselves |
 | Nothing Ear, Ear (a), Ear (1), (2), (3), (3a), Ear (open), Ear (stick), Headphone (1) and CMF Buds and Headphone Pro | Battery, listening modes, sound presets, touch controls, bass boost, wear detection, gaming mode; not yet tried on the earbuds themselves |
 | OnePlus Buds, OPPO Enco and realme Buds that HeyMelody or realme Link control | Battery, listening modes, sound presets, touch controls, switches as each model has them; not yet tried on the earbuds themselves |
 | Sony WH-1000XM, WF-1000XM, LinkBuds, WF-C, WH-CH, WH-XB, WF-SP, WI-SP, WI-C and ULT WEAR | Battery, noise cancelling and ambient sound, sound presets and your own curve, touch controls, speak-to-chat, sound upscaling, wear detection; not yet tried on the earbuds themselves |
@@ -81,7 +81,7 @@ The Soundcore protocol is understood thanks to the work of the [OpenSCQ30](https
 
 Support for other brands builds on the work of these projects:
 
-- **Samsung**: [GalaxyBudsClient](https://github.com/timschneeb/GalaxyBudsClient) by Tim Schneeberger (GPL-3.0), checked against Gadgetbridge
+- **Samsung**: [GalaxyBudsClient](https://github.com/timschneeb/GalaxyBudsClient) by Tim Schneeberger (GPL-3.0), checked against Gadgetbridge, which also gives the Buds3 Pro's five cancelling strengths
 - **Sony**: libmdr from [SonyHeadphonesClient](https://github.com/mos9527/SonyHeadphonesClient) (MIT, notice in [licenses/libmdr-MIT.txt](licenses/libmdr-MIT.txt)), with facts from Gadgetbridge
 - **OnePlus, OPPO and realme**: [QuickBuds](https://github.com/spizganed/QuickBuds) by spizganed (GPL-3.0), its protocol notes and model list
 - **Nothing and CMF**: the nada and nadamas projects (MIT), with facts from Gadgetbridge and ear (web)
