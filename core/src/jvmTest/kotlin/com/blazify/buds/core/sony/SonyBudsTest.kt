@@ -11,6 +11,7 @@ import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Toggle
 import com.blazify.buds.core.model.TouchAction
+import com.blazify.buds.core.model.TransparencyStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -128,6 +129,72 @@ class SonyBudsTest {
             }
             assertEquals(ListeningMode.NoiseCancelling, buds.state.value.sound!!.mode)
             assertEquals(0x16, buds.state.value.equalizer!!.presetId)
+        } finally {
+            buds.close()
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun theXm5sAmbientLevelIsShownAndSet() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val earbuds = FakeXm5(xm5)
+        val buds = SonyBuds("WF-1000XM5", scope, listOf({ earbuds }))
+        buds.start()
+        try {
+            val ready = withTimeout(15_000) { buds.state.first { it.sound != null } }
+            // The XM5 reports ambient sound at level 20 (0x14) without focus on voice.
+            assertEquals(20, ready.sound!!.options.ambientLevels)
+            assertEquals(20, ready.sound!!.ambientLevel)
+            assertEquals(TransparencyStyle.Full, ready.sound!!.transparencyStyle)
+            assertTrue(ready.sound!!.options.transparencyStyles)
+
+            buds.apply(Change.AmbientLevel(7))
+            buds.apply(Change.TransparencyKind(TransparencyStyle.Voice))
+            delay(300)
+            assertTrue("68 17 01 01 01 00 07" in earbuds.heard)
+            assertTrue("68 17 01 01 01 01 07" in earbuds.heard)
+            assertEquals(7, buds.state.value.sound!!.ambientLevel)
+            assertEquals(TransparencyStyle.Voice, buds.state.value.sound!!.transparencyStyle)
+        } finally {
+            buds.close()
+            scope.cancel()
+        }
+    }
+
+    /**
+     * A set one pair laid out as libmdr describes the WH-1000XM3 (noise cancelling and ambient sound, dual and
+     * single), saying 15 steps for its level so the count it gives is seen to be used.
+     */
+    private val setOne = mapOf(
+        "00 00" to "01 00 02 00",
+        "04 01" to "05 01 0a 57 48 2d 31 30 30 30 58 4d 33",
+        "06 00" to "07 00 01 62",
+        "60 02" to "61 02 02 01 01 02 00 0f 01 0f",
+        "66 02" to "67 02 01 02 02 01 00 00",
+    )
+
+    @Test
+    fun setOneKeepsTheAmbientLevelThroughCancelling() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val earbuds = FakeXm5(setOne)
+        val buds = SonyBuds("WH-1000XM3", scope, listOf({ earbuds }))
+        buds.start()
+        try {
+            val ready = withTimeout(15_000) { buds.state.first { it.sound?.options?.ambientLevels == 15 } }
+            assertEquals(ListeningMode.NoiseCancelling, ready.sound!!.mode)
+            // Cancelling reports level 0, so ambient sound starts from the top until one is heard.
+            buds.apply(Change.Mode(ListeningMode.Transparency))
+            delay(200)
+            assertTrue("68 02 11 02 00 01 00 0f" in earbuds.heard, "${earbuds.heard}")
+            buds.apply(Change.AmbientLevel(5))
+            buds.apply(Change.Mode(ListeningMode.NoiseCancelling))
+            buds.apply(Change.Mode(ListeningMode.Transparency))
+            delay(300)
+            listOf("68 02 11 02 00 01 00 05", "68 02 11 02 02 01 00 00").forEach { assertTrue(it in earbuds.heard, "sent $it") }
+            // The second time into ambient sound brings back level 5, not 0.
+            assertEquals("68 02 11 02 00 01 00 05", earbuds.heard.last { it.startsWith("68") })
+            assertEquals(5, buds.state.value.sound!!.ambientLevel)
         } finally {
             buds.close()
             scope.cancel()

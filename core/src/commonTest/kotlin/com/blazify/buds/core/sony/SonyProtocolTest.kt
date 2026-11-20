@@ -5,6 +5,7 @@ import com.blazify.buds.core.model.Equalizer
 import com.blazify.buds.core.model.ListeningMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -96,6 +97,71 @@ class SonyProtocolTest {
         assertEquals(listOf(ListeningMode.Transparency, ListeningMode.Normal), only.modes)
         assertNull(only.set(ListeningMode.NoiseCancelling))
         assertEquals("68 22 01 00 00 0a", only.set(ListeningMode.Normal).text())
+    }
+
+    @Test
+    fun setTwoAmbientLevelSitsAfterTheVoiceByteInEveryLayout() {
+        // 17 as Gadgetbridge writes it: changed, on, ambient, voice, level.
+        val short = SonyNoise(SonySet.Two, hex("67 17 01 01 01 00 14"))
+        assertTrue(short.hasLevel)
+        assertEquals(20, short.level)
+        assertEquals("68 17 01 01 01 00 05", short.set(level = 5).text())
+        assertEquals("68 17 01 01 01 01 08", short.set(voice = true, level = 8).text())
+        // The longer 17 with the noise cancelling value before the voice byte.
+        val long = SonyNoise(SonySet.Two, hex("67 17 01 01 01 02 00 0a"))
+        assertEquals(10, long.level)
+        assertEquals("68 17 01 01 01 02 00 03", long.set(level = 3).text())
+        // 15: mode, noise cancelling value, voice, level (libmdr's ModeNcModeSwitchAsmSeamless).
+        assertEquals(7, SonyNoise(SonySet.Two, hex("67 15 01 01 01 00 00 07")).level)
+        // 19 adds automatic ambient sound and its sensitivity after the level.
+        val adaptive = SonyNoise(SonySet.Two, hex("67 19 01 01 01 00 0c 01 00"))
+        assertEquals(12, adaptive.level)
+        assertEquals("68 19 01 01 01 00 04 01 00", adaptive.set(level = 4).text())
+        // Ambient sound only.
+        val only = SonyNoise(SonySet.Two, hex("67 22 01 01 00 0a"))
+        assertEquals(10, only.level)
+        assertEquals("68 22 01 01 00 14", only.set(level = 20).text())
+        // A level is never written below 1.
+        assertEquals("68 22 01 01 00 01", only.set(level = 0).text())
+    }
+
+    @Test
+    fun setOneAmbientLevelFollowsLibmdrAndGadgetbridge() {
+        // Noise cancelling and ambient sound: ambient on, level adjustment, normal, level 10.
+        val ambient = SonyNoise(SonySet.One, hex("67 02 01 02 00 01 00 0a"))
+        assertEquals(ListeningMode.Transparency, ambient.mode)
+        assertTrue(ambient.hasLevel)
+        assertEquals(10, ambient.level)
+        assertEquals("68 02 11 02 00 01 00 0f", ambient.set(level = 15).text())
+        // Cancelling sends level 0, as both do.
+        assertEquals("68 02 11 02 02 01 00 00", ambient.set(ListeningMode.NoiseCancelling).text())
+        // Back into ambient sound with the level the driver kept.
+        val cancelling = SonyNoise(SonySet.One, hex("67 02 01 02 02 01 00 00"))
+        assertEquals(0, cancelling.level)
+        assertEquals("68 02 11 02 00 01 00 14", cancelling.set(ListeningMode.Transparency, level = 20).text())
+        // An ambient sound that is only on or off has no level, and writing one marks it as level adjustment.
+        val plain = SonyNoise(SonySet.One, hex("67 03 01 00 00 01"))
+        assertFalse(plain.hasLevel)
+        assertEquals("68 03 11 01 00 05", plain.set(level = 5).text())
+        // Ambient sound only, focus on voice, level 10.
+        val only = SonyNoise(SonySet.One, hex("67 03 01 01 01 0a"))
+        assertEquals(true, only.voice)
+        assertEquals(10, only.level)
+        assertEquals("68 03 11 01 00 02", only.set(voice = false, level = 2).text())
+        // Only noise cancelling: no voice byte and no level.
+        assertNull(SonyNoise(SonySet.One, hex("67 01 00 01")).level)
+    }
+
+    @Test
+    fun setOneTellsTheAmbientLevelSteps() {
+        // The WH-1000XM3's layout in libmdr: dual and single cancelling, then level adjustment with 20 steps for
+        // normal and for voice.
+        assertEquals(20, Sony.ambientSteps(hex("61 02 02 01 01 02 00 14 01 14")))
+        assertEquals(10, Sony.ambientSteps(hex("61 03 01 02 01 0a 00 0a")))
+        assertEquals(0, Sony.ambientSteps(hex("61 03 00 00")))
+        assertEquals(20, Sony.ambientSteps(hex("61 03 01")))
+        assertNull(Sony.ambientSteps(hex("51 00 06")))
+        assertEquals("60 02", Sony.noiseCapability(0x02).text())
     }
 
     @Test

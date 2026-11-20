@@ -124,6 +124,19 @@ class SonyNoise(val set: SonySet, val raw: ByteArray) {
 
     val voice: Boolean? get() = voiceAt?.let { at(it) == 1 }
 
+    /** Where the ambient sound level sits: always just after the voice byte, in every layout of both sets. */
+    private val levelAt: Int? = voiceAt?.plus(1)?.takeIf { it < raw.size }
+
+    /**
+     * Whether these earbuds say their ambient sound has a level. Set one tells it in the byte before the voice byte
+     * (1 is "level adjustment", 0 plain on and off); set two's layouts with a level byte always have one.
+     */
+    val hasLevel: Boolean
+        get() = levelAt != null && (set == SonySet.Two || at(voiceAt!! - 1) == LEVEL_ADJUSTMENT)
+
+    /** The ambient sound level as reported; set one reports 0 while cancelling, as libmdr notes for the WH-1000XM3. */
+    val level: Int? get() = levelAt?.let { at(it) }
+
     val mode: ListeningMode
         get() = when (set) {
             SonySet.One -> when (type) {
@@ -143,8 +156,11 @@ class SonyNoise(val set: SonySet, val raw: ByteArray) {
             }
         }
 
-    /** The message that sets [mode] (and [voice] where given), or null if this layout hasn't that mode. */
-    fun set(mode: ListeningMode = this.mode, voice: Boolean? = null): ByteArray? {
+    /**
+     * The message that sets [mode] (and [voice] and the ambient [level] where given), or null if this layout hasn't
+     * that mode.
+     */
+    fun set(mode: ListeningMode = this.mode, voice: Boolean? = null, level: Int? = null): ByteArray? {
         if (mode !in modes) return null
         val out = raw.copyOf()
         out[0] = SET_NOISE.toByte()
@@ -169,11 +185,28 @@ class SonyNoise(val set: SonySet, val raw: ByteArray) {
             }
         }
         if (voice != null) voiceAt?.let { out[it] = (if (voice) 1 else 0).toByte() }
+        levelAt?.let { at ->
+            when {
+                // Set one sends the level only with ambient sound or everything off, and 0 while cancelling, as both
+                // libmdr and Gadgetbridge do.
+                set == SonySet.One && type == 0x02 && mode == ListeningMode.NoiseCancelling -> out[at] = 0
+                level != null -> {
+                    out[at] = level.coerceIn(1, 0xFF).toByte()
+                    if (set == SonySet.One) out[at - 2] = LEVEL_ADJUSTMENT.toByte()
+                }
+            }
+        }
         return out
     }
 
     companion object {
         const val SET_NOISE = 0x68
+
+        /** Set one's ambient sound setting type that carries a level. */
+        private const val LEVEL_ADJUSTMENT = 0x01
+
+        /** Sony's ambient sound level runs from 1 to 20 (libmdr, Gadgetbridge), unless set one's earbuds say otherwise. */
+        const val LEVELS = 20
     }
 }
 
@@ -396,6 +429,32 @@ object Sony {
     }
 
     fun noise(type: Int): ByteArray = bytes(0x66, type)
+
+    /** Set one's question about what noise control can do; the answer holds the ambient sound level's steps. */
+    fun noiseCapability(type: Int): ByteArray = bytes(0x60, type)
+
+    /**
+     * The ambient sound level's steps from set one's `61` answer: the setting type (1 is "level adjustment"), then a
+     * count and pairs of kind (0 normal, 1 voice) and steps. 0 when the level can't be set, null when it isn't such
+     * an answer. Laid out as in libmdr's `RetNcAsmCapability`.
+     */
+    fun ambientSteps(reply: ByteArray): Int? {
+        val p = reply.map { it.toInt() and 0xFF }
+        if (p.size < 3 || p[0] != 0x61) return null
+        val typeAt = when (p[1]) {
+            0x02 -> 4
+            0x03 -> 2
+            else -> return null
+        }
+        val setting = p.getOrNull(typeAt) ?: return null
+        if (setting != 0x01) return 0
+        val count = p.getOrNull(typeAt + 1) ?: return SonyNoise.LEVELS
+        val normal = (0 until count).firstNotNullOfOrNull { i ->
+            val at = typeAt + 2 + i * 2
+            if (p.getOrNull(at) == 0x00) p.getOrNull(at + 1) else null
+        }
+        return normal?.takeIf { it > 0 } ?: SonyNoise.LEVELS
+    }
 
     fun eqCapability(type: Int): ByteArray = bytes(0x50, type)
 

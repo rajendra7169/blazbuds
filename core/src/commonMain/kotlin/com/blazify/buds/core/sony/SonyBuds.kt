@@ -8,6 +8,7 @@ import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.Link
+import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Sound
 import com.blazify.buds.core.model.SoundOptions
@@ -36,7 +37,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Sony earbuds and headphones (WH-1000XM3 to XM6, WF-1000XM3 to XM6, the LinkBuds, WF-C500 to C710N, WH-CH720N and
  * others): battery for headphones, or each earbud and the case, with charging; noise cancelling, ambient sound and
- * normal, with voice focus; the equalizer's presets and a curve of the person's own; the touch keys; DSEE upscaling,
+ * normal, with focus on voice and the ambient sound level; the equalizer's presets and a curve of the person's own; the touch keys; DSEE upscaling,
  * speak-to-chat, pause when taken off and automatic power off; and the model and firmware. Each pair lists the
  * functions it has on connecting, and only those are asked for and shown.
  *
@@ -68,6 +69,10 @@ class SonyBuds(
     private var set: SonySet? = null
     private var features: SonyFeatures? = null
     private var noise: SonyNoise? = null
+    /** Set one's ambient sound steps from its capability answer; null until (unless) it answers. */
+    private var ambientSteps: Int? = null
+    /** The last ambient sound level heard, kept because set one reports 0 while cancelling. */
+    private var ambientLevel: Int? = null
     private var eq: SonyEq? = null
     private var upscaling: Boolean? = null
     private var wearPause: Boolean? = null
@@ -168,6 +173,8 @@ class SonyBuds(
     private fun forget() {
         features = null
         noise = null
+        ambientSteps = null
+        ambientLevel = null
         eq = null
         upscaling = null
         wearPause = null
@@ -180,7 +187,11 @@ class SonyBuds(
     /** Asks for everything the pair listed. */
     private suspend fun readAll(f: SonyFeatures) {
         f.batteries.forEach { send(Sony.battery(f.set, it)) }
-        f.noise?.let { send(Sony.noise(it)) }
+        f.noise?.let {
+            // Set one tells how many steps its ambient sound level has; set two's run from 1 to 20.
+            if (f.set == SonySet.One) send(Sony.noiseCapability(it))
+            send(Sony.noise(it))
+        }
         f.eq?.let { type ->
             // Sony's app asks set two's equalizer with error codes for no capability.
             if (!(f.set == SonySet.Two && type == 0x04)) send(Sony.eqCapability(type))
@@ -272,9 +283,13 @@ class SonyBuds(
             command == 0x67 || command == 0x69 -> {
                 val type = payload.getOrNull(1)?.toInt()?.and(0xFF)
                 if (type != null && type == features?.noise) {
-                    noise = SonyNoise(speaks, payload)
+                    heard(SonyNoise(speaks, payload))
                     publish()
                 }
+            }
+            command == 0x61 && speaks == SonySet.One -> {
+                val type = payload.getOrNull(1)?.toInt()?.and(0xFF)
+                if (type != null && type == features?.noise) Sony.ambientSteps(payload)?.let { ambientSteps = it; publish() }
             }
             command in listOf(0x51, 0x5B, 0x57, 0x59) -> if (eq?.read(payload) == true) publish()
             command == 0xE7 || command == 0xE9 -> Sony.upscalingOn(speaks, payload)?.let { upscaling = it; publish() }
@@ -301,13 +316,34 @@ class SonyBuds(
         }
     }
 
+    /** Takes in the noise control the earbuds report, remembering the ambient sound level for when it reads 0. */
+    private fun heard(n: SonyNoise) {
+        noise = n
+        n.level?.takeIf { it > 0 && n.mode != ListeningMode.NoiseCancelling }?.let { ambientLevel = it }
+    }
+
+    /** How many steps the ambient sound level has: what set one says, else 20 where the layout carries one. */
+    private fun levels(n: SonyNoise): Int = when {
+        n.level == null -> 0
+        else -> ambientSteps ?: if (n.hasLevel) SonyNoise.LEVELS else 0
+    }
+
+    /** The level to send when going into ambient sound from a layout that reads 0 (set one while cancelling). */
+    private fun restoredLevel(n: SonyNoise, mode: ListeningMode): Int? {
+        val steps = levels(n)
+        if (steps == 0 || mode != ListeningMode.Transparency || (n.level ?: 0) > 0) return null
+        return (ambientLevel ?: steps).coerceIn(1, steps)
+    }
+
     /** Puts what the earbuds have answered into the state, as the screens know it. */
     private fun publish() {
         if (features == null) return
         val sound = noise?.let { n ->
+            val steps = levels(n)
             Sound(
                 mode = n.mode,
                 transparencyStyle = if (n.voice == true) TransparencyStyle.Voice else TransparencyStyle.Full,
+                ambientLevel = if (steps > 0) (n.level?.takeIf { it > 0 } ?: ambientLevel ?: steps).coerceIn(1, steps) else 0,
                 options = SoundOptions(
                     cancelStyles = emptyList(),
                     transparencyStyles = n.voice != null,
@@ -315,6 +351,7 @@ class SonyBuds(
                     environment = false,
                     cycle = false,
                     modes = n.modes,
+                    ambientLevels = steps,
                 ),
             )
         }
@@ -378,16 +415,27 @@ class SonyBuds(
             when (change) {
                 is Change.Mode -> {
                     val now = noise ?: return
-                    val message = now.set(change.mode) ?: return
-                    noise = SonyNoise(speaks, message)
+                    val message = now.set(change.mode, level = restoredLevel(now, change.mode)) ?: return
+                    heard(SonyNoise(speaks, message))
                     publish()
                     send(message)
                     send(Sony.noise(now.type))
                 }
                 is Change.TransparencyKind -> {
                     val now = noise ?: return
-                    val message = now.set(voice = change.style == TransparencyStyle.Voice) ?: return
-                    noise = SonyNoise(speaks, message)
+                    val message = now.set(voice = change.style == TransparencyStyle.Voice, level = restoredLevel(now, now.mode)) ?: return
+                    heard(SonyNoise(speaks, message))
+                    publish()
+                    send(message)
+                    send(Sony.noise(now.type))
+                }
+                is Change.AmbientLevel -> {
+                    val now = noise ?: return
+                    val steps = levels(now)
+                    if (steps == 0) return
+                    val mode = if (ListeningMode.Transparency in now.modes) ListeningMode.Transparency else now.mode
+                    val message = now.set(mode, level = change.level.coerceIn(1, steps)) ?: return
+                    heard(SonyNoise(speaks, message))
                     publish()
                     send(message)
                     send(Sony.noise(now.type))
