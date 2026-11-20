@@ -72,10 +72,12 @@ enum class AgeRange(val label: String, val trebleLift: Double) {
  * first beep not heard ends that pitch, and the quietest one heard is kept; one heard nowhere near the start is played
  * louder until it is. About three answers a pitch.
  */
-class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
-    data class Step(val ear: Ear, val hz: Int, val level: Double, val number: Int, val total: Int)
+class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES, private val together: Boolean = true) {
+    /** [ear] is null when both ears hear the beep at once. */
+    data class Step(val ear: Ear?, val hz: Int, val level: Double, val number: Int, val total: Int)
 
-    private val ears = listOf(Ear.Left, Ear.Right)
+    // Both ears at once by default, as Soundcore does: half the time, one curve for both.
+    private val ears: List<Ear?> = if (together) listOf(null) else listOf(Ear.Left, Ear.Right)
     private var earIndex = 0
     private var pitchIndex = 0
     private var level = START
@@ -91,7 +93,7 @@ class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
     val pitchesDone: Int get() = pitchIndex
 
     val pitchCount: Int get() = pitches.size
-    private val results = mutableMapOf<Ear, MutableMap<Int, Double>>()
+    private val results = mutableMapOf<Ear?, MutableMap<Int, Double>>()
 
     val done: Boolean get() = earIndex >= ears.size
 
@@ -100,7 +102,7 @@ class HearingTest(private val pitches: List<Int> = EarPrint.TEST_PITCHES) {
 
     fun current(): Step? = if (done) null else Step(ears[earIndex], pitches[pitchIndex], level, earIndex * pitches.size + pitchIndex + 1, ears.size * pitches.size)
 
-    fun thresholds(ear: Ear): Map<Int, Double> = results[ear].orEmpty()
+    fun thresholds(ear: Ear): Map<Int, Double> = (if (together) results[null] else results[ear]).orEmpty()
 
     /** The person's answer to the beep just played. */
     fun answer(heard: Boolean) {
@@ -182,9 +184,9 @@ class TasteTest(start: List<Double>) {
 
     companion object {
         /** More bass and less treble one way; the other way, brighter and lighter. */
-        val WARM = listOf(2.5, 2.0, 1.0, 0.0, -0.5, -1.2, -2.0, -2.5)
+        val WARM = listOf(3.5, 2.8, 1.4, 0.0, -0.7, -1.7, -2.8, -3.5)
 
         /** Voices and the middle forward one way; the other way, a V of deep bass and crisp treble. */
-        val VOICES = listOf(-1.0, 0.0, 2.0, 2.5, 1.5, -0.5, -1.5, -2.0)
+        val VOICES = listOf(-1.4, 0.0, 2.8, 3.5, 2.1, -0.7, -2.1, -2.8)
     }
 }

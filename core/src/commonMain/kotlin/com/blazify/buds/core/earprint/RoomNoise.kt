@@ -33,6 +33,6 @@ class RoomNoise {
         const val OFFSET = 110.0
 
         /** Quieter than this, the hearing check is precise. */
-        const val QUIET = 45.0
+        const val QUIET = 60.0
     }
 }

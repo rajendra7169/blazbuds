@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class EarPrintTest {
     @Test
     fun hearingTestFindsTheQuietestHeardBeep() {
-        val test = HearingTest(listOf(1_000))
+        val test = HearingTest(listOf(1_000), together = false)
         // Heard at -40 and -50, not at -60: -50 is kept for the left ear.
         test.answer(true); test.answer(true); test.answer(false)
         assertEquals(-50.0, test.thresholds(Ear.Left)[1_000])
@@ -32,12 +32,12 @@ class EarPrintTest {
     fun tasteTestKeepsWhatIsChosen() {
         val taste = TasteTest(List(8) { 0.0 })
         val first = taste.current()!!
-        // The two sounds go opposite ways, 5 dB apart at the ends, so they are easy to tell apart.
-        assertEquals(5.0, first.a.first() - first.b.first())
+        // The two sounds go opposite ways, 7 dB apart at the ends, so they are easy to tell apart.
+        assertEquals(7.0, first.a.first() - first.b.first())
         taste.choose(true)
-        assertEquals(-2.5, taste.sound.first())
+        assertEquals(-3.5, taste.sound.first())
         repeat(5) { taste.choose(null) }
         assertTrue(taste.done)
-        assertEquals(-2.5, taste.sound.first())
+        assertEquals(-3.5, taste.sound.first())
     }
 }
