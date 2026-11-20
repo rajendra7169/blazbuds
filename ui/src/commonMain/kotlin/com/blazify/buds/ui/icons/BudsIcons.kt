@@ -19,6 +19,14 @@ object BudsIcons {
     val Refresh = line("M20 12a8 8 0 1 1-2.34-5.66M20 4v4.5h-4.5")
     val Bluetooth = line("M7 7.5l10 9-5 4.5V3l5 4.5-10 9")
 
+    // Settings and help: the looks, reporting, what's new and other apps.
+    val Sun = line("M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4")
+    val Auto = line("M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", filled = "M12 3a9 9 0 0 1 0 18z")
+    val Bug = line("M9 7.5V6a3 3 0 0 1 6 0v1.5M8 9h8a2 2 0 0 1 2 2v3a6 6 0 0 1-12 0v-3a2 2 0 0 1 2-2zM12 9v11M3 13h3M18 13h3M4 8l2.5 2M20 8l-2.5 2M4 19l2.5-2M20 19l-2.5-2")
+    val Send = line("M21 3L10 14M21 3l-7 18-4-7-7-4z")
+    val Spark = line("M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z")
+    val OpenLink = line("M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5")
+
     // Listening modes: three rings closing in, open waves, a plain ring.
     val Cancelling = line("M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", filled = "M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z")
     val Transparency = line("M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8")
