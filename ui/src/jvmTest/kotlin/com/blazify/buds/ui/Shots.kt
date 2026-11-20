@@ -83,7 +83,7 @@ class Shots {
                 }
                 BudsApp(buds, mine, startTab = Tab.Sound)
             }
-            listOf("intro", "hearing", "taste", "result").forEachIndexed { step, name ->
+            listOf("intro", "hearing", "taste", "result", "age", "quiet").forEachIndexed { step, name ->
                 shot(dir, "earprint-$name-$look", 412, 915) {
                     val buds = remember { DemoBuds() }
                     BudsTheme(theme) {

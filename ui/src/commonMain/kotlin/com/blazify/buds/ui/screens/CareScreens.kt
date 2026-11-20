@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,11 +55,12 @@ import kotlinx.coroutines.launch
 
 /** A wide, filled button for the one thing a page is for. */
 @Composable
-fun BigButton(text: String, icon: ImageVector?, modifier: Modifier = Modifier, quiet: Boolean = false, onClick: () -> Unit) {
+fun BigButton(text: String, icon: ImageVector?, modifier: Modifier = Modifier, quiet: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
     val palette = LocalPalette.current
     Row(
         modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(28.dp))
-            .background(if (quiet) palette.raised else palette.accent).press(onClick = onClick).padding(horizontal = 20.dp),
+            .background(if (quiet) palette.raised else palette.accent).graphicsLayer { alpha = if (enabled) 1f else 0.4f }
+            .press(enabled = enabled, onClick = onClick).padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {

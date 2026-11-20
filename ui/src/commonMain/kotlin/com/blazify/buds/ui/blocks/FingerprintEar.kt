@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -166,6 +167,12 @@ private object EarRidges {
     val canal: Offset
     val width: Float
 
+    /** Every ridge as one unbroken line, outermost first; the first is the ear's outline. */
+    val lines: List<List<Offset>>
+
+    /** The same ear with its breaks in other places, so each print looks a little different. */
+    fun variant(seed: Int): List<Ridge> = lines.mapIndexed { i, points -> Ridge(breakUp(points, i * 31 + seed * 7 + 1)) }
+
     init {
         val raw = (0 until COUNT).map { i ->
             val f = i / (COUNT - 1f)
@@ -192,7 +199,8 @@ private object EarRidges {
         width = (maxX - minX) / h
         fun norm(p: Offset) = Offset((p.x - minX) / h, (p.y - minY) / h)
         canal = norm(Offset(-0.06f, 0.04f))
-        ridges = raw.mapIndexed { i, points -> Ridge(breakUp(points.map(::norm), i)) }
+        lines = raw.map { points -> points.map(::norm) }
+        ridges = lines.mapIndexed { i, points -> Ridge(breakUp(points, i)) }
     }
 
     /** Splits a ridge where a print's ridges end or fork: a couple of short breaks, never in the same place twice. */
@@ -267,3 +275,85 @@ private fun lerp(a: Color, b: Color, t: Float) = Color(
     a.blue + (b.blue - a.blue) * t,
     a.alpha + (b.alpha - a.alpha) * t,
 )
+
+/**
+ * The picture for the start of EarPrint: an ear, half of it a real ear in soft light, the other half its print, with
+ * a line of light between them moving slowly back and forth as if scanning. Each [seed] breaks the print's ridges in
+ * different places, so it is never quite the same twice.
+ */
+@Composable
+fun EarHalfPrint(modifier: Modifier = Modifier, size: Dp = 260.dp, seed: Int = 0) {
+    val palette = LocalPalette.current
+    val reduce = LocalReduceMotion.current
+    val ridges = androidx.compose.runtime.remember(seed) { EarRidges.variant(seed) }
+    val time = rememberInfiniteTransition(label = "halfprint")
+    val sweep by time.animateFloat(0f, 1f, infiniteRepeatable(tween(3600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "sweep")
+    val glow by time.animateFloat(0f, 1f, infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "glow")
+    Canvas(modifier.size(size).semantics { contentDescription = "An ear, half of it drawn as a fingerprint" }) {
+        val c = center
+        val earH = this.size.minDimension * 0.86f
+        val earW = earH * EarRidges.width
+        val earTop = c.y - earH / 2
+        val earLeft = c.x - earW / 2
+        fun at(p: Offset) = Offset(earLeft + p.x * earH, earTop + p.y * earH)
+        val seam = earLeft + earW * (if (reduce) 0.5f else 0.4f + 0.2f * sweep)
+        val bright = palette.accent
+        val deep = palette.cancelling
+        // A soft light behind.
+        drawCircle(Brush.radialGradient(listOf(bright.copy(alpha = 0.10f + 0.06f * glow), Color.Transparent), c, this.size.minDimension / 2), this.size.minDimension / 2, c)
+
+        // The real half: the ear's outline filled like a clay model in light from the upper left.
+        val outline = Path().apply {
+            val pts = EarRidges.lines[0]
+            at(pts[0]).let { moveTo(it.x, it.y) }
+            for (k in 1 until pts.size) at(pts[k]).let { lineTo(it.x, it.y) }
+            close()
+        }
+        val skinLight = Color(0xFFF3DED0)
+        val skin = Color(0xFFDDB9A3)
+        val skinShade = Color(0xFFAF8169)
+        clipRect(right = seam) {
+            drawPath(outline, Brush.radialGradient(listOf(skinLight, skin, skinShade), Offset(earLeft + earW * 0.3f, earTop + earH * 0.25f), earH * 0.85f))
+            // The folds: a shadow in each groove with a little light on its upper edge.
+            val groove = earH * 0.03f
+            listOf(1 to 0.30f, 3 to 0.22f, 5 to 0.16f).forEach { (i, depth) ->
+                val line = EarRidges.lines[i]
+                val path = Path().apply {
+                    at(line[0]).let { moveTo(it.x, it.y) }
+                    for (k in 1 until line.size) at(line[k]).let { lineTo(it.x, it.y) }
+                }
+                drawPath(path, skinShade.copy(alpha = depth), style = Stroke(groove, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                translate(-groove * 0.35f, -groove * 0.35f) {
+                    drawPath(path, Color.White.copy(alpha = depth * 0.9f), style = Stroke(groove * 0.35f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+            }
+            // The bowl of the ear and the canal, in shadow.
+            val canal = at(EarRidges.canal)
+            drawCircle(Brush.radialGradient(listOf(skinShade.copy(alpha = 0.75f), skinShade.copy(alpha = 0f)), canal, earH * 0.16f), earH * 0.16f, canal)
+            drawCircle(Color(0xFF5A3A2C).copy(alpha = 0.8f), earH * 0.028f, canal)
+            // A gentle rim of light round the edge.
+            drawPath(outline, Color.White.copy(alpha = 0.35f), style = Stroke(earH * 0.008f, join = StrokeJoin.Round))
+        }
+
+        // The print half.
+        clipRect(left = seam) {
+            val brush = Brush.linearGradient(listOf(bright, deep), Offset(c.x, earTop), Offset(c.x, earTop + earH))
+            val width = (earH * 0.022f).coerceAtLeast(1.5f)
+            ridges.forEach { ridge ->
+                ridge.pieces.forEach { piece ->
+                    drawPieceBrush(piece, 0f, 1f, ::at, brush, width * 3f, alpha = 0.14f + 0.08f * glow)
+                    drawPieceBrush(piece, 0f, 1f, ::at, brush, width, alpha = 1f)
+                }
+            }
+            val canal = at(EarRidges.canal)
+            drawCircle(bright, earH * 0.024f, canal)
+        }
+
+        // The scan line between them.
+        drawRect(
+            Brush.horizontalGradient(listOf(Color.Transparent, bright.copy(alpha = 0.35f), Color.Transparent), seam - earH * 0.05f, seam + earH * 0.05f),
+            Offset(seam - earH * 0.05f, earTop - earH * 0.04f), Size(earH * 0.1f, earH * 1.08f),
+        )
+        drawLine(Color.White.copy(alpha = 0.9f), Offset(seam, earTop - earH * 0.03f), Offset(seam, earTop + earH * 1.03f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+    }
+}

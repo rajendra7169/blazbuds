@@ -24,6 +24,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import com.blazify.buds.ui.blocks.EarHalfPrint
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -71,12 +76,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 
-private enum class Stage { Intro, Hearing, Taste, Result }
+private enum class Stage { Intro, Age, Quiet, Hearing, Taste, Result }
 
 /**
- * EarPrint: a sound made for one person's ears, in four calm steps. First a word on what it is, then the hearing check
- * (the ear drawn as a fingerprint fills as it goes), then six rounds of "this or that" over a short beat, and last the
- * sound itself, to compare with the original and keep on the earbuds.
+ * EarPrint: a sound made for one person's ears, in calm steps. A word on what it is; the person's age; a check that
+ * the room is quiet enough, with the noise shown live; the hearing check at full volume (the ear drawn as a
+ * fingerprint fills as it goes); six rounds of "this or that" over a short beat; and last the sound itself, to
+ * compare with the original and keep on the earbuds.
  */
 @OptIn(ExperimentalTime::class)
 @Composable
@@ -84,7 +90,8 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
     val palette = LocalPalette.current
     val sound = LocalSoundOut.current
     var stage by remember { mutableStateOf(Stage.Intro) }
-    var age by remember { mutableStateOf(AgeRange.Under30) }
+    var age by remember { mutableStateOf<AgeRange?>(null) }
+    val seed = remember { kotlin.random.Random.nextInt(1000) }
     val hearing = remember { HearingTest() }
     var turn by remember { mutableIntStateOf(0) }
     var left by remember { mutableStateOf(List(8) { 0.0 }) }
@@ -101,14 +108,16 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
     }
     // For the readme pictures: jump straight to a later step with made-up answers.
     remember {
-        if (preview >= 1) {
+        if (preview == 4) stage = Stage.Age
+        if (preview == 5) stage = Stage.Quiet
+        if (preview in 1..3) {
             stage = Stage.Hearing
             var n = 0
             while (!hearing.done && (preview > 1 || n < 10)) { hearing.answer(n % 3 != 2); n++ }
         }
-        if (preview >= 2) {
-            left = EarPrint.curve(hearing.thresholds(Ear.Left), age)
-            right = EarPrint.curve(hearing.thresholds(Ear.Right), age)
+        if (preview in 2..3) {
+            left = EarPrint.curve(hearing.thresholds(Ear.Left), age ?: AgeRange.From18)
+            right = EarPrint.curve(hearing.thresholds(Ear.Right), age ?: AgeRange.From18)
             taste = TasteTest(List(8) { 0.0 }).also { t -> repeat(if (preview == 2) 3 else 6) { t.choose(it % 2 == 0) } }
             stage = if (preview == 2) Stage.Taste else Stage.Result
         }
@@ -127,8 +136,8 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
     fun finishHearing() {
         change(Change.HearingTestMode(false))
         sound.steadyVolume(false)
-        left = EarPrint.curve(hearing.thresholds(Ear.Left), age)
-        right = EarPrint.curve(hearing.thresholds(Ear.Right), age)
+        left = EarPrint.curve(hearing.thresholds(Ear.Left), age ?: AgeRange.From18)
+        right = EarPrint.curve(hearing.thresholds(Ear.Right), age ?: AgeRange.From18)
         taste = TasteTest(List(8) { 0.0 })
         stage = Stage.Taste
     }
@@ -138,29 +147,32 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 when (shown) {
                     Stage.Intro -> {
-                        FingerprintEar(1f, size = 240.dp, done = true)
+                        EarHalfPrint(size = 280.dp, seed = seed)
                         Text("A sound made for your ears", style = MaterialTheme.typography.headlineMedium, color = palette.text, textAlign = TextAlign.Center)
                         Hint("Everyone hears a little differently. EarPrint checks how your ears hear, then shapes the sound to fit, and keeps it on your earbuds.", Modifier.padding(horizontal = 8.dp))
                         Panel {
-                            StepLine(1, "Hearing check", "Beeps at six pitches in each ear. About three minutes.")
-                            StepLine(2, "Your taste", "Six quick choices between two sounds.")
+                            StepLine(1, "A quiet room", "Noise hides the quiet beeps, so the room is checked first.")
+                            StepLine(2, "Hearing check", "Beeps at six pitches in each ear, at full volume. About three minutes.")
+                            StepLine(3, "Your taste", "Six quick choices between two sounds.")
                         }
-                        Panel {
-                            Text("Your age", style = MaterialTheme.typography.titleMedium, color = palette.text)
-                            Spacer(Modifier.height(8.dp))
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                AgeRange.entries.forEach { range -> Choice(range.label, range == age) { age = range } }
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Hint("Hearing changes with age; this helps start from the right place.")
-                        }
-                        Hint("Find a quiet place and put both earbuds in. EarPrint shapes sound; it isn't a medical hearing test.", Modifier.padding(horizontal = 8.dp))
-                        BigButton("Start", BudsIcons.Ear) {
-                            change(Change.HearingTestMode(true))
-                            sound.steadyVolume(true)
-                            stage = Stage.Hearing
-                        }
+                        Hint("Put both earbuds in. EarPrint shapes sound; it isn't a medical hearing test.", Modifier.padding(horizontal = 8.dp))
+                        BigButton("Start", BudsIcons.Ear) { stage = Stage.Age }
                     }
+                    Stage.Age -> {
+                        Text("How old are you?", style = MaterialTheme.typography.headlineMedium, color = palette.text, textAlign = TextAlign.Center)
+                        Hint("Hearing of high sounds fades a little with the years; this starts EarPrint from the right place.", Modifier.padding(horizontal = 8.dp))
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AgeRange.entries.forEach { range ->
+                                Choice(range.label, range == age, Modifier.fillMaxWidth(), centered = true) { age = range }
+                            }
+                        }
+                        BigButton("Next", null, enabled = age != null) { stage = Stage.Quiet }
+                    }
+                    Stage.Quiet -> QuietCheck(onReady = {
+                        change(Change.HearingTestMode(true))
+                        sound.steadyVolume(true)
+                        stage = Stage.Hearing
+                    })
                     Stage.Hearing -> {
                         val step = hearing.current()
                         var listening by remember { mutableStateOf(false) }
@@ -402,3 +414,103 @@ private fun Legend(color: Color, label: String) {
     }
 }
 
+
+/**
+ * Is the room quiet enough? The microphone's level, live, on a bar like a sound meter with the line it needs to stay
+ * under. Continue opens once it has been quiet for two seconds; where the room can't be heard, the person decides.
+ */
+@Composable
+private fun QuietCheck(onReady: () -> Unit) {
+    val palette = LocalPalette.current
+    val ear = com.blazify.buds.ui.LocalRoomEar.current
+    var allowed by remember { mutableStateOf<Boolean?>(null) }
+    var level by remember { mutableStateOf<Double?>(null) }
+    var quietSince by remember { mutableStateOf<Long?>(null) }
+    var ready by remember { mutableStateOf(false) }
+    var deaf by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { ear.ask { allowed = it } }
+    androidx.compose.runtime.DisposableEffect(allowed) {
+        val stop = if (allowed == true) ear.listen { db ->
+            level = db
+        } else null
+        if (allowed == true && stop == null) deaf = true
+        if (allowed == false) deaf = true
+        onDispose { stop?.invoke() }
+    }
+    // Quiet for two seconds in a row opens the way on.
+    LaunchedEffect(level) {
+        val db = level ?: return@LaunchedEffect
+        if (db < com.blazify.buds.core.earprint.RoomNoise.QUIET) {
+            if (quietSince == null) quietSince = clock()
+        } else {
+            quietSince = null
+            ready = false
+        }
+        quietSince?.let { if (clock() - it >= 2000) ready = true }
+    }
+    Text("Is it quiet here?", style = MaterialTheme.typography.headlineMedium, color = palette.text, textAlign = TextAlign.Center)
+    Hint("Noise hides the quiet beeps and makes the result wrong. Only the loudness is heard; nothing is recorded.", Modifier.padding(horizontal = 8.dp))
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        NoiseBar(level, Modifier.height(240.dp).width(64.dp))
+        Spacer(Modifier.width(28.dp))
+        Column {
+            Text(
+                level?.let { "${it.toInt()}" } ?: "–",
+                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                color = palette.text,
+            )
+            Text("dB around you", style = MaterialTheme.typography.labelLarge, color = palette.muted)
+        }
+    }
+    val quiet = level?.let { it < com.blazify.buds.core.earprint.RoomNoise.QUIET }
+    Text(
+        when {
+            deaf -> "The room can't be heard here. Make sure it's quiet, then continue."
+            level == null -> "Listening to the room…"
+            ready -> "Quiet. Your results will be precise."
+            quiet == true -> "Quiet. Stay still a moment…"
+            else -> "Too noisy. Find a quieter place, away from people, fans and traffic."
+        },
+        style = MaterialTheme.typography.titleMedium,
+        color = when {
+            ready || deaf -> palette.text
+            quiet == false -> palette.low
+            else -> palette.muted
+        },
+        textAlign = TextAlign.Center,
+        modifier = Modifier.padding(horizontal = 12.dp),
+    )
+    BigButton(if (ready || deaf) "Continue" else "Waiting for quiet", null, enabled = ready || deaf, onClick = onReady)
+}
+
+/** Milliseconds on a clock that only goes forward. */
+private val start = kotlin.time.TimeSource.Monotonic.markNow()
+private fun clock(): Long = start.elapsedNow().inWholeMilliseconds
+
+/** A tall bar like a sound meter: green low, amber, red high, with the line to stay under. */
+@Composable
+private fun NoiseBar(level: Double?, modifier: Modifier) {
+    val palette = LocalPalette.current
+    val shown by androidx.compose.animation.core.animateFloatAsState(((level ?: 0.0) / 80.0).toFloat().coerceIn(0f, 1f), tween(120), label = "noise")
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = palette.muted)
+    Canvas(modifier) {
+        val barW = size.width * 0.42f
+        val x = size.width - barW
+        val r = CornerRadius(barW / 2)
+        drawRoundRect(palette.raised, Offset(x, 0f), Size(barW, size.height), r)
+        val fillH = size.height * shown
+        drawRoundRect(
+            Brush.verticalGradient(listOf(palette.low, palette.warn, palette.good), 0f, size.height),
+            Offset(x, size.height - fillH), Size(barW, fillH), r,
+        )
+        // The line to stay under.
+        val limitY = size.height * (1 - (com.blazify.buds.core.earprint.RoomNoise.QUIET / 80.0).toFloat())
+        drawLine(palette.text, Offset(x - 6.dp.toPx(), limitY), Offset(size.width, limitY), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+        listOf(0, 20, 40, 60, 80).forEach { db ->
+            val y = size.height * (1 - db / 80f)
+            val text = measurer.measure("$db", labelStyle)
+            drawText(text, topLeft = Offset(0f, (y - text.size.height / 2).coerceIn(0f, size.height - text.size.height)))
+        }
+    }
+}
