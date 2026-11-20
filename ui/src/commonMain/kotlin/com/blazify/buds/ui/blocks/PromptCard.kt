@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -149,13 +150,54 @@ private fun PromptPill(label: String, primary: Boolean, onClick: () -> Unit, mod
 
 private inline fun DrawScope.inUnits(block: DrawScope.(u: Float) -> Unit) = block(size.minDimension / 100f)
 
-/** Faint notes in the card's sky, each floating a little up and down on its own beat. */
+/** Faint earbuds, headphones, a case and a note in the card's sky, each floating a little on its own beat. */
 private fun DrawScope.drawSkyNotes(time: Float, ink: Color) {
     val spots = listOf(Triple(0.12f, 0.62f, 0.0f), Triple(0.88f, 0.42f, 0.3f), Triple(0.22f, 0.3f, 0.55f), Triple(0.78f, 0.78f, 0.8f))
-    spots.forEach { (x, y, phase) ->
+    spots.forEachIndexed { i, (x, y, phase) ->
         val wave = sin((time + phase) * 2 * PI * 2).toFloat()
-        drawNote(Offset(size.width * x, size.height * y - wave * 3.dp.toPx()), 11.dp.toPx(), ink.copy(alpha = 0.13f + 0.05f * wave))
+        drawTrinket(SKY[i], Offset(size.width * x, size.height * y - wave * 3.dp.toPx()), 12.dp.toPx(), ink.copy(alpha = 0.16f + 0.05f * wave))
     }
+}
+
+private val SKY = listOf(Trinket.Headphones, Trinket.Earbud, Trinket.Case, Trinket.Note)
+
+/** The little things that float round the pictures: what Blazbuds is about, and a bit of music. */
+enum class Trinket { Earbud, Headphones, Case, Note }
+
+/** One [Trinket] centred on [at], [h] tall. */
+fun DrawScope.drawTrinket(kind: Trinket, at: Offset, h: Float, color: Color) {
+    if (color.alpha <= 0f) return
+    when (kind) {
+        Trinket.Earbud -> translate(at.x - h / 2f, at.y - h / 2f) { drawLogo(h, color, wave = false) }
+        Trinket.Note -> drawNote(at, h, color)
+        Trinket.Headphones -> {
+            val w = h * 1.05f
+            drawArc(color, 200f, 140f, false, topLeft = Offset(at.x - w * 0.42f, at.y - h * 0.46f), size = Size(w * 0.84f, h * 0.8f), style = Stroke(h * 0.11f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            listOf(-1f, 1f).forEach { side ->
+                drawRoundRect(color, topLeft = Offset(at.x + side * w * 0.36f - h * 0.12f, at.y - h * 0.02f), size = Size(h * 0.24f, h * 0.42f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(h * 0.12f))
+            }
+        }
+        Trinket.Case -> {
+            val w = h * 1.1f
+            val top = Offset(at.x - w / 2f, at.y - h * 0.32f)
+            drawRoundRect(color, topLeft = top, size = Size(w, h * 0.68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(h * 0.3f))
+            // The lid's seam and the little light on the front, cut out of the case.
+            drawLine(Color.Black.copy(alpha = color.alpha * 0.5f), Offset(top.x + w * 0.08f, at.y - h * 0.08f), Offset(top.x + w * 0.92f, at.y - h * 0.08f), strokeWidth = h * 0.05f)
+            drawCircle(Color.White.copy(alpha = color.alpha * 0.8f), h * 0.05f, Offset(at.x, at.y + h * 0.16f))
+        }
+    }
+}
+
+/** The Blazbuds mark, [side] across, from the top left: the earbud with its opening cut out, and its sound wave. */
+private fun DrawScope.drawLogo(side: Float, color: Color, wave: Boolean = true) {
+    val box = Size(side, side)
+    val whole = Path().apply {
+        fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+        addPath(LogoShape.path(LogoShape.OUTLINE, box))
+        addPath(LogoShape.path(LogoShape.OPENING, box))
+    }
+    drawPath(whole, color)
+    if (wave) drawPath(LogoShape.path(LogoShape.WAVE, box), color, style = Stroke(side * LogoShape.WAVE_WIDTH / 1000f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
 }
 
 /**
@@ -185,11 +227,13 @@ fun DrawScope.drawRocket(time: Float) = inUnits { u ->
                 val r = (2.4f + 4.2f * p) * u
                 drawCircle(Brush.radialGradient(listOf(Color.White, Color(0xFFD7E2E0)), center = c - Offset(r * 0.3f, r * 0.35f), radius = r * 1.3f), radius = r, center = c, alpha = (1f - p) * 0.9f)
             }
-            // Two notes tumbling out with the smoke, one to each side.
+            // Little earbuds, cases, headphones and notes tumbling out with the smoke, one to each side, a new one each time.
             for (i in 0..1) {
-                val p = (time * 2f + i / 2f) % 1f
+                val run = time * 2f + i / 2f
+                val p = run % 1f
                 val side = if (i == 0) -1f else 1f
-                drawNote(Offset((50f + side * (6f + 6f * p)) * u, (86f + 14f * p) * u), 8.5f * u, Teal.copy(alpha = (1f - p) * 0.95f))
+                val kind = Trinket.entries[(run.toInt() + i * 2) % Trinket.entries.size]
+                drawTrinket(kind, Offset((50f + side * (6f + 6f * p)) * u, (86f + 14f * p) * u), 8.5f * u, Teal.copy(alpha = (1f - p) * 0.95f))
             }
             // Fins behind the body.
             drawPath(
@@ -250,10 +294,8 @@ fun DrawScope.drawRocket(time: Float) = inUnits { u ->
             val port = Offset(50f * u, 41f * u)
             drawCircle(Brush.linearGradient(listOf(Color(0xFFB8F7EF), TealDeep, Color(0xFF053F3A)), port - Offset(10.5f * u, 10.5f * u), port + Offset(10.5f * u, 10.5f * u)), radius = 11f * u, center = port)
             drawCircle(Brush.radialGradient(listOf(Color(0xFF123B37), Color(0xFF021412)), center = port - Offset(2f * u, 2f * u), radius = 10.5f * u), radius = 8.6f * u, center = port)
-            val side = 12f * u
-            translate(port.x - side / 2f, port.y - side / 2f) {
-                drawPath(LogoShape.path(LogoShape.OUTLINE, Size(side, side)), Teal)
-            }
+            val side = 14f * u
+            translate(port.x - side / 2f, port.y - side / 2f) { drawLogo(side, Teal) }
             drawArc(
                 Color.White.copy(alpha = 0.55f), startAngle = 195f, sweepAngle = 55f, useCenter = false,
                 topLeft = port - Offset(7.4f * u, 7.4f * u), size = Size(14.8f * u, 14.8f * u), style = Stroke(width = 1.1f * u),
@@ -283,8 +325,87 @@ private fun DrawScope.drawNote(at: Offset, h: Float, color: Color) {
     )
 }
 
-/** The rocket as a plain object, for callers outside a DrawScope extension (the screenshot test). */
+/**
+ * The star picture: a faceted teal star, each face lit by how it turns to a light at the top left, the Blazbuds earbud
+ * engraved in the middle, a glint at a tip, GitHub marks low on each side and earbuds and notes floating round it.
+ */
+fun DrawScope.drawStar(time: Float) = inUnits { u ->
+    val beat = sin(time * 2 * PI * 2).toFloat()
+    val grow = 1f + 0.035f * beat
+    val centre = Offset(50f * u, 52f * u)
+    listOf(Triple(10f, 66f, 0.25f), Triple(90f, 70f, 0.75f)).forEach { (x, y, phase) ->
+        val wave = sin((time + phase) * 2 * PI * 2).toFloat()
+        drawGitHubMark(Offset(x * u, (y - 3f * wave) * u), 10f * u, Teal.copy(alpha = 0.75f + 0.15f * wave))
+    }
+    listOf(Triple(14f, 22f, 0f) to Trinket.Earbud, Triple(86f, 30f, 0.5f) to Trinket.Note).forEach { (spot, kind) ->
+        val (x, y, phase) = spot
+        val wave = sin((time + phase) * 2 * PI * 2).toFloat()
+        drawTrinket(kind, Offset(x * u, (y - 3f * wave) * u), 10f * u, Teal.copy(alpha = 0.8f + 0.15f * wave))
+    }
+    scale(grow, centre) {
+        val outer = 36f * u
+        val inner = outer * 0.48f
+        val points = (0 until 10).map { i ->
+            val r = if (i % 2 == 0) outer else inner
+            val a = -PI / 2 + i * PI / 5
+            centre + Offset((r * kotlin.math.cos(a)).toFloat(), (r * sin(a)).toFloat())
+        }
+        val light = -PI * 0.75
+        for (i in 0 until 10) {
+            val p1 = points[i]
+            val p2 = points[(i + 1) % 10]
+            val mid = Offset((p1.x + p2.x) / 2f, (p1.y + p2.y) / 2f) - centre
+            // Each face is lit by how squarely it faces the light, nudged by its side of the ridge: the bevel reads as 3D.
+            val facing = kotlin.math.cos(kotlin.math.atan2(mid.y.toDouble(), mid.x.toDouble()) - light).toFloat()
+            val ridge = if (i % 2 == 0) 0.18f else -0.18f
+            val lit = ((facing + 1f) / 2f + ridge).coerceIn(0f, 1f)
+            drawPath(Path().apply { moveTo(centre.x, centre.y); lineTo(p1.x, p1.y); lineTo(p2.x, p2.y); close() }, androidx.compose.ui.graphics.lerp(TealDark, Color(0xFFC8FBF4), lit))
+        }
+        drawPath(
+            Path().apply { points.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }; close() },
+            Color(0xFF064E47).copy(alpha = 0.55f),
+            style = Stroke(width = 1.2f * u),
+        )
+        // The earbud engraved in a deeper teal in the middle of the facets.
+        val mark = 24f * u
+        translate(centre.x - mark / 2f + 0.5f * u, centre.y - mark / 2f + 1f * u) { drawLogo(mark, Color(0xFF053F3A).copy(alpha = 0.7f), wave = false) }
+        val glint = 0.5f + 0.5f * sin(time * 2 * PI * 3).toFloat()
+        drawSparkle(points[8] + Offset(2f * u, 2f * u), (4f + 3f * glint) * u, Color.White.copy(alpha = 0.5f + 0.5f * glint))
+    }
+}
+
+/** GitHub's mark centred on [at], [side] across. */
+private fun DrawScope.drawGitHubMark(at: Offset, side: Float, color: Color) {
+    translate(at.x - side / 2f, at.y - side / 2f) {
+        scale(side / 24f, side / 24f, pivot = Offset.Zero) { drawPath(GitHubMark, color) }
+    }
+}
+
+private val GitHubMark: Path by lazy {
+    androidx.compose.ui.graphics.vector.PathParser().parsePathString(
+        "M12,2A10,10 0,0 0,2 12c0,4.42 2.87,8.17 6.84,9.5c0.5,0.08 0.66,-0.23 0.66,-0.5c0,-0.23 0,-0.86 0,-1.69c-2.77,0.6 -3.36,-1.34 -3.36,-1.34c-0.46,-1.16 -1.11,-1.47 -1.11,-1.47c-0.91,-0.62 0.07,-0.6 0.07,-0.6c1,0.07 1.53,1.03 1.53,1.03c0.87,1.52 2.34,1.07 2.91,0.83c0.09,-0.65 0.35,-1.09 0.63,-1.34c-2.22,-0.25 -4.55,-1.11 -4.55,-4.92c0,-1.11 0.38,-2 1.03,-2.71c-0.1,-0.25 -0.45,-1.29 0.1,-2.64c0,0 0.84,-0.27 2.75,1.02c0.79,-0.22 1.65,-0.33 2.5,-0.33c0.85,0 1.71,0.11 2.5,0.33c1.91,-1.29 2.75,-1.02 2.75,-1.02c0.55,1.35 0.2,2.39 0.1,2.64c0.65,0.71 1.03,1.6 1.03,2.71c0,3.82 -2.34,4.66 -4.57,4.91c0.36,0.31 0.69,0.92 0.69,1.85c0,1.34 0,2.42 0,2.74c0,0.27 0.16,0.59 0.67,0.5C19.14,20.16 22,16.42 22,12A10,10 0,0 0,12 2Z",
+    ).toPath()
+}
+
+/** A four-pointed sparkle. */
+private fun DrawScope.drawSparkle(at: Offset, r: Float, color: Color) {
+    val w = r * 0.22f
+    drawPath(
+        Path().apply {
+            moveTo(at.x, at.y - r)
+            quadraticTo(at.x + w, at.y - w, at.x + r, at.y)
+            quadraticTo(at.x + w, at.y + w, at.x, at.y + r)
+            quadraticTo(at.x - w, at.y + w, at.x - r, at.y)
+            quadraticTo(at.x - w, at.y - w, at.x, at.y - r)
+            close()
+        },
+        color,
+    )
+}
+
+/** The pictures as plain objects, for callers outside a DrawScope extension (the screenshot test). */
 object RocketArt {
     fun DrawScope.draw(time: Float) = drawRocket(time)
+    fun DrawScope.star(time: Float) = drawStar(time)
 }
 
