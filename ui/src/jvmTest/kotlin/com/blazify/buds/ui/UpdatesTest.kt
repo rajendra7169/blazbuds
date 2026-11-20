@@ -34,4 +34,15 @@ class UpdatesTest {
         assertEquals("https://github.com/d/blazbuds_1.3.0_amd64.deb", release.fileFor(SystemLook.Linux))
         assertEquals(null, release.fileFor(SystemLook.Windows))
     }
+
+    @Test
+    fun readsLongReleaseNotesWithoutOverflowing() {
+        // Real notes run to several kilobytes; the old pattern overflowed the stack past about 1,700 characters.
+        val notes = "- A fix with \\\"quotes\\\" and a line\\n".repeat(4_000)
+        val json = "{\"html_url\":\"https://x/r\",\"tag_name\":\"v9.0.0\",\"body\":\"$notes\"}"
+        val release = Updates.parse(json)!!
+        assertEquals("9.0.0", release.version)
+        assertTrue(release.notes.length > 100_000)
+        assertTrue(release.notes.startsWith("- A fix with \"quotes\" and a line\n"))
+    }
 }

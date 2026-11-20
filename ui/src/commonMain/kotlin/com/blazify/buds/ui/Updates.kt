@@ -25,7 +25,7 @@ expect suspend fun fetchText(url: String): String?
 object Updates {
     /** The newest published version, or null when GitHub can't be reached. */
     suspend fun latest(): Release? = withContext(Dispatchers.IO) {
-        fetchText("https://api.github.com/repos/$REPO/releases/latest")?.let(::parse)
+        fetchText("https://api.github.com/repos/$REPO/releases/latest")?.let { json -> runCatching { parse(json) }.getOrNull() }
     }
 
     /** True when [other] is a later version than [mine]: 1.10.0 is after 1.9.2, and a leading "v" is ignored. */
@@ -58,8 +58,12 @@ object Updates {
 
     private fun field(json: String, key: String): String? = strings(json, key).firstOrNull()
 
+    /**
+     * Every string value of [key]. The pattern reads runs of plain characters possessively and only steps aside for an
+     * escape, so long release notes don't nest the regex engine once per character and overflow the stack.
+     */
     private fun strings(json: String, key: String): List<String> =
-        Regex("\"" + Regex.escape(key) + "\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"").findAll(json).map { unescape(it.groupValues[1]) }.toList()
+        Regex("\"" + Regex.escape(key) + "\"\\s*:\\s*\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\"").findAll(json).map { unescape(it.groupValues[1]) }.toList()
 
     private fun unescape(s: String): String {
         val out = StringBuilder()
