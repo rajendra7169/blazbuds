@@ -1,6 +1,8 @@
 package com.blazify.buds.core.catalog
 
 import com.blazify.buds.core.link.Device
+import com.blazify.buds.core.soundcore.generic.SoundcoreModel
+import com.blazify.buds.core.soundcore.generic.SoundcoreModels
 
 /** How much the app can do with a pair. */
 enum class Support {
@@ -26,6 +28,8 @@ data class Model(
     val support: Support,
     val pairing: List<String>,
     val family: Family = Family.None,
+    /** For Soundcore models on the shared driver, which one; null for the Liberty 4 NC, which has its own. */
+    val soundcore: SoundcoreModel? = null,
 )
 
 /**
@@ -50,6 +54,12 @@ object Catalog {
         "Pick your earbuds in your Bluetooth settings, then come back here.",
     )
 
+    private val SOUNDCORE_PAIRING = listOf(
+        "Put the earbuds in their case with the lid open, or turn the headphones off.",
+        "Hold the case's button, or the headphones' power button, until the light flashes.",
+        "Pick your Soundcore device in your Bluetooth settings, then come back here.",
+    )
+
     private val GENERIC_PAIRING = listOf(
         "Put both earbuds in the case and open the lid.",
         "Hold the case's button, or touch and hold both earbuds, until the light flashes.",
@@ -58,6 +68,11 @@ object Catalog {
 
     fun model(device: Device): Model = when {
         device.name.contains("Liberty 4 NC", ignoreCase = true) -> LIBERTY_4_NC
+        // Every other Soundcore model OpenSCQ30 knows, by the name it gives.
+        SoundcoreModels.find(device.name) != null -> {
+            val found = SoundcoreModels.find(device.name)!!
+            Model(found.name, Support.Full, SOUNDCORE_PAIRING, Family.Soundcore, found)
+        }
         // Honor and Huawei earbuds share one protocol; Honor Choice ones call themselves "Earbuds X…".
         HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Battery, HONOR_PAIRING, Family.Huawei)
         // OnePlus, OPPO and realme earbuds that HeyMelody or realme Link control; realme ones only by their exact names,
@@ -121,7 +136,7 @@ object Catalog {
         return when {
             n.startsWith("ultima boom") || n.startsWith("earbuds x") -> Kind.StemBuds
             listOf("speaker", "boom", "flip", "charge", "motion", "soundlink", "partybox", "go ").any { it in n } -> Kind.Speaker
-            listOf("wh-", "headphone", "space", "life q", "q20", "q30", "q35", "q45", "qc4", "qc45", "700", "max", "momentum 4", "rockerz", "tune 7").any { it in n } -> Kind.Headphones
+            listOf("wh-", "headphone", "space", "life q", "q20", "q30", "q35", "q45", "qc4", "qc45", "700", "max", "momentum 4", "rockerz", "tune 7", "life tune", "q11", "vortex").any { it in n } -> Kind.Headphones
             listOf("liberty", "airpods", "freebuds pro", "buds pro", "x7e", "nothing ear", "pixel buds pro").any { it in n } -> Kind.StemBuds
             else -> Kind.RoundBuds
         }
@@ -130,6 +145,7 @@ object Catalog {
     /** Pairing steps to show before anything is paired. */
     val pairingHelp: List<Pair<String, List<String>>> = listOf(
         "Soundcore Liberty 4 NC" to LIBERTY_4_NC.pairing,
+        "Other Soundcore earbuds and headphones" to SOUNDCORE_PAIRING,
         "Other earbuds" to GENERIC_PAIRING,
     )
 }

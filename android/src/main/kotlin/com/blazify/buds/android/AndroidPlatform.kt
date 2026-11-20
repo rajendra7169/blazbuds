@@ -28,6 +28,7 @@ import java.util.UUID
 
 /** Bluetooth on Android: the paired audio devices, and a socket to the earbuds' control service. */
 private const val TAG = "Blazbuds"
+private const val SOUNDCORE_PREFIX = "0cf12d31-fac3-4553-bd80-d6832e7"
 
 @SuppressLint("MissingPermission")
 class AndroidPlatform(
@@ -49,8 +50,14 @@ class AndroidPlatform(
 
     override fun open(device: Device, scope: CoroutineScope): Buds {
         val bt = adapter!!.getRemoteDevice(device.address)
-        val buds = when (Catalog.model(device).family) {
-            Family.Soundcore -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { Log.i(TAG, it) }).also { it.start() }
+        val model = Catalog.model(device)
+        val buds = when (model.family) {
+            Family.Soundcore -> model.soundcore?.let { soundcore ->
+                com.blazify.buds.core.soundcore.generic.GenericSoundcoreBuds(
+                    device.name.trim().removePrefix("soundcore").removePrefix("Soundcore").trim().ifEmpty { soundcore.name },
+                    soundcore, scope, { soundcoreSocket(bt, soundcore.service) }, { Log.i(TAG, it) },
+                ).also { it.start() }
+            } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { Log.i(TAG, it) }).also { it.start() }
             Family.Huawei -> HuaweiBuds(
                 device.name, scope,
                 // The serial-port service first; where it lands on the wrong channel, the usual ones by number.
@@ -256,6 +263,25 @@ class AndroidPlatform(
             override fun write(bytes: ByteArray) { socket.outputStream.write(bytes); socket.outputStream.flush() }
             override fun close() { runCatching { socket.close() } }
         }
+    }
+
+    /**
+     * A Soundcore model's control channel: its own service first, then, as OpenSCQ30 does, any Soundcore service the
+     * earbuds announce, then the plain serial port.
+     */
+    private fun soundcoreSocket(bt: BluetoothDevice, service: String): Connection {
+        val announced = bt.uuids.orEmpty().map { it.uuid.toString().lowercase() }.filter { it.startsWith(SOUNDCORE_PREFIX) }
+        val tries = (listOf(service.lowercase()) + announced + com.blazify.buds.core.soundcore.generic.SoundcoreModel.SERIAL_PORT).distinct()
+        var first: LinkException? = null
+        for (uuid in tries) {
+            try {
+                return socket(bt, uuid)
+            } catch (e: LinkException) {
+                // The model's own service says best why it failed (most often another app holding it).
+                if (first == null) first = e
+            }
+        }
+        throw first ?: LinkException("Couldn't reach the earbuds")
     }
 
     /** The earbuds' control channel, by its service. */

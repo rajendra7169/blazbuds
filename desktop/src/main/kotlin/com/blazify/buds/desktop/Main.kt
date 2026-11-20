@@ -65,12 +65,28 @@ object LinuxPlatform : Platform {
         }
     }
 
+    /** A Soundcore model's control channel: its own service, else the plain serial port, as OpenSCQ30 falls back. */
+    private fun soundcoreLink(address: String, service: String): com.blazify.buds.core.link.Connection {
+        val serial = com.blazify.buds.core.soundcore.generic.SoundcoreModel.SERIAL_PORT
+        return try {
+            LinuxBluetooth.open(address, service)
+        } catch (e: com.blazify.buds.core.link.LinkException) {
+            if (e.busy || service == serial) throw e
+            runCatching { LinuxBluetooth.open(address, serial) }.getOrElse { throw e }
+        }
+    }
+
     override suspend fun paired(): List<Device> = LinuxBluetooth.devices()
 
     override suspend fun peek(device: Device): Pair<Boolean, Int?> = LinuxBluetooth.info(device.address)
 
     override fun open(device: Device, scope: CoroutineScope): Buds = when (Catalog.model(device).family) {
-        com.blazify.buds.core.catalog.Family.Soundcore -> SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { LinuxBluetooth.open(device.address, A3947.SERVICE) })
+        com.blazify.buds.core.catalog.Family.Soundcore -> Catalog.model(device).soundcore?.let { model ->
+            com.blazify.buds.core.soundcore.generic.GenericSoundcoreBuds(
+                device.name.trim().removePrefix("soundcore").removePrefix("Soundcore").trim().ifEmpty { model.name },
+                model, scope, { soundcoreLink(device.address, model.service) },
+            ).also { it.start() }
+        } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { LinuxBluetooth.open(device.address, A3947.SERVICE) })
             .also { it.start() }
         com.blazify.buds.core.catalog.Family.Huawei -> com.blazify.buds.core.huawei.HuaweiBuds(
             device.name, scope,
