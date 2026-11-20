@@ -384,7 +384,7 @@ private fun TwoDevices(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
                 "LDAC sound for one Android device. Uses more battery."
             } else {
                 "Connected to two devices at once; music moves to whichever plays." + if (connected > 0) " $connected connected now." else ""
-            },
+            } + " Switching restarts the earbuds, so the music stops for a few seconds.",
         )
     }
 }
