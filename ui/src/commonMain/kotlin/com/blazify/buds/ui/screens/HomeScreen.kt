@@ -329,6 +329,8 @@ fun Toggle.label() = when (this) {
     Toggle.SoundLeakCompensation -> "Leak compensation"
     Toggle.DynamicBass -> "Dynamic bass"
     Toggle.BassBoost -> "Bass boost"
+    Toggle.SpeakToChat -> "Speak-to-chat"
+    Toggle.Upscaling -> "Sound upscaling"
 }
 
 fun Toggle.icon() = when (this) {
@@ -340,6 +342,8 @@ fun Toggle.icon() = when (this) {
     Toggle.LowBatteryPrompt -> BudsIcons.Battery
     Toggle.DynamicBass -> BudsIcons.Wave
     Toggle.BassBoost -> BudsIcons.Equalizer
+    Toggle.SpeakToChat -> BudsIcons.Voice
+    Toggle.Upscaling -> BudsIcons.Hd
     else -> BudsIcons.Touch
 }
 

@@ -179,6 +179,11 @@ enum class Toggle {
 
     /** More bass, at the strength the earbuds keep (Nothing and CMF). */
     BassBoost,
+    /** Pauses the music and lets voices in when you start talking (Sony's speak-to-chat). */
+    SpeakToChat,
+
+    /** Restores the detail compressed music loses (Sony's DSEE). */
+    Upscaling,
 }
 
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())

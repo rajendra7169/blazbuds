@@ -511,6 +511,8 @@ private val PROMPTS = listOf(
     Toggle.Surround to "A wider, spatial sound",
     Toggle.DynamicBass to "Lifts the bass along with the music",
     Toggle.BassBoost to "Turns up the bass",
+    Toggle.SpeakToChat to "Pauses the music when you start talking",
+    Toggle.Upscaling to "Brings back detail compressed music loses",
 )
 
 @Composable
@@ -622,6 +624,8 @@ private fun Toggle.hue() = when (this) {
     Toggle.Ldac -> com.blazify.buds.ui.blocks.Hue.Orange
     Toggle.DynamicBass -> com.blazify.buds.ui.blocks.Hue.Purple
     Toggle.BassBoost -> com.blazify.buds.ui.blocks.Hue.Amber
+    Toggle.SpeakToChat -> com.blazify.buds.ui.blocks.Hue.Teal
+    Toggle.Upscaling -> com.blazify.buds.ui.blocks.Hue.Orange
 }
 
 /** The EarPrint at the top of the Sound tab: an invitation to make one, or the one there is with a switch. */
