@@ -38,13 +38,14 @@ import com.blazify.buds.ui.theme.Motion
 fun BatteryRow(left: Battery?, case: Battery?, right: Battery?, modifier: Modifier = Modifier, ring: Dp = 56.dp) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         BatteryRing("Left", left, ring, BudsIcons.Earbuds, mirrored = true)
-        BatteryRing("Case", case, ring, BudsIcons.Case)
+        // The case unheard from reads 0%, as the brand apps show it; a missing earbud keeps its dash.
+        BatteryRing("Case", case, ring, BudsIcons.Case, missing = "0%")
         BatteryRing("Right", right, ring, BudsIcons.Earbuds)
     }
 }
 
 @Composable
-fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: androidx.compose.ui.graphics.vector.ImageVector? = null, mirrored: Boolean = false) {
+fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: androidx.compose.ui.graphics.vector.ImageVector? = null, mirrored: Boolean = false, missing: String = "–") {
     val palette = LocalPalette.current
     val level = battery?.percent ?: 0
     val fill by animateFloatAsState(level / 100f, spring(dampingRatio = 0.6f, stiffness = 140f), label = "fill")
@@ -96,7 +97,7 @@ fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: and
         }
         if (picture != null) {
             Text(
-                if (battery == null) "–" else "${battery.percent}%",
+                if (battery == null) missing else "${battery.percent}%",
                 style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                 color = palette.text,
                 modifier = Modifier.padding(top = 4.dp),
