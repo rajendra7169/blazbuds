@@ -12,6 +12,24 @@ class DemoWavTest {
         wav(File(dir, "demo.wav"), TestSounds.demo())
         wav(File(dir, "beep-1k-left.wav"), TestSounds.beeps(1000, -30.0, left = true, right = false))
         wav(File(dir, "circling.wav"), TestSounds.circling())
+        val beat = TestSounds.demo()
+        for (mode in com.blazify.buds.core.spatial.SpatialMode.entries) {
+            val spatial = com.blazify.buds.core.spatial.Spatializer(TestSounds.RATE).also { it.mode = mode }
+            val input = FloatArray(beat.size) { beat[it] / 32768f }
+            val output = FloatArray(beat.size)
+            // In blocks, the way it runs on live sound.
+            val block = 480
+            var at = 0
+            while (at < beat.size / 2) {
+                val frames = minOf(block, beat.size / 2 - at)
+                val inBlock = input.copyOfRange(at * 2, (at + frames) * 2)
+                val outBlock = FloatArray(frames * 2)
+                spatial.process(inBlock, outBlock, frames)
+                outBlock.copyInto(output, at * 2)
+                at += frames
+            }
+            wav(File(dir, "demo-3d-${mode.name.lowercase()}.wav"), ShortArray(output.size) { (output[it] * 32767).toInt().coerceIn(-32767, 32767).toShort() })
+        }
     }
 
     private fun wav(file: File, samples: ShortArray) {
