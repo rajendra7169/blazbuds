@@ -104,7 +104,8 @@ class SoundcoreBuds(
                     // Restarting on purpose: say "connecting", not "lost", and come back once the music has settled.
                     restartedAt = null
                     flow.update { it.copy(link = Link.Connecting) }
-                    delay(RESTART_HOLD)
+                    // Try again cuts the wait short; otherwise give the earbuds the whole time.
+                    withTimeoutOrNull(RESTART_HOLD) { wake.receive() }
                     wait = 2_000L
                     continue
                 }
