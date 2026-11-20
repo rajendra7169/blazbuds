@@ -138,6 +138,8 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                         null -> if (tab != Tab.Home) tab = Tab.Home else place = Place.Earbuds
                         Place.Add, Place.Connect -> place = Place.Earbuds
                         Place.Fit -> place = null
+                        // What's new is opened from Settings, so back returns there.
+                        Place.Changelog -> place = Place.Settings
                         else -> place = null
                     }
                 }
