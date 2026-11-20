@@ -31,7 +31,8 @@ compose.desktop {
             packageVersion = appVersion
             description = "Control your wireless earbuds"
             vendor = "Rajendra Pandey"
-            modules("jdk.unsupported")
+            // java.prefs keeps the settings; without it the installed app fails where the one run from Gradle works.
+            modules("java.instrument", "java.prefs", "jdk.unsupported")
             linux {
                 packageName = "blazbuds"
                 menuGroup = "AudioVideo"
