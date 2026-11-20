@@ -1,5 +1,10 @@
 package com.blazify.buds.ui.screens
 
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -83,7 +88,7 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(Modifier.widthIn(max = if (wide) 1100.dp else 560.dp).fillMaxWidth()) {
-                TopBar(state, open)
+                TopBar(state, open, retry)
                 LinkBanner(state, retry, bluetoothOn, turnOnBluetooth)
                 if (wide) {
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -117,8 +122,9 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
 }
 
 @Composable
-private fun TopBar(state: BudsState, open: (Place) -> Unit) {
+private fun TopBar(state: BudsState, open: (Place) -> Unit, retry: () -> Unit) {
     val palette = LocalPalette.current
+    var explain by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.weight(1f).press { open(Place.Earbuds) }.padding(4.dp),
@@ -145,11 +151,42 @@ private fun TopBar(state: BudsState, open: (Place) -> Unit) {
                         ),
                     )
                     Text(status, style = MaterialTheme.typography.labelSmall, color = palette.muted)
+                    // In use elsewhere: a quiet line here, and the why behind a tap, rather than a panel over Home.
+                    if (state.link == Link.Busy) {
+                        Icon(
+                            BudsIcons.Info, "Why", tint = palette.muted,
+                            modifier = Modifier.size(22.dp).press(onClick = { explain = true }).padding(3.dp),
+                        )
+                    }
                 }
             }
         }
         IconButton(BudsIcons.Support, "Help") { open(Place.Support) }
         IconButton(BudsIcons.Settings, "Settings") { open(Place.Settings) }
+    }
+    if (explain) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { explain = false },
+            modifier = Modifier.offset(x = com.blazify.buds.ui.blocks.LocalPopupShift.current),
+            containerColor = palette.card,
+            icon = { Icon(BudsIcons.Info, null, tint = palette.warn) },
+            title = { Text("Another app has your earbuds", color = palette.text) },
+            text = {
+                Text(
+                    "Earbuds let only one app control them at a time. Most often that is the brand's own app (like Soundcore), or " +
+                        "Blazbuds on your other phone or computer when the earbuds are connected to both. Close it there, and " +
+                        "Blazbuds takes over by itself in a few seconds.",
+                    color = palette.muted,
+                )
+            },
+            confirmButton = {
+                Choice("Try again", true) {
+                    explain = false
+                    retry()
+                }
+            },
+            dismissButton = { Choice("OK", false) { explain = false } },
+        )
     }
 }
 
@@ -159,7 +196,8 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit, bluetoothOn: Boolean
     val palette = LocalPalette.current
     // Only when something needs doing: Bluetooth off, or another app holding the earbuds. Not being connected is
     // already shown under the name at the top.
-    AnimatedVisibility(state.link == Link.Busy || !bluetoothOn, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+    // Another app holding the earbuds is told quietly under the name, with the why behind its (i).
+    AnimatedVisibility(!bluetoothOn, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         Panel(Modifier.padding(bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (state.link == Link.Connecting && bluetoothOn) LogoLoader(size = 28.dp) else Icon(if (bluetoothOn) BudsIcons.Info else BudsIcons.Bluetooth, null, tint = palette.warn)
