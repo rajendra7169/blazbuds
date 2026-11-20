@@ -72,6 +72,21 @@ enum class SamsungModel(
         }
 
     /**
+     * How many volumes ambient sound has, 0 where it has none to pick; the earbuds count them from 0. GalaxyBudsClient's
+     * maximum for each model, plus one: the 2019 Buds and the Buds4 Pro five, the Buds Pro four, the Buds+, Buds2, Buds3
+     * and Buds4 three. Gadgetbridge sends the 2019 Buds 1 to 5 but never reads them back; GalaxyBudsClient reads them
+     * from the earbuds and names 0 to 4, so they are taken from 0 like the rest. The Buds+ have a fourth when "extra loud" is on, which is not set here. The Buds2 Pro,
+     * Buds FE, Buds Core, Buds3 Pro and Buds3 FE set ambient sound for each ear instead, which is left out.
+     */
+    val ambientLevels: Int
+        get() = when (this) {
+            Buds, Buds4Pro -> 5
+            BudsPro -> 4
+            BudsPlus, Buds2, Buds3, Buds4 -> 3
+            else -> 0
+        }
+
+    /**
      * Voice detect: when you start talking, the earbuds let the world in and turn the music down, and go back a few
      * seconds after you stop. The Pro models only, as GalaxyBudsClient lists them.
      */

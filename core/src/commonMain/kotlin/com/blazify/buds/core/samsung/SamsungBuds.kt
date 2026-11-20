@@ -181,6 +181,7 @@ class SamsungBuds(
             }
             AMBIENT_MODE_UPDATED -> if (model.noise == SamsungModel.Noise.Ambient && first != null) setNoise(if (first == 1) 2 else 0)
             NOISE_REDUCTION_MODE_UPDATE -> if (model.noise == SamsungModel.Noise.Cancelling && first != null) setNoise(if (first == 1) 1 else 0)
+            AMBIENT_VOLUME -> if (first != null) setAmbient(first)
             AMBIENT_VOICE_FOCUS -> if (model == SamsungModel.Buds && first != null) {
                 status = status?.copy(voiceFocus = first == 1)
                 publish()
@@ -206,6 +207,7 @@ class SamsungBuds(
                 status = status?.copy(voiceDetect = value == 1)
                 publish()
             }
+            AMBIENT_VOLUME -> setAmbient(value)
             NOISE_REDUCTION_LEVEL -> if (model.cancelLevels > 0 && value < model.cancelLevels) {
                 status = status?.copy(cancelLevel = value)
                 publish()
@@ -224,6 +226,13 @@ class SamsungBuds(
 
     private fun setNoise(mode: Int) {
         status = status?.copy(noise = mode)
+        publish()
+    }
+
+    /** The ambient sound volume the earbuds say, from 0, on models that have volumes. */
+    private fun setAmbient(raw: Int) {
+        if (model.ambientLevels == 0) return
+        status = status?.copy(ambientLevel = raw.coerceIn(0, model.ambientLevels - 1))
         publish()
     }
 
@@ -252,6 +261,7 @@ class SamsungBuds(
                 SamsungModel.Noise.Controls -> ListeningMode.entries
             }
             val levels = model.cancelLevels
+            val ambientLevels = if (s.ambientLevel != null) model.ambientLevels else 0
             Sound(
                 mode = when (noise) {
                     1, 3 -> ListeningMode.NoiseCancelling
@@ -262,6 +272,8 @@ class SamsungBuds(
                 // The screens count strengths from 1; the earbuds from 0.
                 manualLevel = ((s.cancelLevel ?: (levels - 1)) + 1).coerceIn(1, levels.coerceAtLeast(1)),
                 transparencyStyle = if (s.voiceFocus == true) TransparencyStyle.Voice else TransparencyStyle.Full,
+                // Counted from 1 here too.
+                ambientLevel = if (ambientLevels > 0) s.ambientLevel!! + 1 else 0,
                 options = SoundOptions(
                     cancelStyles = when {
                         model.adaptive -> listOf(CancelStyle.Adaptive, CancelStyle.Manual)
@@ -276,6 +288,7 @@ class SamsungBuds(
                     modes = modes,
                     levels = levels > 0 && s.cancelLevel != null,
                     manualLevels = if (levels > 0) levels else 5,
+                    ambientLevels = ambientLevels,
                 ),
             )
         }
@@ -382,6 +395,12 @@ class SamsungBuds(
                     send(NOISE_REDUCTION_LEVEL, raw)
                 }
             }
+            is Change.AmbientLevel -> if (model.ambientLevels > 0 && s.ambientLevel != null) {
+                val raw = (change.level - 1).coerceIn(0, model.ambientLevels - 1)
+                status = s.copy(ambientLevel = raw)
+                publish()
+                send(AMBIENT_VOLUME, raw)
+            }
             is Change.TransparencyKind -> if (model == SamsungModel.Buds) {
                 val on = change.style == TransparencyStyle.Voice
                 status = s.copy(voiceFocus = on)
@@ -485,6 +504,9 @@ class SamsungBuds(
 
         /** The strength of manual noise cancelling, from 0; on older models the same number is something else. */
         const val NOISE_REDUCTION_LEVEL = 0x83
+
+        /** The ambient sound volume, from 0, set by the app or told by the earbuds when it changes on them. */
+        const val AMBIENT_VOLUME = 0x84
 
         /** The 2019 Buds' voice focus; the same number means something else on later models. */
         const val AMBIENT_VOICE_FOCUS = 0x85

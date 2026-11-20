@@ -33,6 +33,8 @@ data class SamsungStatus(
     val cancelLevel: Int? = null,
     /** Voice detect, on the Pro models. */
     val voiceDetect: Boolean? = null,
+    /** How loud ambient sound lets the world in, from 0 (quietest), on models that have volumes. */
+    val ambientLevel: Int? = null,
 ) {
     companion object {
         const val EXTENDED_STATUS = 0x61
@@ -41,6 +43,8 @@ data class SamsungStatus(
         /** The full status the earbuds send on connecting and after most changes. */
         fun extended(model: SamsungModel, p: ByteArray): SamsungStatus? {
             fun at(i: Int): Int? = p.getOrNull(i)?.toInt()?.and(0xFF)
+            // The Buds+ with "extra loud" on say one more than their top volume; it shows as the top.
+            fun ambient(i: Int): Int? = if (model.ambientLevels > 0) at(i)?.coerceAtMost(model.ambientLevels - 1) else null
             val revision = at(0) ?: return null
             val left = level(at(2) ?: return null)
             val right = level(at(3) ?: return null)
@@ -58,6 +62,7 @@ data class SamsungStatus(
                     holdLeft = at(if (wide) 13 else 12)?.let { if (wide) it shr 4 else it and 0x0F },
                     holdRight = at(if (wide) 13 else 12)?.let { it and 0x0F },
                     touchLocked = (if (wide) at(12) else at(12)?.shr(4))?.let { it != 0 },
+                    ambientLevel = ambient(9),
                 )
             }
             val case = at(7)?.let { level(it) }
@@ -69,6 +74,7 @@ data class SamsungStatus(
                     holdLeft = at(13)?.shr(4),
                     holdRight = at(13)?.and(0x0F),
                     touchLocked = at(12)?.let { it != 0 },
+                    ambientLevel = ambient(9),
                 )
             }
             val lockByte = at(10)
@@ -86,6 +92,7 @@ data class SamsungStatus(
                 // At the same place in every layout from the Buds Pro on.
                 cancelLevel = if (model.cancelLevels > 0) at(24)?.coerceAtMost(model.cancelLevels - 1) else null,
                 voiceDetect = if (model.voiceDetect) at(26)?.let { it == 1 } else null,
+                ambientLevel = ambient(23),
             )
         }
 

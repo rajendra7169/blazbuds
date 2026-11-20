@@ -238,6 +238,43 @@ class SamsungBudsTest {
     }
 
     @Test
+    fun buds2AmbientSoundHasThreeVolumes() = withBuds(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10) { buds, fake ->
+        // Recorded on the middle one.
+        assertEquals(3, buds.state.value.sound!!.options.ambientLevels)
+        assertEquals(2, buds.state.value.sound!!.ambientLevel)
+
+        buds.apply(Change.AmbientLevel(3))
+        assertContentEquals(byteArrayOf(2), fake.next(SamsungBuds.AMBIENT_VOLUME).payload)
+        assertEquals(3, buds.state.value.sound!!.ambientLevel)
+        // Past the top is the top.
+        buds.apply(Change.AmbientLevel(9))
+        assertContentEquals(byteArrayOf(2), fake.next(SamsungBuds.AMBIENT_VOLUME).payload)
+
+        // The earbuds' acknowledgement, then a change made on the earbuds themselves.
+        fake.incoming.add(ack(SamsungBuds.AMBIENT_VOLUME, 1))
+        withTimeout(3_000) { buds.state.first { it.sound?.ambientLevel == 2 } }
+        fake.incoming.add(SamsungMessage.encode(SamsungMessage(SamsungBuds.AMBIENT_VOLUME, byteArrayOf(0)), legacy = false))
+        withTimeout(3_000) { buds.state.first { it.sound?.ambientLevel == 1 } }
+    }
+
+    @Test
+    fun budsLiveAndPerEarModelsHaveNoAmbientVolume() {
+        withBuds(SamsungModel.BudsLive, SamsungCaptures.BUDS_LIVE_REV9) { buds, fake ->
+            assertEquals(0, buds.state.value.sound!!.options.ambientLevels)
+            buds.apply(Change.AmbientLevel(2))
+            buds.ring(left = true, right = true)
+            while (true) {
+                val message = fake.sent.poll(3, TimeUnit.SECONDS) ?: error("nothing sent")
+                assertNotEquals(SamsungBuds.AMBIENT_VOLUME, message.id)
+                if (message.id == SamsungBuds.FIND_MY_EARBUDS_START) break
+            }
+        }
+        withBuds(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13) { buds, _ ->
+            assertEquals(0, buds.state.value.sound!!.options.ambientLevels)
+        }
+    }
+
+    @Test
     fun buds2HaveOneCancellingStrength() = withBuds(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10) { buds, fake ->
         assertEquals(emptyList(), buds.state.value.sound!!.options.cancelStyles)
         assertEquals(false, buds.state.value.sound!!.options.levels)
@@ -296,6 +333,13 @@ class SamsungBudsTest {
             assertContentEquals(byteArrayOf(1, 8), next(SamsungBuds.EQUALIZER).payload)
             buds.apply(Change.Preset(0))
             assertContentEquals(byteArrayOf(0, 7), next(SamsungBuds.EQUALIZER).payload)
+
+            // Five ambient volumes, recorded on the middle one; the loudest is 4.
+            assertEquals(5, state.sound!!.options.ambientLevels)
+            assertEquals(3, state.sound!!.ambientLevel)
+            buds.apply(Change.AmbientLevel(5))
+            assertContentEquals(byteArrayOf(4), next(SamsungBuds.AMBIENT_VOLUME).payload)
+            assertEquals(5, buds.state.value.sound!!.ambientLevel)
         } finally {
             buds.close()
             scope.cancel()

@@ -128,6 +128,21 @@ class SamsungStatusTest {
     }
 
     @Test
+    fun ambientVolumeWhereTheModelHasOne() {
+        assertEquals(2, status(SamsungModel.Buds, SamsungCaptures.BUDS_REV3).ambientLevel) // the middle of 0 to 4
+        assertEquals(0, status(SamsungModel.BudsPlus, SamsungCaptures.BUDS_PLUS_REV13).ambientLevel)
+        assertEquals(2, status(SamsungModel.BudsPro, SamsungCaptures.BUDS_PRO_REV10).ambientLevel)
+        assertEquals(1, status(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10).ambientLevel)
+        // The Buds Live have no ambient sound to speak of; the Buds2 Pro and FE set it for each ear.
+        assertNull(status(SamsungModel.BudsLive, SamsungCaptures.BUDS_LIVE_REV9).ambientLevel)
+        assertNull(status(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13).ambientLevel)
+        assertNull(status(SamsungModel.BudsFe, SamsungCaptures.BUDS_FE_REV2).ambientLevel)
+        // The Buds+ with "extra loud" on say 3, shown as their top volume.
+        val loud = SamsungMessage.Reader(false).feed(SamsungCaptures.BUDS_PLUS_REV13).single().payload.copyOf().also { it[9] = 3 }
+        assertEquals(2, SamsungStatus.extended(SamsungModel.BudsPlus, loud)!!.ambientLevel)
+    }
+
+    @Test
     fun voiceDetectOnTheProModelsOnly() {
         assertEquals(true, status(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13).voiceDetect)
         assertEquals(false, status(SamsungModel.BudsPro, SamsungCaptures.BUDS_PRO_REV10).voiceDetect)
