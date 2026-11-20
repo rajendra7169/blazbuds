@@ -17,7 +17,10 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
+import androidx.compose.ui.window.TrayState
+import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
@@ -28,7 +31,7 @@ import com.blazify.buds.core.catalog.Catalog
 import com.blazify.buds.core.catalog.Support
 import com.blazify.buds.core.demo.DemoBuds
 import com.blazify.buds.core.link.Device
-import com.blazify.buds.core.link.LinuxBluetooth
+import com.blazify.buds.core.link.DesktopBluetooth
 import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Buds
 import com.blazify.buds.core.model.Change
@@ -49,12 +52,34 @@ import kotlinx.coroutines.launch
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 
-/** Bluetooth on a Linux computer, through BlueZ. */
-object LinuxPlatform : Platform {
-    /** A desktop notification, through the system's own notifier. */
+/** A computer: Bluetooth through BlueZ on Linux and through Windows' own sockets on Windows; the rest is shared. */
+object DesktopPlatform : Platform {
+    private val windows = System.getProperty("os.name").orEmpty().startsWith("Windows")
+
+    private val bluetooth = DesktopBluetooth.here()
+
+    /** The tray icon the app shows, which carries the notices on Windows. */
+    var tray: TrayState? = null
+
+    /** A desktop notification: the system's own notifier on Linux, a notice from the tray icon on Windows. */
     override fun notify(title: String, text: String) {
-        runCatching { ProcessBuilder("notify-send", "-a", "Blazbuds", "-i", "audio-headphones", title, text).start() }
+        if (!windows) {
+            runCatching { ProcessBuilder("notify-send", "-a", "Blazbuds", "-i", "audio-headphones", title, text).start() }
+            return
+        }
+        tray?.let { it.sendNotification(Notification(title, text, Notification.Type.Info)); return }
+        // No tray of our own yet: a short-lived tray icon shows the notice, then goes.
+        runCatching {
+            if (!java.awt.SystemTray.isSupported()) return
+            val image = java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            val icon = java.awt.TrayIcon(image, "Blazbuds")
+            java.awt.SystemTray.getSystemTray().add(icon)
+            icon.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO)
+            javax.swing.Timer(10_000) { java.awt.SystemTray.getSystemTray().remove(icon) }.apply { isRepeats = false; start() }
+        }
     }
+
+    override fun bluetoothOn(): Boolean = bluetooth.radioOn()
 
     override val look: SystemLook = System.getProperty("os.name").let {
         when {
@@ -68,16 +93,16 @@ object LinuxPlatform : Platform {
     private fun soundcoreLink(address: String, service: String): com.blazify.buds.core.link.Connection {
         val serial = com.blazify.buds.core.soundcore.generic.SoundcoreModel.SERIAL_PORT
         return try {
-            LinuxBluetooth.open(address, service)
+            bluetooth.open(address, service)
         } catch (e: com.blazify.buds.core.link.LinkException) {
             if (e.busy || service == serial) throw e
-            runCatching { LinuxBluetooth.open(address, serial) }.getOrElse { throw e }
+            runCatching { bluetooth.open(address, serial) }.getOrElse { throw e }
         }
     }
 
-    override suspend fun paired(): List<Device> = LinuxBluetooth.devices()
+    override suspend fun paired(): List<Device> = bluetooth.devices()
 
-    override suspend fun peek(device: Device): Pair<Boolean, Int?> = LinuxBluetooth.info(device.address)
+    override suspend fun peek(device: Device): Pair<Boolean, Int?> = bluetooth.info(device.address)
 
     override fun open(device: Device, scope: CoroutineScope): Buds = when (Catalog.model(device).family) {
         com.blazify.buds.core.catalog.Family.Soundcore -> Catalog.model(device).soundcore?.let { model ->
@@ -85,41 +110,41 @@ object LinuxPlatform : Platform {
                 device.name.trim().removePrefix("soundcore").removePrefix("Soundcore").trim().ifEmpty { model.name },
                 model, scope, { soundcoreLink(device.address, model.service) },
             ).also { it.start() }
-        } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { LinuxBluetooth.open(device.address, A3947.SERVICE) })
+        } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { bluetooth.open(device.address, A3947.SERVICE) })
             .also { it.start() }
         com.blazify.buds.core.catalog.Family.Huawei -> com.blazify.buds.core.huawei.HuaweiBuds(
             device.name, scope,
             listOf(
-                { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) },
-                { LinuxBluetooth.rfcomm(device.address, 1) },
-                { LinuxBluetooth.rfcomm(device.address, 16) },
+                { bluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) },
+                { bluetooth.rfcomm(device.address, 1) },
+                { bluetooth.rfcomm(device.address, 16) },
             ),
         ).also { it.start() }
-        com.blazify.buds.core.catalog.Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }).also { it.start() }
+        com.blazify.buds.core.catalog.Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { bluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }).also { it.start() }
         com.blazify.buds.core.catalog.Family.Samsung -> com.blazify.buds.core.samsung.SamsungModel.of(device.name)!!.let { model ->
-            com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { LinuxBluetooth.open(device.address, model.service) }).also { it.start() }
+            com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { bluetooth.open(device.address, model.service) }).also { it.start() }
         }
-        com.blazify.buds.core.catalog.Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { LinuxBluetooth.open(device.address, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }).also { it.start() }
+        com.blazify.buds.core.catalog.Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { bluetooth.open(device.address, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }).also { it.start() }
         com.blazify.buds.core.catalog.Family.Melody -> com.blazify.buds.core.oneplus.MelodyBuds(
             device.name, scope,
             listOf(
-                { LinuxBluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERVICE) },
-                { LinuxBluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERIAL) },
+                { bluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERVICE) },
+                { bluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERIAL) },
             ),
         ).also { it.start() }
         com.blazify.buds.core.catalog.Family.Sony -> com.blazify.buds.core.sony.SonyBuds(
             device.name, scope,
             listOf(
-                { LinuxBluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V2) },
-                { LinuxBluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V1) },
+                { bluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V2) },
+                { bluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V1) },
             ),
         ).also { it.start() }
         com.blazify.buds.core.catalog.Family.None -> {
             // Unknown earbuds: try JieLi's login once (many budget pairs use that chip), remember, else the basics.
-            val basic = { BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() } }
+            val basic = { BasicBuds(device.name, scope) { bluetooth.info(device.address) }.also { it.start() } }
             val store = java.util.prefs.Preferences.userRoot().node("blazbuds/tried")
             val key = "jieli_" + device.address.replace(":", "")
-            val open = { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }
+            val open = { bluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }
             when (store.get(key, null)) {
                 "false" -> basic()
                 "true" -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open).also { it.start() }
@@ -190,6 +215,11 @@ object LinuxPlatform : Platform {
     }
 
     override fun bluetoothSettings() {
+        if (windows) {
+            runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI("ms-settings:bluetooth")) }
+                .recoverCatching { ProcessBuilder("cmd", "/c", "start", "", "ms-settings:bluetooth").start() }
+            return
+        }
         runCatching { ProcessBuilder("gnome-control-center", "bluetooth").start() }
             .recoverCatching { ProcessBuilder("blueman-manager").start() }
     }
@@ -230,7 +260,7 @@ fun main(args: Array<String>) = application {
     val prefs = remember { Prefs() }
     val scope = rememberCoroutineScope()
     val demo = "--demo" in args
-    val hub = remember { if (demo) null else Hub(LinuxPlatform, scope) }
+    val hub = remember { if (demo) null else Hub(DesktopPlatform, scope) }
     val demoBuds = remember { if (demo) DemoBuds() else null }
     var shown by remember { mutableStateOf("--hidden" !in args) }
     var panel by remember { mutableStateOf(false) }
@@ -243,7 +273,13 @@ fun main(args: Array<String>) = application {
     // The tray stays while the window is closed, so the earbuds are one click away.
     val trayWorks = remember { java.awt.SystemTray.isSupported() }
     if (trayWorks) {
+        val trayState = rememberTrayState()
+        androidx.compose.runtime.DisposableEffect(trayState) {
+            DesktopPlatform.tray = trayState
+            onDispose { DesktopPlatform.tray = null }
+        }
         Tray(
+            state = trayState,
             icon = AppIcon,
             tooltip = state?.let { "${it.name}: ${it.batteryLine()}" } ?: "Blazbuds",
             onAction = { panel = !panel },

@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
     val scale = 2f
     ImageComposeScene((width * scale).toInt(), (height * scale).toInt(), Density(scale)) {
         val scope = rememberCoroutineScope()
-        BudsApp(remember { Hub(LinuxPlatform, scope, store) }, prefs)
+        BudsApp(remember { Hub(DesktopPlatform, scope, store) }, prefs)
     }.use { scene ->
         val start = System.nanoTime()
         while (System.nanoTime() - start < seconds * 1_000_000_000L) {
