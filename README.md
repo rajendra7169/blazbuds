@@ -5,8 +5,19 @@
 <h1 align="center">Blazbuds</h1>
 
 <p align="center">
-  Control your wireless earbuds from any device.<br>
+  One app for your wireless earbuds, whatever brand they are.<br>
   No ads, no account, no waiting: open it and your earbuds are there.
+</p>
+
+<p align="center">
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><b>Download the latest version</b></a>
+  · Android · Linux
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/home-phone-dark.png" width="250" alt="Home">
+  <img src="docs/screenshots/sound-phone-light.png" width="250" alt="Sound">
+  <img src="docs/screenshots/controls-phone-dark.png" width="250" alt="Touch controls">
 </p>
 
 ---
@@ -15,69 +26,80 @@
 
 Everything you reach for is on one screen:
 
-- **Battery** for each earbud and the case, updated as it changes
-- **Listening mode**: noise cancelling (adaptive, manual strength, or tuned for plane, train, bus or car), transparency (everything, or voices only) and normal, with wind noise reduction
+- **Battery** for each earbud and the case, a **low-battery alert** at the level you choose (10 to 40%), and a week of **battery history**
+- **Listening mode**: noise cancelling (adaptive, a strength you pick, or tuned for travel), transparency with its level, and normal, as each pair has them
 - **Scenes**: Focus, Commute, Flight, Talk and Relax put on the right mode with one tap
-- **Sound**: Soundcore's 22 presets or your own curve over 8 bands, saved on the earbuds themselves so it plays the same on every device
-- **Quick switches**: gaming mode, 3D surround, wear detection, touch lock
-- **Two devices or best quality**: the Liberty 4 NC can join two devices at once or play LDAC to one; the app makes that choice plain and lists the devices the earbuds remember
+- **Sound**: the earbuds' own presets as picture tiles, and your own sounds made with **+**, saved on the earbuds and shared with a short code
+- **EarPrint**: a hearing test and a listening test that make a sound shaped to your ears
+- **Touch controls** drawn on an ear: pick a side, and each kind of touch shows what it does
+- **Find my earbuds**: the earbuds ring themselves where they can, or play a sound through them
+- **Ear tip fit test**, **dual-connect** with the devices your earbuds remember, safe volume, gaming mode and the rest of each brand's switches
 
-- **Safe volume**: a cap on how loud they play, from 75 to 100 dB
-- **Find my earbuds**, an **ear tip fit test**, and **how to wear them**, drawn on an ear
-
-Touch controls are drawn on an ear too: pick a side, and each kind of touch (tap, double tap, triple tap, press and hold) shows what it does. Sound presets are colour tiles that show the shape of each sound. Tones and prompts, auto power off, and the earbuds' firmware and serial number are in the Device tab.
-
-On Android, a home-screen widget shows the battery and switches modes, and a quick-settings tile changes the mode from the shade, both without opening the app.
-
-On a computer it also lives in the tray: battery and mode in the menu, and a small panel on a click.
+On Android, a home-screen widget shows the battery and switches modes, and a quick-settings tile changes the mode from the shade. On a computer it lives in the tray, with a small panel a click away.
 
 ## Earbuds
 
-| Earbuds | What works |
+<img src="docs/screenshots/add-phone-light.png" width="250" align="right" alt="Works with">
+
+| Brand | Models |
 |---|---|
-| Soundcore Liberty 4 NC | Everything above |
-| Other Soundcore earbuds and headphones (Liberty, Life, Space, P, A, R, C, V and Sport series, Sleep A30) | Battery, listening modes, equalizer, touch controls and switches, as far as each model has them; not yet tried on the earbuds themselves |
-| Honor Choice Earbuds X7e Active | Battery for each earbud and the case, sound presets (Default, Bass boost, Treble boost), double tap, triple tap and press-and-hold on each side, spatial surround, dynamic bass, gaming mode |
-| Other Honor and Huawei earbuds (FreeBuds, Earbuds X) | Battery for each earbud and the case, listening modes where the pair has them, firmware; more as each model is tried |
-| Ultima Boom Sleek and other Ultima earbuds | Battery for each earbud and the case, the earbuds' own sound presets and your own curve, double tap, triple tap and press-and-hold on each side, gaming mode |
-| Other earbuds on the JieLi chip used by many lower-priced brands | Tried by themselves when an unknown pair connects; the same as Ultima when they answer |
-| Samsung Galaxy Buds, Buds+, Live, Pro, Buds2, Buds2 Pro, Buds FE, Buds Core, Buds3, Buds3 FE, Buds3 Pro, Buds4 and Buds4 Pro | Battery, noise cancelling and ambient sound, how strongly it cancels (Pro, FE, Core, Buds3 FE and Buds3 Pro), how loud ambient sound is (Buds, Buds+, Pro, Buds2, Buds3, Buds4 and Buds4 Pro), sound presets and, from the Buds3 on, your own nine-band curve, voice detect on the Pro models, touch controls, touch lock, firmware; not yet tried on the earbuds themselves |
-| Nothing Ear, Ear (a), Ear (1), (2), (3), (3a), Ear (open), Ear (stick), Headphone (1) and CMF Buds and Headphone Pro | Battery, listening modes, sound presets and your own curve (Nothing's eight-band Advanced equalizer on the Ear, Ear (2), (3), (3a), (stick), (open) and Headphone (1), bass/mid/treble on the others), ear tip fit test, personalised noise cancelling, touch controls, bass boost, wear detection, gaming mode; not yet tried on the earbuds themselves |
-| OnePlus Buds, OPPO Enco and realme Buds that HeyMelody or realme Link control | Battery, listening modes, sound presets and your own curve, touch controls, ear tip fit test, 3D sound with head tracking, high-quality audio, vocal enhancement and other switches as each model has them; not yet tried on the earbuds themselves |
-| Sony WH-1000XM, WF-1000XM, LinkBuds, WF-C, WH-CH, WH-XB, WF-SP, WI-SP, WI-C and ULT WEAR | Battery, noise cancelling and ambient sound with its level and focus on voice, sound presets and your own curve, touch controls, speak-to-chat, sound upscaling, wear detection, voice prompts, priority on sound quality; not yet tried on the earbuds themselves |
-| Any other Bluetooth earbuds | The basics: connection and battery, where the phone or computer can read it |
+| Soundcore | Liberty 4 NC, and the Liberty, Life, Space, P, A, R, C, V and Sport series, Sleep A30 |
+| Samsung | Galaxy Buds, Buds+, Live, Pro, Buds2, Buds2 Pro, Buds FE, Buds Core, Buds3, Buds3 FE, Buds3 Pro, Buds4, Buds4 Pro |
+| Sony | WH-1000XM, WF-1000XM, LinkBuds, WF-C, WH-CH, WH-XB, WF-SP, WI-SP, WI-C, ULT WEAR |
+| Nothing and CMF | Ear, Ear (a), Ear (1), (2), (3), (3a), Ear (open), Ear (stick), Headphone (1), CMF Buds and Headphone Pro |
+| OnePlus, OPPO, realme | Buds, Nord Buds, Enco and realme Buds that HeyMelody or realme Link control, about 140 models |
+| Honor and Huawei | Honor Choice Earbuds X7e Active, Earbuds X, FreeBuds |
+| Ultima and JieLi | Ultima Boom Sleek and other Ultima pairs, and many lower-priced earbuds on the JieLi chip |
+| Anything else | Connection and battery, where the phone or computer can read it |
 
-The app is built so each new brand plugs into the same screens.
+Tried on real earbuds so far: the Soundcore Liberty 4 NC, the Honor Choice Earbuds X7e Active and the Ultima Boom Sleek. The rest follow each brand's protocol as the projects below document it. If yours misbehave or are missing, use **Help › Request your earbuds** in the app.
 
-## Devices
+<br clear="right">
 
-| | Status |
+## Download
+
+| | |
 |---|---|
-| Linux | Works |
-| Android 8 and later | Works |
-| iPhone | Being explored |
-| Windows 10 and 11 | Built, not yet tried on a Windows computer |
+| Android 8 and later | The `.apk` from the [latest release](https://github.com/rajendra7169/blazbuds/releases/latest) |
+| Linux (Debian, Ubuntu and others) | The `.deb` from the latest release, then `sudo apt install ./blazbuds_1.2.0_amd64.deb` |
+| iPhone | Coming |
+
+The app tells you when a new version is out (Settings › Updates), and **What's new** lists the changes.
 
 ## Small and private
 
-The Android app is about 1.2 MB. It asks for one permission, Bluetooth, and has no internet access at all: it talks only to your earbuds. Settings stay on your device.
+No ads, no account and no tracking. The app talks to your earbuds, and goes online for one thing only: to ask GitHub whether a newer version is out, which you can switch off. Settings stay on your device.
+
+When something goes wrong, **Help › Report a problem** copies what a report needs (the app, the system, the earbuds and what they said lately, nothing personal) and opens a filled-in report.
+
+## More pictures
+
+<p>
+  <img src="docs/screenshots/earprint-result-dark.png" width="220" alt="EarPrint">
+  <img src="docs/screenshots/battery-light.png" width="220" alt="Battery alert and history">
+  <img src="docs/screenshots/settings-phone-dark.png" width="220" alt="Settings">
+  <img src="docs/screenshots/help-phone-light.png" width="220" alt="Help">
+</p>
+<p>
+  <img src="docs/screenshots/home-desktop-dark.png" width="640" alt="Home on a computer">
+  <img src="docs/screenshots/panel-dark.png" width="200" alt="Tray panel">
+</p>
 
 ## Build it
 
 You need JDK 21.
 
 ```sh
-./gradlew :desktop:run               # the computer app (Linux or Windows)
+./gradlew :desktop:run               # the computer app
 ./gradlew :desktop:run --args=--demo # try it without earbuds
 ./gradlew :android:assembleRelease   # the Android app
 ./gradlew :core:jvmTest              # the tests
+./gradlew :desktop:packageDeb        # a Linux package
 ```
-
-`:desktop:packageDeb` and `:desktop:packageRpm` make Linux packages; on a Windows computer, `:desktop:packageMsi` and `:desktop:packageExe` make the Windows installers.
 
 ## Credits
 
-The Soundcore protocol is understood thanks to the work of the [OpenSCQ30](https://github.com/Oppzippy/OpenSCQ30) and [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge) projects. What each Soundcore model besides the Liberty 4 NC holds, and how to change it, is carried over from OpenSCQ30 (GPL-3.0), model by model. Text is set in [Figtree](https://github.com/erikdkennedy/figtree), under the SIL Open Font License.
+The Soundcore protocol is understood thanks to the work of the [OpenSCQ30](https://github.com/Oppzippy/OpenSCQ30) and [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge) projects. What each Soundcore model besides the Liberty 4 NC holds, and how to change it, is carried over from OpenSCQ30 (GPL-3.0), model by model.
 
 Support for other brands builds on the work of these projects:
 
@@ -88,24 +110,10 @@ Support for other brands builds on the work of these projects:
 - **Honor and Huawei**: protocol facts from [OpenFreebuds](https://github.com/melianmiko/OpenFreebuds) and Gadgetbridge; the Honor Choice settings were read from the earbuds themselves
 - **JieLi chip earbuds**: the sign-in follows Jieli's own published SDK ([WeChat-Mini-Program-OTA](https://github.com/Jieli-Tech/WeChat-Mini-Program-OTA)) by way of [spacebuds-ctl](https://github.com/Desmond123-arch/spacebuds-ctl) (Apache-2.0)
 
+Text is set in [Figtree](https://github.com/erikdkennedy/figtree), under the SIL Open Font License. Preset pictures are listed in [docs/photo-credits.md](docs/photo-credits.md).
+
 Blazbuds is not made by or connected with Anker, Soundcore, Honor, Huawei, Samsung, Sony, Nothing, OnePlus, OPPO, realme or Ultima.
 
 ## Licence
 
 GNU General Public License 3.0. See [LICENSE](LICENSE).
-
-## Screenshots
-
-<p>
-  <img src="docs/screenshots/home-phone-light.png" width="260" alt="Home, light">
-  <img src="docs/screenshots/home-phone-dark.png" width="260" alt="Home, dark">
-  <img src="docs/screenshots/sound-phone-light.png" width="260" alt="Sound">
-</p>
-<p>
-  <img src="docs/screenshots/controls-phone-dark.png" width="260" alt="Touch controls">
-  <img src="docs/screenshots/earbuds-phone-light.png" width="260" alt="Your earbuds">
-  <img src="docs/screenshots/panel-dark.png" width="260" alt="Tray panel">
-</p>
-<p>
-  <img src="docs/screenshots/home-desktop-dark.png" width="800" alt="Home on a computer">
-</p>
