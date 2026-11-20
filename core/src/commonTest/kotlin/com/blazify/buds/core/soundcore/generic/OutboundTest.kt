@@ -1,0 +1,88 @@
+package com.blazify.buds.core.soundcore.generic
+
+import com.blazify.buds.core.soundcore.Packet
+import com.blazify.buds.core.soundcore.PacketCodec
+import com.blazify.buds.core.soundcore.toHex
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+/** The shared messages, checked byte for byte against the examples in OpenSCQ30's own tests. */
+class OutboundTest {
+    private fun wire(vararg bytes: Int) = bytes.joinToString(" ") { it.toString(16).padStart(2, '0') }
+
+    @Test
+    fun customEqualizer() {
+        val eq = EqState(0xFEFE, listOf(intArrayOf(-60, 60, 23, 40, 22, 60, -4, 16)))
+        assertEquals(
+            wire(0x08, 0xee, 0x00, 0x00, 0x00, 0x02, 0x81, 0x14, 0x00, 0xfe, 0xfe, 0x3c, 0xb4, 0x8f, 0xa0, 0x8e, 0xb4, 0x74, 0x88, 0xe6),
+            PacketCodec.encode(Packet(EqSetup.SET_PLAIN, EqSetup.eqBytes(eq))).toHex(),
+        )
+    }
+
+    @Test
+    fun trebleReducer() {
+        val eq = EqState(0x15, listOf(intArrayOf(0, 0, 0, -20, -30, -40, -40, -60)))
+        assertEquals(
+            wire(0x08, 0xee, 0x00, 0x00, 0x00, 0x02, 0x81, 0x14, 0x00, 0x15, 0x00, 0x78, 0x78, 0x78, 0x64, 0x5a, 0x50, 0x50, 0x3c, 0xa4),
+            PacketCodec.encode(Packet(EqSetup.SET_PLAIN, EqSetup.eqBytes(eq))).toHex(),
+        )
+    }
+
+    @Test
+    fun equalizerWithAHearingProfile() {
+        val p = Parsed().apply {
+            gender = 1
+            age = 2
+            hearId = HearIdState(
+                enabled = true,
+                curves = listOf(intArrayOf(-67, -104, -72, -111, -44, -51, -76, -50), intArrayOf(-78, -104, -10, -95, -4, -92, -80, -66)),
+                time = 2693136640,
+                type = 1,
+                genre = 0xfefe,
+                customCurves = listOf(intArrayOf(-109, -52, -73, -2, -101, -116, -118, -39), intArrayOf(-12, -112, -36, -41, -24, -113, -106, -21)),
+            )
+        }
+        val bands = intArrayOf(-52, -66, -64, -67, -108, -22, -49, -101)
+        val eq = EqState(0xfefe, listOf(bands, bands.copyOf()))
+        assertEquals(
+            wire(
+                0x08, 0xee, 0x00, 0x00, 0x00, 0x03, 0x87, 0x56, 0x00, 0xfe, 0xfe, 0xfe, 0xfe, 0x44,
+                0x36, 0x38, 0x35, 0x0c, 0x62, 0x47, 0x13, 0x44, 0x36, 0x38, 0x35, 0x0c, 0x62, 0x47,
+                0x13, 0x01, 0x02, 0x00, 0x35, 0x10, 0x30, 0x09, 0x4c, 0x45, 0x2c, 0x46, 0x2a, 0x10,
+                0x6e, 0x19, 0x74, 0x1c, 0x28, 0x36, 0xa0, 0x86, 0x01, 0x00, 0x01, 0x0b, 0x44, 0x2f,
+                0x76, 0x13, 0x04, 0x02, 0x51, 0x6c, 0x08, 0x54, 0x4f, 0x60, 0x07, 0x0e, 0x63, 0x74,
+                0x74, 0x74, 0x77, 0x6b, 0x7c, 0x75, 0x6c, 0x74, 0x74, 0x74, 0x77, 0x6b, 0x7c, 0x75,
+                0x6c, 0x0a,
+            ),
+            PacketCodec.encode(EqSetup.hearIdPacket(p, eq, force = false, basic = false)).toHex(),
+        )
+    }
+
+    @Test
+    fun equalizerWithoutAHearingProfile() {
+        val p = Parsed().apply {
+            gender = 1
+            age = 255
+            hearId = HearIdState(true, listOf(IntArray(8), IntArray(8)), 100000, 0, 0, listOf(IntArray(8), IntArray(8)))
+        }
+        val eq = EqState(0, listOf(IntArray(8), IntArray(8)))
+        assertEquals(
+            wire(
+                0x08, 0xee, 0x00, 0x00, 0x00, 0x03, 0x86, 0x54, 0x00, 0x00, 0x00, 0x78, 0x78, 0x78,
+                0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0xff,
+                0xff, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x78, 0x78, 0x78,
+                0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0x78, 0xb1,
+            ),
+            PacketCodec.encode(EqSetup.hearIdPacket(p, eq, force = false, basic = false)).toHex(),
+        )
+    }
+
+    @Test
+    fun migrationGoesThroughTheParent() {
+        // Field 1 may only change while field 0 is 0.
+        val plan = SoundMigration(listOf(null, SoundMigration.Requirement(0, listOf(0))))
+        assertEquals(listOf(listOf(0, 0), listOf(0, 3), listOf(2, 3)), plan.path(listOf(2, 0), listOf(2, 3)))
+    }
+}
