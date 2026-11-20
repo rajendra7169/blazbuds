@@ -14,9 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home-phone-dark.png" width="250" alt="Home">
-  <img src="docs/screenshots/sound-phone-light.png" width="250" alt="Sound">
-  <img src="docs/screenshots/controls-phone-dark.png" width="250" alt="Touch controls">
+  <img src="docs/screens-1.png" width="820" alt="Blazbuds on a phone: Home with each earbud's and the case's battery, Sound with the presets, and touch controls drawn on an ear">
 </p>
 
 ## Features
@@ -30,6 +28,10 @@
 - **Find my earbuds**, an **ear tip fit test**, **dual-connect**, gaming mode and each brand's own switches
 - **Home-screen widget** and **quick-settings tile** on Android, and a **tray panel** on the computer
 - **Light and dark looks**, updates inside the app, and a one-tap problem report
+
+<p align="center">
+  <img src="docs/screens-2.png" width="820" alt="My devices, Add device with a brand picker and its pairing steps, and Settings">
+</p>
 
 ## Earbuds
 
