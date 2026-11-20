@@ -78,6 +78,21 @@ object Remote {
         return if (setMode(context, next)) next else null
     }
 
+    /** The earbuds' state with their batteries, connecting for a moment; null if they can't be reached. */
+    suspend fun battery(context: Context): BudsState? {
+        val device = chosen() ?: return null
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val buds = AndroidPlatform(context.applicationContext).open(device, scope)
+        return try {
+            withTimeoutOrNull(12_000) {
+                buds.state.first { it.link == Link.Connected && (it.left != null || it.right != null || it.overall != null) }
+            }?.also { if (it.isReady) remember(it) }
+        } finally {
+            buds.close()
+            scope.cancel()
+        }
+    }
+
     private suspend fun withBuds(context: Context, action: suspend (Buds) -> Unit): Boolean {
         val device = chosen() ?: return false
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

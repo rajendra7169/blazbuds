@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- Only to hear how loud the room is before the EarPrint hearing check. Nothing is recorded or kept. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The low-battery alert, and its check every quarter hour that carries on after a restart. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
 
     <application
@@ -33,6 +36,12 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
         </receiver>
         <receiver android:name=".android.WidgetAction" android:exported="false" />
+
+        <!-- A look at the batteries now and then while the app is closed. -->
+        <service
+            android:name=".android.BatteryJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- The quick-settings tile. -->
         <service

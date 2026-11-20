@@ -49,6 +49,12 @@ class MainActivity : ComponentActivity() {
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
         ) {
             ask.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        } else if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            com.blazify.buds.ui.BatteryLog().alertOn
+        ) {
+            // For the low-battery alert, once Bluetooth is sorted.
+            ask.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         setContent {
             val scope = rememberCoroutineScope()

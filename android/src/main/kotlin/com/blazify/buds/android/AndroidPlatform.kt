@@ -129,6 +129,10 @@ class AndroidPlatform(
         tone = null
     }
 
+    override fun notify(title: String, text: String) = BatteryJob.notifyLow(context, text)
+
+    override fun watchBatteryInBackground() = BatteryJob.schedule(context)
+
     override fun askMicrophone(done: (Boolean) -> Unit) {
         if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) done(true)
         else askMic(done)

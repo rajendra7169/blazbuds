@@ -52,6 +52,11 @@ import java.awt.GraphicsEnvironment
 
 /** Bluetooth on a Linux computer, through BlueZ. */
 object LinuxPlatform : Platform {
+    /** A desktop notification, through the system's own notifier. */
+    override fun notify(title: String, text: String) {
+        runCatching { ProcessBuilder("notify-send", "-a", "Blazbuds", "-i", "audio-headphones", title, text).start() }
+    }
+
     override val look: SystemLook = System.getProperty("os.name").let {
         when {
             it.startsWith("Windows") -> SystemLook.Windows
