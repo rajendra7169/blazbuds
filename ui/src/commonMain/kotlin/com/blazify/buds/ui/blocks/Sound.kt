@@ -91,9 +91,11 @@ fun ModeDetails(
                             Hint("Adjusts by itself to your fit and to the noise around you.")
                             if (sound.options.environment) SwitchRow(null, "Environment detection", sound.environmentDetection, onEnvironment, detail = "Also follows how loud it is around you")
                         }
-                        CancelStyle.Manual -> {
+                        CancelStyle.Manual -> if (sound.options.levels) {
                             Hint("You choose how strongly it cancels: 1 is lightest, 5 is strongest.")
                             LevelSteps(sound.manualLevel) { onCancel(CancelStyle.Manual, it, null) }
+                        } else {
+                            Hint("Cuts out the noise around you, the same all the time.")
                         }
                         CancelStyle.Travel -> {
                             Hint("Tuned for the steady rumble of each way of travelling.")

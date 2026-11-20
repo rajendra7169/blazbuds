@@ -110,6 +110,8 @@ data class SoundOptions(
     val cycle: Boolean = true,
     /** The modes these earbuds have at all. */
     val modes: List<ListeningMode> = ListeningMode.entries,
+    /** Whether Manual cancelling has strengths to pick; without them it is plain, steady cancelling. */
+    val levels: Boolean = true,
 )
 
 data class Equalizer(
