@@ -176,6 +176,9 @@ enum class Toggle {
 
     /** A lift for the bass that follows the music (Honor). */
     DynamicBass,
+
+    /** More bass, at the strength the earbuds keep (Nothing and CMF). */
+    BassBoost,
 }
 
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())
