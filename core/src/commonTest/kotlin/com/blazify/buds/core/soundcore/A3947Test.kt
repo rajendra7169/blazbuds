@@ -13,9 +13,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class A3947Test {
-    /** A real Liberty 4 NC's answer, both earbuds on firmware 07.61, connected to a phone and a computer. */
+    /** A real Liberty 4 NC's answer, both earbuds on firmware 07.61, connected to a phone and a computer (its serial made up). */
     private val real = hex(
-        "09 ff 00 00 01 01 01 a9 00 00 01 05 05 00 00 30 37 2e 36 31 30 37 2e 36 31 33 39 34 37 61 31 62 32 63 33 64 34 65 35 66 36 30 2e 31 2e 36 fe fe 93 8a 78 7f 8d 98 7e 89 00 00 ff ff ff ff ff ff ff ff ff ff 01 00 91 96 8c 94 83 82 7b 73 00 00 91 96 8c 94 83 82 7b 73 00 00 6a f2 2b 2b 00 92 96 8c 95 85 82 7b 74 00 00 92 96 8c 95 85 82 7b 74 00 00 00 00 12 11 66 11 66 11 32 11 33 11 44 11 44 00 ff 00 ff 33 02 50 00 01 00 01 03 00 00 00 00 ff ff 04 64 00 00 00 01 00 00 01 00 00 5a 00 01 01 01 02 01 01 ff 7b",
+        "09 ff 00 00 01 01 01 a9 00 00 01 05 05 00 00 30 37 2e 36 31 30 37 2e 36 31 33 39 34 37 61 31 62 32 63 33 64 34 65 35 66 36 30 2e 31 2e 36 fe fe 93 8a 78 7f 8d 98 7e 89 00 00 ff ff ff ff ff ff ff ff ff ff 01 00 91 96 8c 94 83 82 7b 73 00 00 91 96 8c 94 83 82 7b 73 00 00 6a f2 2b 2b 00 92 96 8c 95 85 82 7b 74 00 00 92 96 8c 95 85 82 7b 74 00 00 00 00 12 11 66 11 66 11 32 11 33 11 44 11 44 00 ff 00 ff 33 02 50 00 01 00 01 03 00 00 00 00 ff ff 04 64 00 00 00 01 00 00 01 00 00 5a 00 01 01 01 02 01 01 ff 63",
     )
 
     private fun body(): ByteArray = PacketCodec.Reader().feed(real).single().body
