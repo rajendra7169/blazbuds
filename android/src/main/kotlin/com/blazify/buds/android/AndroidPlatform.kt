@@ -58,7 +58,7 @@ class AndroidPlatform(
                 { Log.i(TAG, it) },
             ).also { it.start() }
             Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }).also { it.start() }
-            Family.None -> BasicBuds(device.name, scope) { bt.connectedNow() to bt.batteryNow() }.also { it.start() }
+            Family.None -> unknown(device, bt, scope)
         }
         return buds
     }
@@ -190,6 +190,29 @@ class AndroidPlatform(
     override fun bluetoothSettings() {
         context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
+
+    /**
+     * Earbuds the app doesn't know by name. Many budget pairs (boAt, Noise, QCY, Ultima…) use a JieLi chip: if these
+     * have a serial port, try JieLi's login once and remember the answer; otherwise, the basics the phone knows.
+     */
+    private fun unknown(device: Device, bt: BluetoothDevice, scope: CoroutineScope): Buds {
+        val basic = { BasicBuds(device.name, scope) { bt.connectedNow() to bt.batteryNow() }.also { it.start() } }
+        val key = "jieli_" + device.address
+        val known = triedStore.getBooleanOrNull(key)
+        val hasSerial = bt.uuids?.any { it.uuid.toString().equals(com.blazify.buds.core.huawei.HuaweiBuds.SERIAL, true) } == true
+        return when {
+            known == false || !hasSerial -> basic()
+            known == true -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }).also { it.start() }
+            else -> com.blazify.buds.core.TryingBuds(
+                scope,
+                { verdict -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }, verdict).also { it.start() } },
+                basic,
+                { works -> triedStore.putBoolean(key, works) },
+            )
+        }
+    }
+
+    private val triedStore by lazy { com.russhwolf.settings.Settings() }
 
     /** A serial-port link: by its service, or straight to a channel number where [channel] is given. */
     private fun serial(bt: BluetoothDevice, channel: Int?): Connection {

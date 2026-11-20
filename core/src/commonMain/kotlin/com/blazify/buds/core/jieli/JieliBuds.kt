@@ -42,7 +42,10 @@ class JieliBuds(
     private val scope: CoroutineScope,
     private val open: suspend () -> Connection,
     private val log: (String) -> Unit = {},
+    /** Told once whether these earbuds turned out to speak JieLi; set when trying earbuds the app doesn't know. */
+    private val verdict: ((Boolean) -> Unit)? = null,
 ) : Buds {
+    private var decided = false
     private val flow = MutableStateFlow(BudsState(name, "", Link.Connecting))
     override val state: StateFlow<BudsState> = flow
     private var connection: Connection? = null
@@ -71,6 +74,12 @@ class JieliBuds(
                 try {
                     session()
                     wait = 2_000L
+                } catch (e: NotJieli) {
+                    // Earbuds that don't log in this way aren't JieLi: say so once and stop trying.
+                    log("not JieLi: ${e.message}")
+                    connection?.close()
+                    if (!decided) { decided = true; verdict?.invoke(false) }
+                    return@launch
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     log("link: ${e.message}")
@@ -103,6 +112,7 @@ class JieliBuds(
         try {
             login(link, raw)
             loggedIn = true
+            if (!decided) { decided = true; verdict?.invoke(true) }
             flow.update { it.copy(link = Link.Connected) }
             readAll()
             val polling = scope.launch {
@@ -127,7 +137,7 @@ class JieliBuds(
         var pending = ByteArray(0)
         suspend fun next(size: Int): ByteArray {
             while (pending.size < size) {
-                val more = withTimeoutOrNull(4_000) { raw.receive() } ?: throw LinkException("These earbuds didn't answer the login")
+                val more = withTimeoutOrNull(4_000) { raw.receive() } ?: throw if (verdict != null && !decided) NotJieli("no answer to the login") else LinkException("These earbuds didn't answer the login")
                 pending += more
             }
             return pending.copyOfRange(0, size).also { pending = pending.copyOfRange(size, pending.size) }
@@ -136,7 +146,7 @@ class JieliBuds(
         val ours = JieliAuth.challenge()
         write(ours)
         val answer = next(17)
-        if (!answer.contentEquals(JieliAuth.respond(ours.copyOfRange(1, 17)))) throw LinkException("These earbuds answered the login wrongly")
+        if (!answer.contentEquals(JieliAuth.respond(ours.copyOfRange(1, 17)))) throw if (verdict != null && !decided) NotJieli("a different answer to the login") else LinkException("These earbuds answered the login wrongly")
         write(JieliAuth.PASS)
         val theirs = next(17)
         if (theirs[0].toInt() != 0) throw LinkException("Unexpected login from the earbuds")
@@ -368,3 +378,6 @@ class JieliBuds(
         private val DOUBLE = ACTIONS.keys.toList()
     }
 }
+
+/** The earbuds didn't answer JieLi's login: they speak something else. */
+class NotJieli(message: String) : Exception(message)

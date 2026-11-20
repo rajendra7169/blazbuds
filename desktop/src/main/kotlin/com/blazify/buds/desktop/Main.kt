@@ -81,7 +81,23 @@ object LinuxPlatform : Platform {
             ),
         ).also { it.start() }
         com.blazify.buds.core.catalog.Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }).also { it.start() }
-        com.blazify.buds.core.catalog.Family.None -> BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() }
+        com.blazify.buds.core.catalog.Family.None -> {
+            // Unknown earbuds: try JieLi's login once (many budget pairs use that chip), remember, else the basics.
+            val basic = { BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() } }
+            val store = java.util.prefs.Preferences.userRoot().node("blazbuds/tried")
+            val key = "jieli_" + device.address.replace(":", "")
+            val open = { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }
+            when (store.get(key, null)) {
+                "false" -> basic()
+                "true" -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open).also { it.start() }
+                else -> com.blazify.buds.core.TryingBuds(
+                    scope,
+                    { verdict -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open, verdict = verdict).also { it.start() } },
+                    basic,
+                    { works -> store.put(key, works.toString()) },
+                )
+            }
+        }
     }
 
     override val hasBluetoothSettings: Boolean = true
