@@ -250,9 +250,14 @@ private fun Listening(state: BudsState, change: (Change) -> Unit) {
 @Composable
 private fun Scenes(state: BudsState, change: (Change) -> Unit) {
     if (state.sound == null) return
+    val row = rememberScrollState()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle("Scenes")
-        Row(Modifier.sideways(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // On a computer the arrows sit beside the heading, clear of the scenes themselves.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle("Scenes", Modifier.weight(1f))
+            com.blazify.buds.ui.blocks.RowArrows(row)
+        }
+        Row(Modifier.sideways(row), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Scene.DEFAULTS.forEach { scene ->
                 Choice(scene.name, scene.matches(state), icon = scene.icon()) { scene.changes().forEach(change) }
             }
@@ -272,12 +277,13 @@ private fun Scene.icon() = when (id) {
 private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) -> Unit) {
     // Earbuds with only a few fixed presets have no curve to draw; their presets live on the Sound tab.
     val eq = state.equalizer?.takeIf { it.custom } ?: return
+    val palette = LocalPalette.current
     Panel {
         SectionTitle("Sound", action = "Edit") { goTab(Tab.Sound) }
         Spacer(Modifier.height(4.dp))
         EqCurve(eq.left)
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.sideways(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        com.blazify.buds.ui.blocks.FadedRow(palette.card) {
             // Your own sound first when it is the one playing.
             if (eq.preset == null) Choice("Custom", selected = true) { goTab(Tab.Sound) }
             eq.presets.forEach { preset -> Choice(preset.name, preset.id == eq.presetId) { change(Change.Preset(preset.id)) } }
