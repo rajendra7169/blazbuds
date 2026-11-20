@@ -92,6 +92,13 @@ object LinuxPlatform : Platform {
                 { LinuxBluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERIAL) },
             ),
         ).also { it.start() }
+        com.blazify.buds.core.catalog.Family.Sony -> com.blazify.buds.core.sony.SonyBuds(
+            device.name, scope,
+            listOf(
+                { LinuxBluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V2) },
+                { LinuxBluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V1) },
+            ),
+        ).also { it.start() }
         com.blazify.buds.core.catalog.Family.None -> {
             // Unknown earbuds: try JieLi's login once (many budget pairs use that chip), remember, else the basics.
             val basic = { BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() } }

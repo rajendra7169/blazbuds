@@ -15,7 +15,7 @@ enum class Support {
 }
 
 /** Which protocol a model speaks, for picking its driver. */
-enum class Family { Soundcore, Huawei, Jieli, Samsung, Nothing, Melody, None }
+enum class Family { Soundcore, Huawei, Jieli, Samsung, Nothing, Melody, Sony, None }
 
 /** What a device looks like, for its picture. */
 enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
@@ -69,6 +69,7 @@ object Catalog {
         // Galaxy Buds+, Buds Live, Buds Pro, Buds2, Buds3, Buds FE and the rest, by the name Samsung gives them.
         com.blazify.buds.core.samsung.SamsungModel.of(device.name) != null -> Model(device.name, Support.Full, SAMSUNG_PAIRING, Family.Samsung)
         NOTHING_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Nothing)
+        SONY_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Sony)
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
     }
 
@@ -91,6 +92,20 @@ object Catalog {
         Regex("^OnePlus Bullets ?Wireless", RegexOption.IGNORE_CASE),
         Regex("^Nord Buds", RegexOption.IGNORE_CASE),
         Regex("^OPPO Enco", RegexOption.IGNORE_CASE),
+    )
+
+    /** Sony earbuds and headphones by the names they give themselves; their Bluetooth LE twins, named "LE_…", are left out. */
+    private val SONY_NAMES = listOf(
+        Regex("^WH-1000XM\\d", RegexOption.IGNORE_CASE),
+        Regex("^WF-1000XM\\d", RegexOption.IGNORE_CASE),
+        Regex("^LinkBuds", RegexOption.IGNORE_CASE),
+        Regex("^WF-C\\d{3}", RegexOption.IGNORE_CASE),
+        Regex("^WH-CH\\d{3}", RegexOption.IGNORE_CASE),
+        Regex("^WH-XB\\d{3}", RegexOption.IGNORE_CASE),
+        Regex("^WF-SP\\d{3}", RegexOption.IGNORE_CASE),
+        Regex("^WI-SP\\d{3}", RegexOption.IGNORE_CASE),
+        Regex("^WI-C\\d{3}", RegexOption.IGNORE_CASE),
+        Regex("^(Sony )?ULT WEAR", RegexOption.IGNORE_CASE),
     )
 
     private val HUAWEI_NAMES = listOf(

@@ -68,6 +68,11 @@ class AndroidPlatform(
                 listOf({ socket(bt, com.blazify.buds.core.oneplus.Melody.SERVICE) }, { serial(bt, null) }),
                 { Log.i(TAG, it) },
             ).also { it.start() }
+            Family.Sony -> com.blazify.buds.core.sony.SonyBuds(
+                device.name, scope,
+                listOf({ service(bt, com.blazify.buds.core.sony.Sony.SERVICE_V2) }, { service(bt, com.blazify.buds.core.sony.Sony.SERVICE_V1) }),
+                { Log.i(TAG, it) },
+            ).also { it.start() }
             Family.None -> unknown(device, bt, scope)
         }
         return buds
@@ -223,6 +228,18 @@ class AndroidPlatform(
     }
 
     private val triedStore by lazy { com.russhwolf.settings.Settings() }
+
+    /** A link to the service with [uuid]. */
+    private fun service(bt: BluetoothDevice, uuid: String): Connection {
+        val socket = bt.createRfcommSocketToServiceRecord(UUID.fromString(uuid))
+        try {
+            socket.connect()
+        } catch (e: IOException) {
+            runCatching { socket.close() }
+            throw LinkException("Couldn't reach the earbuds: ${e.message}", busy = false)
+        }
+        return SocketConnection(socket)
+    }
 
     /** A serial-port link: by its service, or straight to a channel number where [channel] is given. */
     private fun serial(bt: BluetoothDevice, channel: Int?): Connection {
