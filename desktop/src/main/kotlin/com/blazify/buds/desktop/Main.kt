@@ -29,7 +29,6 @@ import com.blazify.buds.core.catalog.Support
 import com.blazify.buds.core.demo.DemoBuds
 import com.blazify.buds.core.link.Device
 import com.blazify.buds.core.link.LinuxBluetooth
-import com.blazify.buds.core.link.info
 import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Buds
 import com.blazify.buds.core.model.Change

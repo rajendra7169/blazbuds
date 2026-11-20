@@ -7,7 +7,7 @@ import com.sun.jna.Native
  * Bluetooth on Linux through the kernel's own sockets (BlueZ), the way any C program would: no helper programs and
  * no D-Bus, so it works on any distribution.
  */
-object LinuxBluetooth {
+object LinuxBluetooth : DesktopBluetooth {
     private const val AF_BLUETOOTH = 31
     private const val SOCK_STREAM = 1
     private const val SOCK_SEQPACKET = 5
@@ -35,7 +35,7 @@ object LinuxBluetooth {
     private val c: C by lazy { Native.load("c", C::class.java) }
 
     /** Opens the earbuds' service [uuid], looking up its channel first. */
-    fun open(address: String, uuid: String, timeoutMs: Int = 6000): Connection {
+    override fun open(address: String, uuid: String, timeoutMs: Int): Connection {
         val channel = channel(address, uuid, timeoutMs)
             ?: throw LinkException("These earbuds don't offer the control service")
         return rfcomm(address, channel, timeoutMs)
@@ -62,7 +62,7 @@ object LinuxBluetooth {
         }
     }
 
-    fun rfcomm(address: String, channel: Int, timeoutMs: Int = 6000): Connection {
+    override fun rfcomm(address: String, channel: Int, timeoutMs: Int): Connection {
         val fd = c.socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
         check(fd >= 0) { "No Bluetooth on this computer (${Native.getLastError()})" }
         timeouts(fd, timeoutMs, readToo = false)
@@ -124,7 +124,7 @@ object LinuxBluetooth {
     }
 
     /** Pairs this computer knows, and which are connected now, from BlueZ's own command-line tool. */
-    fun devices(): List<Device> {
+    override fun devices(): List<Device> {
         fun list(vararg args: String): List<Pair<String, String>> = runCatching {
             val process = ProcessBuilder("bluetoothctl", "devices", *args).redirectErrorStream(true).start()
             val lines = process.inputStream.bufferedReader().readLines()
@@ -137,15 +137,15 @@ object LinuxBluetooth {
         val connected = list("Connected").map { it.first }.toSet()
         return list().map { (address, name) -> Device(name, address, address in connected) }
     }
-}
 
-/** Whether a device is connected, and the battery BlueZ reads for any headset that reports one. */
-fun LinuxBluetooth.info(address: String): Pair<Boolean, Int?> = runCatching {
-    val process = ProcessBuilder("bluetoothctl", "info", address).redirectErrorStream(true).start()
-    val lines = process.inputStream.bufferedReader().readLines()
-    process.waitFor()
-    val connected = lines.any { it.trim() == "Connected: yes" }
-    val battery = lines.firstOrNull { it.trim().startsWith("Battery Percentage:") }
-        ?.substringAfter("(")?.substringBefore(")")?.trim()?.toIntOrNull()
-    connected to battery
-}.getOrDefault(false to null)
+    /** Whether a device is connected, and the battery BlueZ reads for any headset that reports one. */
+    override fun info(address: String): Pair<Boolean, Int?> = runCatching {
+        val process = ProcessBuilder("bluetoothctl", "info", address).redirectErrorStream(true).start()
+        val lines = process.inputStream.bufferedReader().readLines()
+        process.waitFor()
+        val connected = lines.any { it.trim() == "Connected: yes" }
+        val battery = lines.firstOrNull { it.trim().startsWith("Battery Percentage:") }
+            ?.substringAfter("(")?.substringBefore(")")?.trim()?.toIntOrNull()
+        connected to battery
+    }.getOrDefault(false to null)
+}
