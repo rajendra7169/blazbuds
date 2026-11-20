@@ -47,6 +47,7 @@ class SpatialService : Service() {
     private var worker: Thread? = null
     @Volatile private var running = false
     private val muted = mutableMapOf<Int, DynamicsProcessing>()
+    private val mutedUid = mutableMapOf<Int, Int>()
     private val main = Handler(Looper.getMainLooper())
     private var audio: AudioManager? = null
     private val playbackChanged = object : AudioManager.AudioPlaybackCallback() {
@@ -137,6 +138,7 @@ class SpatialService : Service() {
         val spatial = Spatializer(rate)
         val input = FloatArray(frames * 2)
         val output = FloatArray(frames * 2)
+        var silentFor = 0
         try {
             record.startRecording()
             track.play()
@@ -144,6 +146,13 @@ class SpatialService : Service() {
             while (running) {
                 val got = record.read(input, 0, input.size, AudioRecord.READ_BLOCKING)
                 if (got <= 0) continue
+                // Nothing heard while an app is quietened means that app won't be heard: give it its sound back.
+                val loud = (0 until got).maxOf { kotlin.math.abs(input[it]) }
+                silentFor = if (loud < 1e-5f && muted.isNotEmpty()) silentFor + got / 2 else 0
+                if (silentFor > rate * 5 / 2) {
+                    silentFor = 0
+                    main.post { giveBack() }
+                }
                 spatial.mode = mode
                 spatial.process(input, output, got / 2)
                 track.write(output, 0, got, AudioTrack.WRITE_BLOCKING)
@@ -185,12 +194,30 @@ class SpatialService : Service() {
                         setInputGainAllChannelsTo(-200f)
                         enabled = true
                     }
-                }.onSuccess { muted[session] = it }.onFailure { Log.w(TAG, "Couldn't quieten session $session", it) }
+                }.onSuccess {
+                    muted[session] = it
+                    mutedUid[session] = uid
+                    Log.i(TAG, "Quietened session $session of uid $uid")
+                }.onFailure { Log.w(TAG, "Couldn't quieten session $session", it) }
             }
         }
-        (muted.keys - playing).toList().forEach { session -> muted.remove(session)?.let { runCatching { it.release() } } }
+        (muted.keys - playing).toList().forEach { session ->
+            mutedUid.remove(session)
+            muted.remove(session)?.let { runCatching { it.release() } }
+        }
         val now = state.value
         if (now is SpatialState.On && now.apps != muted.size) state.value = now.copy(apps = muted.size)
+    }
+
+    /** Gives every quietened app its sound back and leaves those apps alone from now on. */
+    private fun giveBack() {
+        Log.i(TAG, "Nothing heard; giving ${muted.size} app(s) their sound back")
+        mutedUid.values.forEach { captureAllowed[it] = false }
+        mutedUid.clear()
+        muted.values.forEach { runCatching { it.release() } }
+        muted.clear()
+        val now = state.value
+        if (now is SpatialState.On) state.value = now.copy(apps = 0)
     }
 
     private val captureAllowed = mutableMapOf<Int, Boolean>()
@@ -198,9 +225,10 @@ class SpatialService : Service() {
     /** Apps made for Android 9 or older, or that say so in their manifest, can't be recorded. */
     private fun allowsCapture(uid: Int): Boolean = captureAllowed.getOrPut(uid) {
         val pm = packageManager
-        val names = pm.getPackagesForUid(uid) ?: return@getOrPut false
+        // If the app can't be looked up, try it: the check for silence above gives its sound back if it can't be heard.
+        val names = pm.getPackagesForUid(uid) ?: return@getOrPut true
         names.all { name ->
-            val info = runCatching { pm.getApplicationInfo(name, 0) }.getOrNull() ?: return@all false
+            val info = runCatching { pm.getApplicationInfo(name, 0) }.getOrNull() ?: return@all true
             if (info.targetSdkVersion < Build.VERSION_CODES.Q) return@all false
             // ApplicationInfo keeps the manifest's allowAudioPlaybackCapture in a field apps can't read directly.
             runCatching {
