@@ -96,6 +96,20 @@ data class Sound(
     val environmentDetection: Boolean = true,
     /** Which of the three modes a touch on the earbuds cycles through. */
     val cycle: Set<ListeningMode> = ListeningMode.entries.toSet(),
+    /** What these earbuds let you change beyond the mode itself. */
+    val options: SoundOptions = SoundOptions(),
+)
+
+/** The finer settings a brand offers for each mode; the screens show only these. */
+data class SoundOptions(
+    /** The ways of cancelling to choose from (Adaptive, Manual, Travel); empty for one way only. */
+    val cancelStyles: List<CancelStyle> = CancelStyle.entries,
+    val transparencyStyles: Boolean = true,
+    val wind: Boolean = true,
+    val environment: Boolean = true,
+    val cycle: Boolean = true,
+    /** The modes these earbuds have at all. */
+    val modes: List<ListeningMode> = ListeningMode.entries,
 )
 
 data class Equalizer(
@@ -106,6 +120,8 @@ data class Equalizer(
     /** Gain of each band in decibels, for the left ear, and for the right when the two differ. */
     val left: List<Double>,
     val right: List<Double> = left,
+    /** Whether the bands can be set one by one, or only a preset picked. */
+    val custom: Boolean = true,
 ) {
     val preset: EqPreset? get() = presets.firstOrNull { it.id == presetId }
 
@@ -137,7 +153,11 @@ enum class TouchAction {
 data class TouchControls(
     val actions: Map<Pair<Ear, Press>, TouchAction>,
     val available: List<TouchAction>,
-)
+    /** Where a kind of touch has its own shorter list, that list. */
+    val availableFor: Map<Press, List<TouchAction>> = emptyMap(),
+) {
+    fun choices(press: Press): List<TouchAction> = availableFor[press] ?: available
+}
 
 /** Switches that are simply on or off. */
 enum class Toggle {
