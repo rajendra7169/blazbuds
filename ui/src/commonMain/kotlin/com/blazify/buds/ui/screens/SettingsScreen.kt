@@ -85,7 +85,7 @@ fun SettingsScreen(back: (() -> Unit)?, openChangelog: () -> Unit = {}) = PlaceF
         Spacer(Modifier.height(6.dp))
         Hint("No ads and no account. The app talks to your earbuds, and goes online only to ask GitHub whether a newer version is out, which you can switch off above.")
         Spacer(Modifier.height(6.dp))
-        Hint("Free software under the GNU GPL 3.0, built on the work of the open projects named in its readme. Text is set in Figtree (SIL Open Font License).")
+        Hint("Free software under the GNU GPL 3.0.")
     }
 }
 
