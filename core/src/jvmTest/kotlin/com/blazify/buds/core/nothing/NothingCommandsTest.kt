@@ -38,6 +38,38 @@ class NothingCommandsTest {
     }
 
     @Test
+    fun theEightBandSoundIsProfileCountHeadroomThenPeaks() {
+        val flat = NothingCommands.advancedCurve(NothingCommands.ADVANCED_BANDS)
+        assertEquals(2 + 4 + 8 * 13, flat.size)
+        // Profile 0, eight bands, minus-zero headroom; the first band a peak of 0 dB at 55 Hz, width 1.
+        assertContentEquals(hex("00 08 00 00 00 80 01 00 00 00 00 00 00 5c 42 00 00 80 3f"), flat.copyOfRange(0, 19))
+        // The last band at 13.2 kHz.
+        assertContentEquals(hex("01 00 00 00 00 00 40 4e 46 00 00 80 3f"), flat.copyOfRange(6 + 7 * 13, 6 + 8 * 13))
+
+        val gains = listOf(3f, 0f, 0f, 0f, 0f, 0f, 0f, -2.5f)
+        val shaped = NothingCommands.advancedCurve(NothingCommands.ADVANCED_BANDS.mapIndexed { i, band -> band.copy(gain = gains[i]) })
+        assertContentEquals(hex("00 00 40 c0"), shaped.copyOfRange(2, 6)) // 3 dB of headroom
+        assertContentEquals(hex("00 00 20 c0"), shaped.copyOfRange(6 + 7 * 13 + 1, 6 + 7 * 13 + 5)) // -2.5 dB
+    }
+
+    @Test
+    fun theEightBandSoundReadsBack() {
+        val bands = NothingCommands.ADVANCED_BANDS.mapIndexed { i, band -> band.copy(hz = band.hz + i, gain = i - 3f, q = 0.7f) }
+        assertEquals(bands, NothingCommands.advancedCurve(NothingCommands.advancedCurve(bands)))
+        // What Nothing Linux saw when no profile was kept, and an answer cut short.
+        assertEquals(null, NothingCommands.advancedCurve(hex("00 00")))
+        assertEquals(null, NothingCommands.advancedCurve(NothingCommands.advancedCurve(bands).copyOf(50)))
+    }
+
+    @Test
+    fun theEightBandSoundStaysInsideWhatTheEarbudsTake() {
+        val wild = NothingCommands.ADVANCED_BANDS.mapIndexed { i, band -> if (i == 0) NothingCommands.Band(hz = 5f, gain = 15f, q = 30f) else band }
+        val first = NothingCommands.advancedCurve(NothingCommands.advancedCurve(wild))!!.first()
+        assertEquals(NothingCommands.Band(hz = 20f, gain = 12f, q = 10f), first)
+        assertContentEquals(hex("00 00 40 c1"), NothingCommands.advancedCurve(wild).copyOfRange(2, 6))
+    }
+
+    @Test
     fun anEightBandSoundBecomesBassMidAndTreble() {
         // 100 and 200 Hz are the bass, 400 to 1600 Hz the mid, 3.2 to 12.8 kHz the treble.
         assertEquals(listOf(4.0, 1.0, -2.0), NothingCommands.threeBands(listOf(5.0, 3.0, 0.0, 1.0, 2.0, -1.0, -2.0, -3.0)))

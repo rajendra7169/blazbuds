@@ -42,13 +42,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Headphone (1), CMF Buds, Buds Pro, Buds Pro 2, Buds 2, Buds 2 Plus, Buds 2a, Neckband Pro and Headphone Pro.
  *
  * They say which model they are when asked, and the app then asks for what that model has: battery for each earbud
- * and the case, noise control with its strengths, the equalizer presets and the person's own three-band sound,
- * double, triple and long press on each earbud, pause when taken out, low lag, bass boost and spatial audio, and the
- * firmware. Each shows only once the earbuds answer for it. A model the app doesn't know by number still gets
- * battery, noise control, presets and the switches it answers for. They can also beep to be found.
+ * and the case, noise control with its strengths, the equalizer presets and the person's own sound (eight bands where
+ * the model has Nothing's "Advanced" equalizer, else bass, mid and treble), double, triple and long press on each
+ * earbud, pause when taken out, low lag, bass boost and spatial audio, and the firmware. Each shows only once the
+ * earbuds answer for it. A model the app doesn't know by number still gets battery, noise control, presets and the
+ * switches it answers for. They can also beep to be found.
  *
  * Written from nada by chukfinley and nadamas by ezvk (itself a fork of SoaOaoS's something-x), all MIT licensed;
- * protocol facts from Gadgetbridge, ear (web) and PairFree.
+ * protocol facts from Gadgetbridge, ear (web), PairFree, BudsLink by maniacx, swift-nothing-ear by bestK1ngArthur
+ * and Nothing Linux by Dospacite (the last three GPL-3.0). None of it is tried on real Nothing earbuds yet.
  */
 class NothingBuds(
     private val name: String,
@@ -73,6 +75,8 @@ class NothingBuds(
     private var strength: Int? = null
     private var eqMode: Int? = null
     private var bands: List<Double>? = null
+    private var advancedOn: Boolean? = null
+    private var advancedBands: List<C.Band>? = null
     private var inEar: Boolean? = null
     private var lowLag: Boolean? = null
     private var bass: Pair<Boolean, Int>? = null
@@ -163,6 +167,7 @@ class NothingBuds(
         if ((known == null || known.noise.isNotEmpty()) && !stickWithout) command(C.READ_NOISE, C.NOISE_GROUPS)
         command(if (known?.eq == NothingEq.Dirac) C.READ_DIRAC else C.READ_EQ)
         if (known?.curve != null) command(C.READ_CURVE)
+        if (known?.advanced == true && command(C.READ_ADVANCED)?.ok == true) command(C.READ_ADVANCED_CURVE, C.ADVANCED_PROFILE)
         if (known == null || known.inEar) command(C.READ_EXTRA)
         command(C.READ_LOW_LAG)
         if (known == null || known.bass) command(C.READ_BASS)
@@ -223,6 +228,8 @@ class NothingBuds(
             }
             C.READ_EQ, C.READ_DIRAC -> eqMode = p[0].toInt() and 0xFF
             C.READ_CURVE -> bands = C.curve(p) ?: bands ?: listOf(0.0, 0.0, 0.0)
+            C.READ_ADVANCED -> advancedOn = p[0].toInt() == 1
+            C.READ_ADVANCED_CURVE -> advancedBands = C.advancedCurve(p)?.takeIf { it.size == C.ADVANCED_BANDS.size } ?: advancedBands
             C.READ_EXTRA -> C.extras(p)[C.IN_EAR]?.let { inEar = it == 1 }
             C.READ_LOW_LAG -> lowLag = p[0].toInt() == 1
             C.READ_BASS -> bass = (p[0].toInt() == 1) to (p.getOrNull(1)?.toInt()?.and(0xFF) ?: 0)
@@ -295,6 +302,17 @@ class NothingBuds(
     private fun equalizer(mode: Int, known: NothingModel?): Equalizer {
         val kind = known?.eq ?: NothingEq.Nothing
         val names = if (kind == NothingEq.Dirac) DIRAC_PRESETS else NOTHING_PRESETS
+        if (known?.advanced == true && advancedOn != null) {
+            // The person's curve is the eight-band sound; the three-band one stays a preset to go back to.
+            val shape = advancedBands ?: C.ADVANCED_BANDS
+            val simple = if (known.curve != null) listOf(C.customPreset(kind) to "Simple custom") else emptyList()
+            return Equalizer(
+                presetId = if (advancedOn == true || mode == ADVANCED_PRESET) Equalizer.CUSTOM else mode,
+                presets = (names + simple).map { (id, label) -> EqPreset(id, label, emptyList()) },
+                frequencies = shape.map { kotlin.math.round(it.hz).toInt() },
+                left = shape.map { kotlin.math.round(it.gain * 10.0) / 10.0 },
+            )
+        }
         val custom = known?.curve != null
         return Equalizer(
             presetId = if (custom && mode == C.customPreset(kind)) Equalizer.CUSTOM else mode,
@@ -339,12 +357,18 @@ class NothingBuds(
             }
             is Change.Preset -> {
                 val kind = known?.eq ?: NothingEq.Nothing
+                val leaving = advancedOn == true
                 eqMode = change.id
+                if (leaving) advancedOn = false
                 publish()
+                // The eight-band sound wins over any preset while it is on, so it goes off first, as in ear (web).
+                if (leaving) command(C.SET_ADVANCED, C.advancedSwitch(false))
                 setEq(kind, change.id)
                 command(if (kind == NothingEq.Dirac) C.READ_DIRAC else C.READ_EQ)
+                if (leaving) command(C.READ_ADVANCED)
             }
             is Change.Bands -> {
+                if (known?.advanced == true && advancedOn != null) return setAdvanced(change.left)
                 val shape = known?.curve ?: return
                 // A saved sound of another length is read as bass, mid and treble.
                 val gains = C.threeBands(change.left).map { kotlin.math.round(it.coerceIn(Equalizer.MIN_DB, Equalizer.MAX_DB)) }
@@ -415,6 +439,26 @@ class NothingBuds(
         command(C.READ_NOISE, C.NOISE_GROUPS)
     }
 
+    /**
+     * The person's curve as the eight-band sound: the centres and widths stay as the earbuds hold them (as made in
+     * Nothing's app), only the gains change. A curve of another length is read at each band's centre.
+     */
+    private suspend fun setAdvanced(gains: List<Double>) {
+        val shape = advancedBands ?: C.ADVANCED_BANDS
+        val wanted = if (gains.size == shape.size) gains else shape.map { C.gainAt(gains, it.hz.toDouble()) }
+        val curve = shape.mapIndexed { i, band -> band.copy(gain = wanted[i].coerceIn(Equalizer.MIN_DB, Equalizer.MAX_DB).toFloat()) }
+        val switching = advancedOn != true
+        advancedBands = curve
+        advancedOn = true
+        publish()
+        // On first, then the curve, the order Nothing's app goes in.
+        if (switching) command(C.SET_ADVANCED, C.advancedSwitch(true))
+        command(C.SET_ADVANCED_CURVE, C.advancedCurve(curve))
+        delay(300)
+        command(C.READ_ADVANCED_CURVE, C.ADVANCED_PROFILE)
+        command(C.READ_ADVANCED)
+    }
+
     private suspend fun setEq(kind: NothingEq, id: Int) {
         command(if (kind == NothingEq.Dirac) C.SET_DIRAC else C.SET_EQ, byteArrayOf(id.toByte(), 0))
     }
@@ -473,6 +517,9 @@ class NothingBuds(
         /** The strength nearest a step from 1 to 5, the stronger one when two are as near. */
         internal fun nearest(step: Int, strengths: List<Int>): Int? =
             strengths.minWithOrNull(compareBy<Int> { kotlin.math.abs(STEPS.getValue(it) - step) }.thenByDescending { STEPS.getValue(it) })
+
+        /** The equalizer mode BudsLink reads as the eight-band sound being on. */
+        private const val ADVANCED_PRESET = 6
 
         private val NOTHING_PRESETS = listOf(0 to "Balanced", 3 to "More bass", 2 to "More treble", 1 to "Voice")
         private val DIRAC_PRESETS = listOf(0 to "Dirac Opteo", 3 to "Pop", 1 to "Rock", 5 to "Classical", 2 to "Electronic", 4 to "Enhance vocals")

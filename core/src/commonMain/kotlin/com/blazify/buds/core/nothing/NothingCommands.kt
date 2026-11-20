@@ -6,7 +6,7 @@ import kotlin.math.pow
 /**
  * The commands Blazbuds sends to Nothing and CMF earbuds, and how to read and write what they carry. The numbers and
  * layouts follow nada and nadamas (MIT) and, for facts only, Gadgetbridge, ear (web) and PairFree's notes on Nothing's
- * own app.
+ * own app; the eight-band sound also follows BudsLink, swift-nothing-ear and Nothing Linux (GPL-3.0).
  */
 object NothingCommands {
     /** The protocol version; asking first is how Nothing's app wakes the protocol up. */
@@ -29,9 +29,14 @@ object NothingCommands {
     const val READ_LOW_LAG = 0xC041
     const val READ_FIRMWARE = 0xC042
     const val READ_CURVE = 0xC044
+    /** Whether the eight-band ("Advanced") sound is on, and that sound itself. */
+    const val READ_ADVANCED = 0xC04C
+    const val READ_ADVANCED_CURVE = 0xC04D
     const val READ_BASS = 0xC04E
     const val READ_SPATIAL = 0xC04F
     const val READ_DIRAC = 0xC050
+    const val SET_ADVANCED = 0xF04F
+    const val SET_ADVANCED_CURVE = 0xF050
     const val SET_BASS = 0xF051
     const val SET_SPATIAL = 0xF052
 
@@ -162,6 +167,56 @@ object NothingCommands {
             found++
         }
         return if (found == 0) null else gains.toList()
+    }
+
+    /** One filter of the eight-band sound: its centre in hertz, its gain in decibels and its width (Q). */
+    data class Band(val hz: Float, val gain: Float, val q: Float)
+
+    /**
+     * The eight-band sound as Nothing's app starts it: flat, each band at its usual centre with a width of 1. Each
+     * centre may move within its own range ([ADVANCED_RANGES]); ear (web) and Nothing Linux list both.
+     */
+    val ADVANCED_BANDS: List<Band> = listOf(55f, 110f, 220f, 440f, 1_320f, 3_300f, 6_600f, 13_200f).map { Band(it, 0f, 1f) }
+    private val ADVANCED_RANGES = listOf(
+        20f to 99f, 100f to 199f, 200f to 399f, 400f to 999f, 1_000f to 2_999f, 3_000f to 5_999f, 6_000f to 11_999f, 12_000f to 20_000f,
+    )
+
+    /** Turns the eight-band sound on or off; picking any other sound needs it off first. */
+    fun advancedSwitch(on: Boolean) = byteArrayOf(if (on) 1 else 0, 0)
+
+    /** Asks for the eight-band sound the earbuds keep, the one Nothing's app writes (profile 0). */
+    val ADVANCED_PROFILE = byteArrayOf(0)
+
+    /**
+     * The eight-band sound: the profile (0), the count of bands, the overall gain (minus the highest boost) as a
+     * little-endian float, then for each band 1 (a peak filter) and its gain, centre and width as floats. Gains go
+     * to a tenth of a decibel, from -12 to 12. The layout is Nothing's app's as ear (web) read it and Nothing Linux
+     * saw a Nothing Ear (B171) use it.
+     */
+    fun advancedCurve(bands: List<Band>): ByteArray {
+        val shaped = bands.mapIndexed { i, band ->
+            val (low, high) = ADVANCED_RANGES.getOrElse(i) { 20f to 20_000f }
+            Band(band.hz.coerceIn(low, high), kotlin.math.round(band.gain.coerceIn(-12f, 12f) * 10f) / 10f, band.q.coerceIn(0.1f, 10f))
+        }
+        val out = ArrayList<Byte>()
+        out += 0
+        out += shaped.size.toByte()
+        out += float(-maxOf(0f, shaped.maxOfOrNull { it.gain } ?: 0f))
+        for (band in shaped) {
+            out += 1; out += float(band.gain); out += float(band.hz); out += float(band.q)
+        }
+        return out.toByteArray()
+    }
+
+    /** Reads a C04D answer back into its bands; null when the earbuds hold none or the answer is cut short. */
+    fun advancedCurve(payload: ByteArray): List<Band>? {
+        if (payload.size < 6) return null
+        val count = payload[1].toInt() and 0xFF
+        if (count == 0 || payload.size < 6 + count * 13) return null
+        return (0 until count).map { i ->
+            val at = 6 + i * 13
+            Band(hz = readFloat(payload, at + 5), gain = readFloat(payload, at + 1), q = readFloat(payload, at + 9))
+        }.takeIf { bands -> bands.all { it.hz.isFinite() && it.gain.isFinite() && it.q.isFinite() && it.hz > 0f } }
     }
 
     /**

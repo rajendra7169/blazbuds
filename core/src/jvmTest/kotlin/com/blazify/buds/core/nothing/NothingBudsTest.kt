@@ -5,6 +5,7 @@ import com.blazify.buds.core.model.Battery
 import com.blazify.buds.core.model.CancelStyle
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
+import com.blazify.buds.core.model.Equalizer
 import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
@@ -160,6 +161,57 @@ class NothingBudsTest {
         val curve = ear.writes.first { it.first == NothingCommands.SET_CURVE }.second
         assertContentEquals(NothingCommands.curve(4.0, 1.0, -2.0, NothingCurve(140f, 0.8f, 980f, 0.7f, 3400f, 1.0f)), curve)
     }
+
+    /** The Ear with its eight-band sound on, the first band moved to 60 Hz in Nothing's app. */
+    private val advancedBands = NothingCommands.ADVANCED_BANDS.mapIndexed { i, band ->
+        band.copy(hz = if (i == 0) 60f else band.hz, gain = listOf(1f, 2f, 3f, 4f, 5f, 6f, -1f, -2f)[i])
+    }
+
+    private fun withAdvanced(on: Boolean) = nothingEar + mapOf(
+        0xC04C to if (on) "01" else "00",
+        0xC04D to NothingFrame.hex(NothingCommands.advancedCurve(advancedBands)),
+    )
+
+    @Test
+    fun theEightBandSoundIsThePersonsCurve() = withEar(FakeEar(withAdvanced(on = true))) { buds ->
+        val eq = buds.state.value.equalizer!!
+        assertEquals(Equalizer.CUSTOM, eq.presetId)
+        assertEquals(listOf(60, 110, 220, 440, 1320, 3300, 6600, 13200), eq.frequencies)
+        assertEquals(listOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, -1.0, -2.0), eq.left)
+        assertEquals(listOf("Balanced", "More bass", "More treble", "Voice", "Simple custom"), eq.presets.map { it.name })
+        assertTrue(eq.custom)
+    }
+
+    @Test
+    fun aNewCurveKeepsTheBandsWhereTheyWere() {
+        val ear = FakeEar(withAdvanced(on = true))
+        val gains = listOf(0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5)
+        withEar(ear) { buds -> buds.apply(Change.Bands(gains)) }
+        // Already on, so only the curve goes out, the 60 Hz band kept.
+        val curve = NothingCommands.advancedCurve(advancedBands.mapIndexed { i, band -> band.copy(gain = gains[i].toFloat()) })
+        assertEquals(listOf(NothingFrame.hex4(NothingCommands.SET_ADVANCED_CURVE) + " " + NothingFrame.hex(curve)), sentNow(ear))
+    }
+
+    @Test
+    fun aCurveTurnsTheEightBandSoundOnFirst() {
+        val ear = FakeEar(withAdvanced(on = false))
+        withEar(ear) { buds ->
+            assertEquals(0, buds.state.value.equalizer?.presetId)
+            buds.apply(Change.Bands(List(8) { 1.0 }))
+        }
+        val sent = sentNow(ear)
+        assertEquals("f04f 01 00", sent[0])
+        assertTrue(sent[1].startsWith("f050 00 08 00 00 80 bf"))
+    }
+
+    @Test
+    fun aPresetTurnsTheEightBandSoundOff() {
+        val ear = FakeEar(withAdvanced(on = true))
+        withEar(ear) { buds -> buds.apply(Change.Preset(3)) }
+        assertEquals(listOf("f04f 00 00", "f010 03 00"), sentNow(ear))
+    }
+
+    private fun sentNow(ear: FakeEar) = ear.writes.map { (command, payload) -> NothingFrame.hex4(command) + " " + NothingFrame.hex(payload) }
 
     @Test
     fun wakesEarbudsThatAskForIt() {

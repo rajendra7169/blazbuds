@@ -29,6 +29,11 @@ data class NothingModel(
     val noise: Set<Int> = ALL_NOISE,
     val eq: NothingEq = NothingEq.Nothing,
     val curve: NothingCurve? = null,
+    /**
+     * Nothing's eight-band "Advanced" sound. The models are the ones at least two of ear (web), BudsLink and
+     * swift-nothing-ear give it; the earbuds must still answer for it before it shows.
+     */
+    val advanced: Boolean = false,
     val bass: Boolean = false,
     val spatial: Boolean = false,
     val inEar: Boolean = true,
@@ -68,18 +73,18 @@ data class NothingModel(
          */
         val ALL: List<NothingModel> = listOf(
             NothingModel("B181", "Nothing Ear (1)", noise = setOf(NothingNoise.HIGH, NothingNoise.LOW, NothingNoise.OFF, NothingNoise.TRANSPARENCY), taps = mapOf(Press.Triple to listOf(PR, NX, VA, N), Press.Long to listOf(NC, N))),
-            NothingModel("B155", "Nothing Ear (2)", curve = NothingCurve(140f, 0.8f, 980f, 0.7f, 3400f, 0.7f), taps = EAR_TAPS),
-            NothingModel("B157", "Nothing Ear (stick)", noise = setOf(NothingNoise.HIGH, NothingNoise.OFF), curve = NothingCurve(140f, 0.8f, 980f, 0.66f, 3500f, 1.0f), taps = OPEN_TAPS),
+            NothingModel("B155", "Nothing Ear (2)", curve = NothingCurve(140f, 0.8f, 980f, 0.7f, 3400f, 0.7f), advanced = true, taps = EAR_TAPS),
+            NothingModel("B157", "Nothing Ear (stick)", noise = setOf(NothingNoise.HIGH, NothingNoise.OFF), curve = NothingCurve(140f, 0.8f, 980f, 0.66f, 3500f, 1.0f), advanced = true, taps = OPEN_TAPS),
             NothingModel("B162", "Nothing Ear (a)", curve = EAR, bass = true, taps = EAR_TAPS),
-            NothingModel("B171", "Nothing Ear", curve = EAR, bass = true, taps = EAR_TAPS),
+            NothingModel("B171", "Nothing Ear", curve = EAR, advanced = true, bass = true, taps = EAR_TAPS),
             NothingModel(
-                "B173", "Nothing Ear (3)", curve = EAR, bass = true, spatial = true,
+                "B173", "Nothing Ear (3)", curve = EAR, advanced = true, bass = true, spatial = true,
                 taps = mapOf(Press.Double to listOf(NX, PR, VA), Press.Triple to listOf(NX, PR, VA, N), Press.Long to listOf(NC, VA, UP, DN, N)),
             ),
-            NothingModel("B174", "Nothing Ear (open)", noise = emptySet(), curve = EAR, inEar = false, taps = OPEN_TAPS),
+            NothingModel("B174", "Nothing Ear (open)", noise = emptySet(), curve = EAR, advanced = true, inEar = false, taps = OPEN_TAPS),
             // Its own three-band sound sits where the Ear's does (swift-nothing-ear, BudsLink).
-            NothingModel("B190", "Nothing Ear (3a)", curve = EAR, bass = true, spatial = true),
-            NothingModel("B170", "Nothing Headphone (1)", NothingForm.Headphones, curve = WIDE, bass = true, spatial = true),
+            NothingModel("B190", "Nothing Ear (3a)", curve = EAR, advanced = true, bass = true, spatial = true),
+            NothingModel("B170", "Nothing Headphone (1)", NothingForm.Headphones, curve = WIDE, advanced = true, bass = true, spatial = true),
             NothingModel("B163", "CMF Buds Pro", noise = setOf(NothingNoise.HIGH, NothingNoise.MID, NothingNoise.LOW, NothingNoise.OFF, NothingNoise.TRANSPARENCY), curve = EAR, taps = mapOf(Press.Double to listOf(PP, PR, NX, VA), Press.Triple to listOf(PR, NX, VA), Press.Long to listOf(NC, VA))),
             NothingModel("B164", "CMF Neckband Pro", NothingForm.Neckband, curve = CMF, bass = true, spatial = true, inEar = false),
             NothingModel("B168", "CMF Buds", noise = CANCEL_HIGH, eq = NothingEq.Dirac, curve = CMF, bass = true, taps = CMF_TAPS),
