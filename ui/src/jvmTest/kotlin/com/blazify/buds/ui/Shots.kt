@@ -129,4 +129,25 @@ class Shots {
             }
         }
     }
+
+    /** The computer's narrow window with its row arrows, and the tray panel at its own height: SHOTS_DESKTOP. */
+    @Test
+    fun drawDesktopRows() {
+        val dir = System.getenv("SHOTS_DESKTOP")?.let(::File)?.apply { mkdirs() } ?: return
+        for (theme in listOf(ThemeChoice.Dark, ThemeChoice.Light)) {
+            val look = theme.name.lowercase()
+            // Tall enough to show the scenes and the sound card's presets below the fold of a real window.
+            shot(dir, "home-narrow-$look", 440, 1700) {
+                androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true) {
+                    BudsApp(DemoBuds(), prefs(theme))
+                }
+            }
+            shot(dir, "panel-$look", 360, 460) {
+                val buds = remember { DemoBuds() }
+                BudsTheme(theme) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalPrefs provides prefs(theme)) { QuickPanel(buds.state.value, {}, {}) }
+                }
+            }
+        }
+    }
 }
