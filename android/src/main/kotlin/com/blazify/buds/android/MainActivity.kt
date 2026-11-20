@@ -68,6 +68,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        // A screen that closes lets go of the earbuds, so a new one can reach them.
+        hub?.shutdown()
+        hub = null
+        Remote.live = null
+        super.onDestroy()
+    }
+
     /** Bluetooth switched on or off, from the shade or settings: look again at once. */
     private val bluetoothChanged = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {

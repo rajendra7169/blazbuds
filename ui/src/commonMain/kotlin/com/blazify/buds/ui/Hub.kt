@@ -158,6 +158,12 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         chosen.value = platform.open(device, scope).also { it.watch(watching) }
     }
 
+    /** Lets go of the earbuds, as the screen showing them closes; only one link to a pair can be open at a time. */
+    fun shutdown() {
+        chosen.value?.close()
+        chosen.value = null
+    }
+
     /** Takes a pair off the list until it connects again. */
     fun remove(device: Device) {
         hidden += device.address
