@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,11 +85,18 @@ fun ModeDetails(
             when (mode) {
                 ListeningMode.NoiseCancelling -> {
                     val styles = sound.options.cancelStyles
-                    // Equal capsules, so they always fit on one line; only the ways these earbuds have.
+                    // Equal capsules, at most three to a line so every name reads in full; only the ways these
+                    // earbuds have. Four go two and two; a short last line keeps the same capsule width.
                     if (styles.size > 1) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            styles.forEach { style ->
-                                Choice(style.name, sound.cancelStyle == style, Modifier.weight(1f), centered = true) { onCancel(style, null, null) }
+                        val perLine = when { styles.size <= 3 -> styles.size; styles.size == 4 -> 2; else -> 3 }
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            styles.chunked(perLine).forEach { line ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    line.forEach { style ->
+                                        Choice(style.name, sound.cancelStyle == style, Modifier.weight(1f), centered = true) { onCancel(style, null, null) }
+                                    }
+                                    repeat(perLine - line.size) { Spacer(Modifier.weight(1f)) }
+                                }
                             }
                         }
                     }
