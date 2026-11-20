@@ -16,6 +16,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
@@ -364,7 +367,17 @@ private fun app(args: Array<String>) = application {
             }
             BudsTheme(prefs.theme) {
                 androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.LocalPrefs provides prefs) {
-                    QuickPanel(state, change = { scope.launch { buds.apply(it) } }, openApp = { shown = true; panel = false })
+                    // The panel measures its own height and the window follows, so content that arrives later (the
+                    // battery and modes once the earbuds connect) is never cut off.
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.wrapContentHeight(unbounded = true).onSizeChanged { measured ->
+                            val tall = with(density) { measured.height.toDp() }
+                            if (tall > 0.dp && tall != panelState.size.height) panelState.size = DpSize(360.dp, tall)
+                        },
+                    ) {
+                        QuickPanel(state, change = { scope.launch { buds.apply(it) } }, openApp = { shown = true; panel = false })
+                    }
                 }
             }
         }
