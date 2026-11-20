@@ -52,6 +52,10 @@ import com.blazify.buds.ui.blocks.SwitchRow
 import com.blazify.buds.ui.blocks.press
 import com.blazify.buds.ui.icons.BudsIcons
 import com.blazify.buds.ui.resources.Res
+import com.blazify.buds.ui.resources.app_blazify
+import com.blazify.buds.ui.resources.app_blazix
+import com.blazify.buds.ui.resources.app_fitevo
+import com.blazify.buds.ui.resources.app_nexterm
 import com.blazify.buds.ui.resources.developer_photo
 import com.blazify.buds.ui.theme.LocalPalette
 import com.blazify.buds.ui.theme.ThemeChoice
@@ -196,14 +200,14 @@ private fun DeveloperPanel() {
     }
 }
 
-private data class OtherApp(val name: String, val about: String, val hue: Color, val url: String)
+private data class OtherApp(val name: String, val about: String, val logo: org.jetbrains.compose.resources.DrawableResource, val url: String)
 
 /** The developer's other apps; public ones open their code, private ones the developer's page. */
 private val OTHER_APPS = listOf(
-    OtherApp("Blazify", "A free music player and YouTube Music client", Color(0xFFFFA726), "https://github.com/rajendra7169/blazify"),
-    OtherApp("Blazix", "A video player with offline viewing and no ads", Color(0xFFE5484D), PROFILE_URL),
-    OtherApp("Fitevo", "Fitness, food and workouts, kept on your phone", Color(0xFF30A46C), "https://github.com/rajendra7169/fitevo"),
-    OtherApp("NexTerm", "A modern terminal for Windows", Color(0xFF6E56CF), "https://github.com/rajendra7169/NexTerm"),
+    OtherApp("Blazify", "A free music player and YouTube Music client", Res.drawable.app_blazify, "https://github.com/rajendra7169/blazify"),
+    OtherApp("Blazix", "A video player with offline viewing and no ads", Res.drawable.app_blazix, PROFILE_URL),
+    OtherApp("Fitevo", "Fitness, food and workouts, kept on your phone", Res.drawable.app_fitevo, "https://github.com/rajendra7169/fitevo"),
+    OtherApp("NexTerm", "A modern terminal for Windows", Res.drawable.app_nexterm, "https://github.com/rajendra7169/NexTerm"),
 )
 
 @Composable
@@ -218,9 +222,12 @@ private fun OtherAppsPanel() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(app.hue), contentAlignment = Alignment.Center) {
-                    Text(app.name.take(1), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                }
+                // Each app's own icon, on a soft tile so ones with clear edges sit the same as the square ones.
+                Image(
+                    painterResource(app.logo), app.name,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(palette.raised).border(1.dp, palette.line, RoundedCornerShape(12.dp)),
+                )
                 Column(Modifier.weight(1f)) {
                     Text(app.name, style = MaterialTheme.typography.bodyLarge, color = palette.text)
                     Text(app.about, style = MaterialTheme.typography.bodySmall, color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
