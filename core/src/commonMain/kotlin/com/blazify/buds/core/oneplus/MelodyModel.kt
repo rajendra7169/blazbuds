@@ -15,6 +15,8 @@ class MelodyModel(
     val holdMask: Int = 0,
     /** The bands of a new custom curve, where the model has its own. */
     val bands: List<Int>? = null,
+    /** How many custom curves the earbuds keep, as their own app allows. */
+    val curves: Int = 3,
     private val flags: Int = 0,
 ) {
     fun has(flag: Int): Boolean = flags and flag != 0

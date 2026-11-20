@@ -662,7 +662,7 @@ class MelodyBuds(
         if (!customAllowed()) return
         val list = customs ?: return
         var curve = list.firstOrNull { it.id == eqId } ?: list.firstOrNull { it.name == OWN_CURVE }
-        if (curve == null && list.size < CURVES) {
+        if (curve == null && list.size < (model?.curves ?: 3)) {
             val bands = model?.bands ?: DEFAULT_BANDS
             val made = Melody.CustomEq(0, OWN_CURVE, bands, List(bands.size) { 0 }, false)
             val answer = request(Melody.SAVE_EQ, Melody.saveEq(Melody.EQ_CREATE, made))
@@ -733,9 +733,6 @@ class MelodyBuds(
     companion object {
         /** The name of the curve the app makes on the earbuds when they have room for one. */
         const val OWN_CURVE = "Blazbuds"
-
-        /** How many custom curves the earbuds keep, as their own app allows. */
-        private const val CURVES = 3
 
         private const val ON_CALL = 0x06
         private const val CUSTOM_EQ_NEWS = 0x0506

@@ -275,6 +275,22 @@ class MelodyBudsTest {
     }
 
     @Test
+    fun aFullCurveListShapesTheChosenCurve() {
+        // OnePlus Nord Buds 2 keep two curves, and these have both: the chosen one is shaped, none is made.
+        val fake = FakeBuds4(product = "00 14 24 06")
+        withBuds(fake, "OnePlus Nord Buds 2") { buds ->
+            buds.until { it.isReady && it.equalizer?.frequencies?.size == 6 }
+            // The app's eight bands spread over the earbuds' six, in whole decibels from -6 to 6.
+            buds.apply(Change.Bands(listOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)))
+            val saved = fake.sent(Melody.SAVE_EQ).single()
+            assertEquals(Melody.EQ_SAVE, saved.at(0))
+            val curve = Melody.customEqs(byteArrayOf(1) + saved.payload, 0)!!.single()
+            assertEquals(4, curve.id)
+            assertEquals(listOf(1, 2, 4, 5, 6, 6), curve.gains)
+        }
+    }
+
+    @Test
     fun aRefusedChannelShowsAsBusy() {
         runBlocking {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

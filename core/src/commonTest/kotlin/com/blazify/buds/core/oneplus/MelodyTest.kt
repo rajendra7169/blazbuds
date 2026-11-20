@@ -211,6 +211,9 @@ class MelodyTest {
         // The fourth Buds 3 preset needs firmware 119.
         val buds3 = MelodyModel.find("OnePlus Buds 3", null)!!
         assertEquals(119, buds3.presets.first { it.name == "Bold" }.minFirmware)
+        // Most keep three custom curves; the Nord Buds 2 and Buds Ace two.
+        assertEquals(3, buds4.curves)
+        assertEquals(2, MelodyModel.find("OnePlus Nord Buds 2", null)!!.curves)
         MELODY_MODELS.forEach { model ->
             model.modes
             model.presets
