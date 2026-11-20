@@ -29,6 +29,18 @@ class MainActivity : ComponentActivity() {
 
     private val ask = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted++ }
 
+    // The microphone, asked for only when the hearing check wants to hear how quiet the room is.
+    private var micAnswer: ((Boolean) -> Unit)? = null
+    private val askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) { yes ->
+        micAnswer?.invoke(yes)
+        micAnswer = null
+    }
+
+    private fun askMicrophone(done: (Boolean) -> Unit) {
+        micAnswer = done
+        askMic.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -40,7 +52,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val scope = rememberCoroutineScope()
-            val platform = remember { AndroidPlatform(applicationContext) }
+            val platform = remember { AndroidPlatform(applicationContext, ::askMicrophone) }
             val hub = remember { Hub(platform, scope).also { this.hub = it } }
             val current by hub.current.collectAsState()
             LaunchedEffect(current) { current?.let { platform.watchForWidget(it, scope) } }

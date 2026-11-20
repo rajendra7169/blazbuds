@@ -71,6 +71,12 @@ private val TABS = listOf(
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
         CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
+            LocalRoomEar provides remember(hub) {
+                object : RoomEar {
+                    override fun listen(onLevel: (Double) -> Unit) = hub.listenToRoom(onLevel)
+                    override fun ask(done: (Boolean) -> Unit) = hub.askMicrophone(done)
+                }
+            },
             LocalSoundOut provides remember(hub) {
                 object : SoundOut {
                     override fun play(samples: ShortArray, loop: Boolean) = hub.playSound(samples, loop)

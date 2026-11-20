@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Talking to paired earbuds. Nothing else: no internet, no location. -->
+    <!-- Talking to paired earbuds. No internet, no location. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Only to hear how loud the room is before the EarPrint hearing check. Nothing is recorded or kept. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
 
     <application

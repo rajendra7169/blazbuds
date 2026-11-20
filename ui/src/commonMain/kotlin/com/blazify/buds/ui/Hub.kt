@@ -47,6 +47,15 @@ interface Platform {
 
     fun stopSound() {}
 
+    /**
+     * Hears how loud the room is, in rough decibels, about ten times a second until the returned stop is called.
+     * Null where there's no microphone to hear with.
+     */
+    fun listenToRoom(onLevel: (Double) -> Unit): (() -> Unit)? = null
+
+    /** Asks for the microphone where the system wants asking first; [done] says if it may be used. */
+    fun askMicrophone(done: (Boolean) -> Unit) = done(true)
+
     /** Holds the media volume at a set level for the hearing test, or puts it back as it was. */
     fun steadyVolume(on: Boolean) {}
 }
@@ -59,6 +68,10 @@ data class Pair2(val device: Device, val support: Support, val battery: Battery?
  * connected stays in the list; one removed by a swipe comes back by itself the next time it connects.
  */
 class Hub(private val platform: Platform, private val scope: CoroutineScope, private val store: Settings? = Settings()) {
+    fun listenToRoom(onLevel: (Double) -> Unit): (() -> Unit)? = platform.listenToRoom(onLevel)
+
+    fun askMicrophone(done: (Boolean) -> Unit) = platform.askMicrophone(done)
+
     private val list = MutableStateFlow<List<Pair2>>(emptyList())
     val earbuds: StateFlow<List<Pair2>> = list
     private val chosen = MutableStateFlow<Buds?>(null)

@@ -103,6 +103,19 @@ interface SoundOut {
     fun steadyVolume(on: Boolean)
 }
 
+/** The room's loudness, for checking it's quiet enough for the hearing check. */
+interface RoomEar {
+    fun listen(onLevel: (Double) -> Unit): (() -> Unit)?
+    fun ask(done: (Boolean) -> Unit)
+}
+
+val LocalRoomEar = staticCompositionLocalOf<RoomEar> {
+    object : RoomEar {
+        override fun listen(onLevel: (Double) -> Unit): (() -> Unit)? = null
+        override fun ask(done: (Boolean) -> Unit) = done(false)
+    }
+}
+
 val LocalSoundOut = staticCompositionLocalOf<SoundOut> {
     object : SoundOut {
         override fun play(samples: ShortArray, loop: Boolean) {}

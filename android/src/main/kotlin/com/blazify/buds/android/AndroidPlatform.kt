@@ -28,7 +28,10 @@ import java.util.UUID
 private const val TAG = "Blazbuds"
 
 @SuppressLint("MissingPermission")
-class AndroidPlatform(private val context: Context) : Platform {
+class AndroidPlatform(
+    private val context: Context,
+    private val askMic: ((Boolean) -> Unit) -> Unit = { it(false) },
+) : Platform {
     private val adapter get() = context.getSystemService(BluetoothManager::class.java)?.adapter
 
     override suspend fun paired(): List<Device> = runCatching {
@@ -118,8 +121,43 @@ class AndroidPlatform(private val context: Context) : Platform {
         tone = null
     }
 
+    override fun askMicrophone(done: (Boolean) -> Unit) {
+        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) done(true)
+        else askMic(done)
+    }
+
+    override fun listenToRoom(onLevel: (Double) -> Unit): (() -> Unit)? {
+        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) return null
+        val rate = 16_000
+        val size = maxOf(android.media.AudioRecord.getMinBufferSize(rate, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT), rate / 5 * 2)
+        // Voice recognition: the microphone's sound before the phone smooths it for calls.
+        val record = runCatching {
+            @Suppress("MissingPermission")
+            android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, rate, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, size)
+        }.getOrNull()?.takeIf { it.state == android.media.AudioRecord.STATE_INITIALIZED } ?: return null
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        @Volatile var going = true
+        val worker = Thread({
+            val noise = com.blazify.buds.core.earprint.RoomNoise()
+            val chunk = ShortArray(rate / 10)
+            runCatching { record.startRecording() }
+            while (going) {
+                val got = record.read(chunk, 0, chunk.size)
+                if (got > 0) {
+                    val level = noise.level(chunk, got, rate)
+                    main.post { if (going) onLevel(level) }
+                }
+            }
+            runCatching { record.stop() }
+            record.release()
+        }, "blazbuds-room")
+        worker.start()
+        return { going = false }
+    }
+
     override fun steadyVolume(on: Boolean) {
-        if (on) setVolume(0.6) else if (volumeBefore >= 0) {
+        // Full volume for the hearing check, as the beeps are made quiet on purpose; back to before afterwards.
+        if (on) setVolume(1.0) else if (volumeBefore >= 0) {
             audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, volumeBefore, 0)
             volumeBefore = -1
         }
