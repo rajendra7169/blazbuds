@@ -165,8 +165,16 @@ class SoundcoreBuds(
         val body = packet.body
         when (packet.command) {
             A3947.STATE -> if (A3947.isState(body)) raw = keepSound(body)
-            A3947.TWS -> if (body.size >= 2) body.copyInto(now, A3947.HOST, 0, 2)
-            A3947.BATTERY -> if (body.size >= 2) body.copyInto(now, A3947.LEFT_LEVEL, 0, 2)
+            A3947.TWS -> {
+                if (body.size >= 2) body.copyInto(now, A3947.HOST, 0, 2)
+                log("in case $packet")
+            }
+            A3947.BATTERY -> {
+                if (body.size >= 2) body.copyInto(now, A3947.LEFT_LEVEL, 0, 2)
+                // A third number, when the earbuds send one, is the case (0 while they can't hear it).
+                if (body.size >= 3 && body[2].toInt() in 1..5) now[A3947.CASE_LEVEL] = body[2]
+                log("battery $packet")
+            }
             A3947.CHARGING -> if (body.size >= 2) body.copyInto(now, A3947.LEFT_CHARGING, 0, 2)
             A3947.FIRMWARE -> if (body.size >= 26) body.copyInto(now, A3947.FIRMWARE_LEFT, 0, 26)
             A3947.SOUND_UPDATE -> if (body.size >= 7) body.copyInto(now, A3947.SOUND, 0, 7)
@@ -179,8 +187,15 @@ class SoundcoreBuds(
         publish()
     }
 
+    private var lastCase = -1
+
     private fun publish() {
         val now = raw ?: return
+        val case = now[A3947.CASE_LEVEL].toInt() and 0xFF
+        if (case != lastCase) {
+            lastCase = case
+            log("case level $case (next byte ${now[A3947.CASE_LEVEL + 1].toInt() and 0xFF})")
+        }
         flow.value = A3947.read(now, ldac, hosts, name)
     }
 
