@@ -77,7 +77,7 @@ enum class Tab { Home, Sound, Controls, Device }
  * on a tablet or a computer window it splits in two.
  */
 @Composable
-fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit, goTab: (Tab) -> Unit, retry: () -> Unit, bluetoothOn: Boolean = true, turnOnBluetooth: (() -> Unit)? = null) {
+fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit, goTab: (Tab) -> Unit, retry: () -> Unit, bluetoothOn: Boolean = true, turnOnBluetooth: (() -> Unit)? = null, inactive: Boolean = false) {
     val palette = LocalPalette.current
     BoxWithConstraints(Modifier.fillMaxSize().background(palette.background)) {
         val wide = maxWidth >= 720.dp
@@ -94,25 +94,31 @@ fun HomeScreen(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Earbuds(state, heroHeight = 280.dp)
-                            Listening(state, change)
-                            Scenes(state, change)
+                            com.blazify.buds.ui.blocks.Inactive(inactive) {
+                                Listening(state, change)
+                                Scenes(state, change)
+                            }
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            SoundPanel(state, change, goTab)
-                            Switches(state, change)
-                            TwoDevices(state, change, goTab)
-                            Care(state, open)
+                            com.blazify.buds.ui.blocks.Inactive(inactive) {
+                                SoundPanel(state, change, goTab)
+                                Switches(state, change)
+                                TwoDevices(state, change, goTab)
+                                Care(state, open)
+                            }
                         }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Earbuds(state, heroHeight = 230.dp)
-                        Listening(state, change)
-                        Scenes(state, change)
-                        SoundPanel(state, change, goTab)
-                        Switches(state, change)
-                        TwoDevices(state, change, goTab)
-                        Care(state, open)
+                        com.blazify.buds.ui.blocks.Inactive(inactive) {
+                            Listening(state, change)
+                            Scenes(state, change)
+                            SoundPanel(state, change, goTab)
+                            Switches(state, change)
+                            TwoDevices(state, change, goTab)
+                            Care(state, open)
+                        }
                     }
                 }
                 Spacer(Modifier.height(16.dp))

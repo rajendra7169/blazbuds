@@ -102,12 +102,38 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
             chosen.flatMapLatest { it?.state ?: kotlinx.coroutines.flow.emptyFlow() }.collect { state ->
                 if (state.link != com.blazify.buds.core.model.Link.Connected) return@collect
+                // Kept so the page can still show these earbuds' controls, faded, while another app has them.
+                if (state.isReady && (state.sound != null || state.equalizer != null || state.toggles.isNotEmpty())) address?.let { at ->
+                    lastReady[at] = state
+                    // The mode is kept across restarts too, so the faded page never shows a mode the earbuds aren't in.
+                    state.sound?.mode?.let { store?.putString(LAST_MODE + at, it.name) }
+                }
                 batteryLog?.look(state)?.let { platform.notify("Low battery", it) }
             }
         }
         platform.watchBatteryInBackground()
     }
     val look: SystemLook get() = platform.look
+
+    private val lastReady = mutableMapOf<String, com.blazify.buds.core.model.BudsState>()
+
+    /**
+     * What to show while the open pair can't be reached: its controls as last seen this session, or for a pair the
+     * app fully controls the usual ones, with today's link, name and batteries (never old or made-up levels).
+     */
+    fun ghost(state: com.blazify.buds.core.model.BudsState): com.blazify.buds.core.model.BudsState? {
+        if (state.isReady) return null
+        val at = address ?: return null
+        val seen = lastReady[at] ?: run {
+            val device = com.blazify.buds.core.link.Device(state.name.ifBlank { chosenName ?: "" }, at, false)
+            if (Catalog.model(device).support != Support.Full) return null
+            val usual = com.blazify.buds.core.demo.DemoBuds().state.value
+            val mode = store?.getStringOrNull(LAST_MODE + at)?.let { runCatching { com.blazify.buds.core.model.ListeningMode.valueOf(it) }.getOrNull() }
+                ?: com.blazify.buds.core.model.ListeningMode.Normal
+            usual.copy(multipoint = null, firmware = null, serial = null, sound = usual.sound?.copy(mode = mode))
+        }
+        return seen.copy(name = state.name, model = state.model.ifBlank { seen.model }, link = state.link, left = state.left, right = state.right, case = state.case, overall = state.overall)
+    }
 
     val overApps: OverApps? get() = platform.overApps
 
@@ -235,6 +261,7 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         const val CHOSEN = "earbuds"
         const val CHOSEN_NAME = "earbuds_name"
         const val KNOWN = "known_earbuds"
+        const val LAST_MODE = "last_mode_"
         const val HIDDEN = "removed_earbuds"
     }
 }

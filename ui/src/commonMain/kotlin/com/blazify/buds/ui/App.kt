@@ -154,17 +154,22 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                         null -> if (now != null && state != null) {
                             Tabs(tab, { tab = it }) {
                                 AnimatedContent(tab, transitionSpec = { fadeIn(tween(Motion.NORMAL)) togetherWith fadeOut(tween(Motion.QUICK)) }, label = "tab") { t ->
-                                    val change: (Change) -> Unit = { scope.launch { now.apply(it) } }
+                                    // Out of reach (another app has them, or away): the controls stay in view, faded, and
+                                    // changes go nowhere until the earbuds answer again.
+                                    val ghost = hub.ghost(state)
+                                    val view = ghost ?: state
+                                    val inactive = ghost != null
+                                    val change: (Change) -> Unit = { if (!inactive) scope.launch { now.apply(it) } }
                                     when (t) {
                                         Tab.Home -> HomeScreen(
-                                            state, change, open = { place = it }, goTab = { tab = it },
+                                            view, change, open = { place = it }, goTab = { tab = it }, inactive = inactive,
                                             retry = { scope.launch { hub.reload(); now.refresh() } },
                                             bluetoothOn = bluetoothOn,
                                             turnOnBluetooth = settingsAction(hub),
                                         )
-                                        Tab.Sound -> EqualizerScreen(state, change, earPrint = { place = Place.EarPrint })
-                                        Tab.Controls -> ControlsScreen(state, change)
-                                        Tab.Device -> DeviceTab(state, change) { place = it }
+                                        Tab.Sound -> com.blazify.buds.ui.blocks.Inactive(inactive) { EqualizerScreen(view, change, earPrint = { place = Place.EarPrint }) }
+                                        Tab.Controls -> com.blazify.buds.ui.blocks.Inactive(inactive) { ControlsScreen(view, change) }
+                                        Tab.Device -> DeviceTab(view, change, inactive) { place = it }
                                     }
                                 }
                             }

@@ -1,5 +1,6 @@
 package com.blazify.buds.ui.blocks
 
+import androidx.compose.ui.draw.alpha
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -47,6 +48,20 @@ import com.blazify.buds.ui.theme.Motion
  * A tap that feels physical: the thing sinks a little as the finger lands, springs back as it lifts, and the phone
  * ticks once. Every tappable thing in the app goes through this.
  */
+/**
+ * True while the earbuds can't be reached (another app has them, or they are away): the page still shows their
+ * controls, faded, and every press in it does nothing. Scrolling still works, since only presses are turned off.
+ */
+val LocalInactive = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/** Shows [content] faded and untouchable while [on]. */
+@Composable
+fun Inactive(on: Boolean, content: @Composable () -> Unit) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalInactive provides on) {
+        Column(Modifier.alpha(if (on) 0.4f else 1f), verticalArrangement = Arrangement.spacedBy(16.dp)) { content() }
+    }
+}
+
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun Modifier.press(enabled: Boolean = true, role: Role = Role.Button, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
@@ -64,7 +79,7 @@ fun Modifier.press(enabled: Boolean = true, role: Role = Role.Button, onLongClic
         .combinedClickable(
             source,
             indication = null,
-            enabled = enabled,
+            enabled = enabled && !LocalInactive.current,
             role = role,
             onLongClick = onLongClick?.let { long -> { haptics.performHapticFeedback(HapticFeedbackType.LongPress); long() } },
         ) {

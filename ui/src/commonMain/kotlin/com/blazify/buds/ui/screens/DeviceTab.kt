@@ -11,12 +11,15 @@ import com.blazify.buds.ui.icons.BudsIcons
 
 /** Everything about the pair itself: their connections, tones and prompts, what they are, and the app's own pages. */
 @Composable
-fun DeviceTab(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit) =
+fun DeviceTab(state: BudsState, change: (Change) -> Unit, inactive: Boolean = false, open: (Place) -> Unit) =
     PlaceFrame("Device", back = null, actions = listOf(BudsIcons.Support to ("Help" to { open(Place.Support) }), BudsIcons.Settings to ("Settings" to { open(Place.Settings) }))) {
-        HostsSection(state, change)
-        SafeVolumeSection(state, change)
-        PromptsSection(state, change)
-        AboutSection(state)
+        // The earbuds' own settings fade while they are out of reach; the links below stay usable.
+        com.blazify.buds.ui.blocks.Inactive(inactive) {
+            HostsSection(state, change)
+            SafeVolumeSection(state, change)
+            PromptsSection(state, change)
+            AboutSection(state)
+        }
         Panel(padding = 8.dp) {
             if ((state.canRing || com.blazify.buds.ui.LocalCanFind.current) && state.isReady) LinkRow(BudsIcons.Find, "Find my earbuds", "Play a sound on each one", color = Hue.Orange) { open(Place.Find) }
             if (state.canFitTest) LinkRow(BudsIcons.Ear, "Ear tip fit test", "Check how well they seal", color = Hue.Purple) { open(Place.Fit) }
