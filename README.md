@@ -19,18 +19,34 @@
 
 ## Features
 
-- **Battery** for each earbud and the case, a low-battery alert at the level you choose, and a week of battery history
-- **Listening modes**: noise cancelling with its strength, transparency with its level, and normal
-- **Scenes**: Focus, Commute, Flight, Talk and Relax in one tap
-- **Sound**: the earbuds' own presets, and your own sounds made with **+** and shared with a short code
-- **EarPrint**: a hearing test that makes a sound shaped to your ears
-- **Touch controls** drawn on an ear: pick a side and see what each touch does
-- **Find my earbuds**, an **ear tip fit test**, **dual-connect**, gaming mode and each brand's own switches
-- **Home-screen widget** and **quick-settings tile** on Android, and a **tray panel** on the computer
-- **Light and dark looks**, updates inside the app, and a one-tap problem report
+<table>
+<tr>
+<td width="50%" valign="top"><b>Battery at a glance</b><br>Each earbud and the case, a low-battery alert at the level you pick (10 to 40%), and a week of battery history.</td>
+<td width="50%" valign="top"><b>Listening modes</b><br>Noise cancelling with its strength, transparency with its level, and normal. Scenes set the right one in a tap: Focus, Commute, Flight, Talk, Relax.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>Your sound</b><br>The earbuds' own presets as picture tiles, and your own curve made with <b>+</b>, saved on the earbuds and shared with a short code.</td>
+<td width="50%" valign="top"><b>EarPrint</b><br>A hearing check and six quick choices between two sounds make a sound shaped to your ears, kept on your earbuds.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>Touch controls</b><br>Drawn on an ear: pick a side and see what each tap, double tap, triple tap and press-and-hold does, then change it.</td>
+<td width="50%" valign="top"><b>Find and fit</b><br>Earbuds that can ring themselves do; the rest play a sound through them. The ear tip fit test checks how well each one seals.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>Connection</b><br>Two devices at once or the best sound quality, the devices your earbuds remember, and connect or forget each one.</td>
+<td width="50%" valign="top"><b>Every switch</b><br>Gaming mode, 3D sound, wear detection, touch lock, safe volume, auto power off, tones and voice prompts, as each pair has them.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>On your phone and computer</b><br>A home-screen widget and a quick-settings tile on Android; a tray panel on the computer. Light and dark looks.</td>
+<td width="50%" valign="top"><b>Looked after</b><br>Updates inside the app, What's new, a one-tap problem report, and a form to ask for your earbuds.</td>
+</tr>
+</table>
 
 <p align="center">
-  <img src="docs/screens-2.png" width="820" alt="My devices, Add device with a brand picker and its pairing steps, and Settings">
+  <img src="docs/screens-3.png" width="820" alt="Your own sound on a curve, the EarPrint hearing test, and the quick switches with the connection panel">
+</p>
+<p align="center">
+  <img src="docs/screens-4.png" width="820" alt="The Device tab with sound and prompts, the battery alert and history, and the developer with more apps">
 </p>
 
 ## Earbuds
@@ -47,6 +63,10 @@
 | Anything else | Connection and battery |
 
 Missing yours? Use **Help › Request your earbuds** in the app.
+
+<p align="center">
+  <img src="docs/screens-2.png" width="820" alt="My devices, Add device with a brand picker and its pairing steps, and Settings">
+</p>
 
 ## Download
 
