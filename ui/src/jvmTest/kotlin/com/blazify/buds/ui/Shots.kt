@@ -180,6 +180,16 @@ class Shots {
                     }
                 }
             }
+            shot(dir, "allow-$look", 340, 400) {
+                BudsTheme(theme) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background).padding(20.dp)) {
+                        com.blazify.buds.ui.blocks.PromptCardLayout(
+                            "See your battery as you open the case", "Allow Blazbuds to show over other apps, and the case and each battery slide up as your earbuds connect.",
+                            com.blazify.buds.ui.blocks.PromptButtons("Allow", {}, "Not now", {}), 0.15f, { t -> with(com.blazify.buds.ui.blocks.RocketArt) { case(t) } },
+                        )
+                    }
+                }
+            }
             shot(dir, "panel-$look", 360, 460) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) {

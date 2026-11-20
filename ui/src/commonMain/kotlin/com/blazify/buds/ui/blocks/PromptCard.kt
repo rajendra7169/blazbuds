@@ -403,9 +403,53 @@ private fun DrawScope.drawSparkle(at: Offset, r: Float, color: Color) {
     )
 }
 
+/**
+ * The connect-card picture: an open charging case, lit from the top left, with its two earbuds floating up out of it
+ * on their own beats, and a few small things drifting round.
+ */
+fun DrawScope.drawCaseArt(time: Float) = inUnits { u ->
+    val beat = sin(time * 2 * PI * 2).toFloat()
+    listOf(Triple(12f, 30f, 0f) to Trinket.Note, Triple(88f, 26f, 0.4f) to Trinket.Headphones, Triple(90f, 72f, 0.7f) to Trinket.Earbud).forEach { (spot, kind) ->
+        val (x, y, phase) = spot
+        val wave = sin((time + phase) * 2 * PI * 2).toFloat()
+        drawTrinket(kind, Offset(x * u, (y - 3f * wave) * u), 9f * u, Teal.copy(alpha = 0.75f + 0.15f * wave))
+    }
+    // The lid, tipped back and open.
+    drawRoundRect(
+        Brush.verticalGradient(listOf(Color(0xFF3A444C), Color(0xFF1E252B)), 44f * u, 60f * u),
+        topLeft = Offset(26f * u, 47f * u), size = Size(48f * u, 12f * u), cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f * u),
+    )
+    // Two earbuds rising out of the case, each with a teal tip.
+    listOf(-1f to 0f, 1f to 0.5f).forEach { (side, phase) ->
+        val rise = sin((time + phase) * 2 * PI * 2).toFloat() * 2.2f
+        val bud = 28f * u
+        val x = 50f + side * 12f
+        val y = 37f + rise
+        // Graphite like the case, with a light rim so they read on light and dark cards; mirrored for the left one,
+        // so the pair faces each other as in the case.
+        translate(x * u - bud / 2f, y * u - bud / 2f) {
+            scale(if (side < 0) -1f else 1f, 1f, pivot = Offset(bud / 2f, bud / 2f)) {
+                drawLogo(bud, Color(0xFF3A444C), wave = false)
+                drawPath(LogoShape.path(LogoShape.OUTLINE, Size(bud, bud)), Color(0xFF8A979F), style = Stroke(0.9f * u))
+            }
+        }
+        drawCircle(Teal, 2.6f * u, Offset((x + side * 1.6f) * u, (y - 4.4f) * u))
+    }
+    // The case body: a rounded shell shaded like a cylinder, a seam, and a light glowing on the front.
+    drawRoundRect(
+        Brush.horizontalGradient(0f to Color(0xFF1B2126), 0.3f to Color(0xFF4A555D), 0.65f to Color(0xFF2D353B), 1f to Color(0xFF151A1E), startX = 22f * u, endX = 78f * u),
+        topLeft = Offset(22f * u, 56f * u), size = Size(56f * u, 30f * u), cornerRadius = androidx.compose.ui.geometry.CornerRadius(14f * u),
+    )
+    drawLine(Color.Black.copy(alpha = 0.45f), Offset(25f * u, 62f * u), Offset(75f * u, 62f * u), strokeWidth = 0.8f * u)
+    val glow = 0.6f + 0.4f * (0.5f + 0.5f * beat)
+    drawCircle(Teal.copy(alpha = 0.35f * glow), 4.5f * u, Offset(50f * u, 76f * u))
+    drawCircle(Teal.copy(alpha = glow), 1.6f * u, Offset(50f * u, 76f * u))
+}
+
 /** The pictures as plain objects, for callers outside a DrawScope extension (the screenshot test). */
 object RocketArt {
     fun DrawScope.draw(time: Float) = drawRocket(time)
     fun DrawScope.star(time: Float) = drawStar(time)
+    fun DrawScope.case(time: Float) = drawCaseArt(time)
 }
 

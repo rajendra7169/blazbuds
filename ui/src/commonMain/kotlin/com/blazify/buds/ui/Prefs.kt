@@ -67,6 +67,15 @@ class Prefs(private val store: Settings = Settings()) {
         store.putBoolean(CONNECT_POPUP, on)
     }
 
+    /** When the app last asked to show the connect card over other apps, and how often: twice at most, a week apart. */
+    val overAppsAskedAt: Long get() = store.getLong(OVER_APPS_ASKED_AT, 0L)
+    val overAppsAsks: Int get() = store.getInt(OVER_APPS_ASKS, 0)
+
+    fun overAppsAsked(now: Long) {
+        store.putLong(OVER_APPS_ASKED_AT, now)
+        store.putInt(OVER_APPS_ASKS, overAppsAsks + 1)
+    }
+
     /** Whether the app may ask GitHub, now and then, if a newer Blazbuds is out. */
     var checkUpdates by mutableStateOf(store.getBoolean(CHECK_UPDATES, true))
         private set
@@ -139,6 +148,8 @@ class Prefs(private val store: Settings = Settings()) {
     companion object {
         /** Read by the phone's connection listener, outside the app. */
         const val CONNECT_POPUP = "connect_popup"
+        const val OVER_APPS_ASKED_AT = "over_apps_asked_at"
+        const val OVER_APPS_ASKS = "over_apps_asks"
         const val CHECK_UPDATES = "check_updates"
         const val DISMISSED_UPDATE = "dismissed_update"
         const val KNOWN_UPDATE = "known_update"

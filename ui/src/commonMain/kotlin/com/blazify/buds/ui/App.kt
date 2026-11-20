@@ -45,6 +45,7 @@ import com.blazify.buds.ui.screens.HomeScreen
 import com.blazify.buds.ui.screens.MyDevicesScreen
 import com.blazify.buds.ui.screens.Place
 import com.blazify.buds.ui.blocks.drawRocket
+import com.blazify.buds.ui.blocks.drawCaseArt
 import com.blazify.buds.ui.blocks.drawStar
 import com.blazify.buds.ui.screens.ChangelogScreen
 import com.blazify.buds.ui.screens.SettingsScreen
@@ -92,6 +93,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
             val earbuds by hub.earbuds.collectAsState()
             if (watchUpdates) UpdateWatch(prefs)
             UpdatePopup(prefs, hub.look)
+            OverAppsPopup(prefs, hub.overApps)
             StarPopup(prefs)
             val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()
@@ -305,7 +307,7 @@ private fun UpdatePopup(prefs: Prefs, look: SystemLook) {
     @OptIn(kotlin.time.ExperimentalTime::class)
     val now = remember(update.version) { kotlin.time.Clock.System.now().toEpochMilliseconds() }
     var open by remember(update.version) {
-        mutableStateOf(UpdatePrompt.shouldOffer(update.version, prefs.declinedUpdate, prefs.declinedAt, prefs.remindedUpdate, now))
+        mutableStateOf(UpdatePrompt.shouldOffer(update.version, prefs.declinedUpdate, prefs.declinedAt, prefs.remindedUpdate, now).also { if (it) LaunchPopups.used = true })
     }
     if (!open) return
     val later = {
@@ -341,7 +343,8 @@ private fun StarPopup(prefs: Prefs) {
         val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
         if (!StarPrompt.onOpened(prefs, now)) return@LaunchedEffect
         kotlinx.coroutines.delay(15_000)
-        if (prefs.knownUpdate != null) return@LaunchedEffect
+        if (prefs.knownUpdate != null || LaunchPopups.used) return@LaunchedEffect
+        LaunchPopups.used = true
         prefs.starAsked()
         open = true
     }
@@ -365,5 +368,46 @@ private fun StarPopup(prefs: Prefs) {
         // Tapping outside only closes it; the next ask comes on its day.
         onDismissRequest = { open = false },
     ) { time -> drawStar(time) }
+}
+
+/** One popup per launch at most: the update first, then the connect-card ask, then (on another day) the star. */
+private object LaunchPopups {
+    var used = false
+}
+
+/**
+ * "See your battery as you open the case": on a phone where the connect card is on but not yet allowed over other
+ * apps, asked when the app opens, at most twice a week apart. Allow opens the phone's own page for it.
+ */
+@Composable
+private fun OverAppsPopup(prefs: Prefs, over: OverApps?) {
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(over) {
+        if (over == null || !prefs.connectPopup || over.allowed() || prefs.overAppsAsks >= 2) return@LaunchedEffect
+        @OptIn(kotlin.time.ExperimentalTime::class)
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        if (prefs.overAppsAsks == 1 && now - prefs.overAppsAskedAt < UpdatePrompt.REMIND_AFTER_MS) return@LaunchedEffect
+        // A moment after opening, and only if the update popup didn't take this launch.
+        kotlinx.coroutines.delay(1_500)
+        if (LaunchPopups.used || over.allowed()) return@LaunchedEffect
+        LaunchPopups.used = true
+        prefs.overAppsAsked(now)
+        open = true
+    }
+    if (!open || over == null) return
+    com.blazify.buds.ui.blocks.PromptCard(
+        title = "See your battery as you open the case",
+        body = "Allow Blazbuds to show over other apps, and the case and each battery slide up as your earbuds connect.",
+        buttons = com.blazify.buds.ui.blocks.PromptButtons(
+            primary = "Allow",
+            onPrimary = {
+                open = false
+                over.ask()
+            },
+            secondary = "Not now",
+            onSecondary = { open = false },
+        ),
+        onDismissRequest = { open = false },
+    ) { time -> drawCaseArt(time) }
 }
 
