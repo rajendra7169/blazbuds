@@ -102,9 +102,12 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
     // The beat for the taste rounds takes a moment to make, so it is made in the background from the start.
     var beat by remember { mutableStateOf<ShortArray?>(null) }
     LaunchedEffect(Unit) { beat = withContext(Dispatchers.Default) { TestSounds.demo() } }
-    LaunchedEffect(stage == Stage.Taste || stage == Stage.Result, beat) {
+    // The taste rounds play over the beat, or over the person's own music playing in any app.
+    var ownMusic by remember { mutableStateOf(false) }
+    LaunchedEffect(stage == Stage.Taste || stage == Stage.Result, beat, ownMusic) {
         val samples = beat
-        if ((stage == Stage.Taste || stage == Stage.Result) && samples != null) sound.play(samples, loop = true)
+        if (ownMusic) sound.stop()
+        else if ((stage == Stage.Taste || stage == Stage.Result) && samples != null) sound.play(samples, loop = true)
     }
     // For the readme pictures: jump straight to a later step with made-up answers.
     remember {
@@ -180,12 +183,12 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                             val now = hearing.current() ?: return@LaunchedEffect
                             delay(500)
                             listening = true
-                            sound.play(TestSounds.beeps(now.hz, now.level, now.ear == Ear.Left, now.ear == Ear.Right), loop = false)
+                            sound.play(TestSounds.beeps(now.hz, now.level, now.ear != Ear.Right, now.ear != Ear.Left), loop = false)
                             delay(1500)
                             listening = false
                         }
                         if (step != null) {
-                            Text(if (step.ear == Ear.Left) "Left ear" else "Right ear", style = MaterialTheme.typography.titleLarge, color = palette.text)
+                            Text(when (step.ear) { Ear.Left -> "Left ear"; Ear.Right -> "Right ear"; null -> "Both ears" }, style = MaterialTheme.typography.titleLarge, color = palette.text)
                             Text("Pitch ${(step.number - 1) % EarPrint.TEST_PITCHES.size + 1} of ${EarPrint.TEST_PITCHES.size}", style = MaterialTheme.typography.labelMedium, color = palette.muted)
                             // Every answer lights a block; a pitch that is done fills its group of four.
                             val blocks = 4
@@ -239,7 +242,12 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                                 SoundCard("Sound A", round.a, pick != true, Modifier.weight(1f)) { pick = false }
                                 SoundCard("Sound B", round.b, pick == true, Modifier.weight(1f)) { pick = true }
                             }
-                            Hint("A short beat is playing. Switch between A and B a few times, then choose.", Modifier.padding(horizontal = 8.dp))
+                            MusicChoice(ownMusic) { ownMusic = it }
+                            Hint(
+                                if (ownMusic) "Play a song you know in any app. Tap A and B a few times while it plays, then choose."
+                                else "A short beat is playing. Tap A and B a few times, then choose. Real music makes the difference easier to hear.",
+                                Modifier.padding(horizontal = 8.dp),
+                            )
                             BigButton(if (pick == true) "Choose B" else "Choose A", null) {
                                 test.choose(pick == true)
                                 if (test.done) stage = Stage.Result
@@ -269,15 +277,19 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                         Panel {
                             TwoEarCurve(finalLeft, finalRight)
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
-                                Legend(palette.accent, "Left ear")
-                                Legend(palette.cancelling, "Right ear")
+                                if (EarPrint.same(finalLeft, finalRight)) {
+                                    Legend(palette.cancelling, "Your EarPrint, both ears")
+                                } else {
+                                    Legend(palette.accent, "Left ear")
+                                    Legend(palette.cancelling, "Right ear")
+                                }
                             }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Choice("Original", !comparing, Modifier.weight(1f), centered = true) { comparing = false }
                             Choice("EarPrint", comparing, Modifier.weight(1f), centered = true) { comparing = true }
                         }
-                        Hint("Switch between them while the beat plays, or play your own music.", Modifier.padding(horizontal = 8.dp))
+                        MusicChoice(ownMusic) { ownMusic = it }
                         BigButton("Keep my EarPrint", BudsIcons.Check) {
                             change(Change.EarPrintSave(finalLeft, finalRight, kotlin.time.Clock.System.now().epochSeconds))
                             saved = true
@@ -512,5 +524,14 @@ private fun NoiseBar(level: Double?, modifier: Modifier) {
             val text = measurer.measure("$db", labelStyle)
             drawText(text, topLeft = Offset(0f, (y - text.size.height / 2).coerceIn(0f, size.height - text.size.height)))
         }
+    }
+}
+
+/** The beat or the person's own music, for hearing the difference. */
+@Composable
+private fun MusicChoice(own: Boolean, pick: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Choice("Demo beat", !own, Modifier.weight(1f), centered = true) { pick(false) }
+        Choice("Use my music", own, Modifier.weight(1f), centered = true) { pick(true) }
     }
 }
