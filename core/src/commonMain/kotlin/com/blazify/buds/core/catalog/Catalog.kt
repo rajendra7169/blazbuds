@@ -15,7 +15,7 @@ enum class Support {
 }
 
 /** Which protocol a model speaks, for picking its driver. */
-enum class Family { Soundcore, Huawei, Jieli, None }
+enum class Family { Soundcore, Huawei, Jieli, Samsung, None }
 
 /** What a device looks like, for its picture. */
 enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
@@ -62,8 +62,15 @@ object Catalog {
         HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Battery, HONOR_PAIRING, Family.Huawei)
         // Earbuds on a JieLi chip with their maker's app (checked: Ultima Boom Sleek).
         JIELI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Jieli)
+        // Galaxy Buds+, Buds Live, Buds Pro, Buds2, Buds3, Buds FE and the rest, by the name Samsung gives them.
+        com.blazify.buds.core.samsung.SamsungModel.of(device.name) != null -> Model(device.name, Support.Full, SAMSUNG_PAIRING, Family.Samsung)
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
     }
+
+    private val SAMSUNG_PAIRING = listOf(
+        "Put both earbuds in the case, close the lid for a few seconds, then open it.",
+        "Pick your Galaxy Buds in your Bluetooth settings, then come back here.",
+    )
 
     private val JIELI_NAMES = listOf(Regex("^Ultima ", RegexOption.IGNORE_CASE))
 

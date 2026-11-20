@@ -58,6 +58,9 @@ class AndroidPlatform(
                 { Log.i(TAG, it) },
             ).also { it.start() }
             Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }).also { it.start() }
+            Family.Samsung -> com.blazify.buds.core.samsung.SamsungModel.of(device.name)!!.let { model ->
+                com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { socket(bt, model.service) }, { Log.i(TAG, it) }).also { it.start() }
+            }
             Family.None -> unknown(device, bt, scope)
         }
         return buds
@@ -231,8 +234,9 @@ class AndroidPlatform(
         }
     }
 
-    private fun socket(bt: BluetoothDevice): Connection {
-        val socket = bt.createRfcommSocketToServiceRecord(UUID.fromString(A3947.SERVICE))
+    /** The earbuds' control channel, by its service. */
+    private fun socket(bt: BluetoothDevice, service: String = A3947.SERVICE): Connection {
+        val socket = bt.createRfcommSocketToServiceRecord(UUID.fromString(service))
         try {
             socket.connect()
         } catch (e: IOException) {
