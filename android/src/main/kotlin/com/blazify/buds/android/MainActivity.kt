@@ -29,6 +29,33 @@ class MainActivity : ComponentActivity() {
 
     private val ask = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted++ }
 
+    // 3D for whatever is playing: the microphone permission (Android's name for hearing other apps), then Android's
+    // own "capture what's playing" question.
+    private var onCaptureAllowed: ((Int, Intent) -> Unit)? = null
+    private val askCapture = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val data = result.data
+        if (result.resultCode == RESULT_OK && data != null) onCaptureAllowed?.invoke(result.resultCode, data)
+        else com.blazify.buds.android.SpatialService.state.value = com.blazify.buds.ui.SpatialState.Off
+        onCaptureAllowed = null
+    }
+    private val askRecord = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { answers ->
+        if (answers[Manifest.permission.RECORD_AUDIO] == true) {
+            askCapture.launch(getSystemService(android.media.projection.MediaProjectionManager::class.java).createScreenCaptureIntent())
+        } else {
+            com.blazify.buds.android.SpatialService.state.value = com.blazify.buds.ui.SpatialState.Blocked("Needs the microphone permission to hear other apps")
+            onCaptureAllowed = null
+        }
+    }
+
+    private fun askToCapture(onAllowed: (Int, Intent) -> Unit) {
+        onCaptureAllowed = onAllowed
+        val wanted = buildList {
+            add(Manifest.permission.RECORD_AUDIO)
+            if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        askRecord.launch(wanted.toTypedArray())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -40,7 +67,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val scope = rememberCoroutineScope()
-            val platform = remember { AndroidPlatform(applicationContext) }
+            val platform = remember { AndroidPlatform(applicationContext, AndroidSpatial(applicationContext, ::askToCapture)) }
             val hub = remember { Hub(platform, scope).also { this.hub = it } }
             val current by hub.current.collectAsState()
             LaunchedEffect(current) { current?.let { platform.watchForWidget(it, scope) } }

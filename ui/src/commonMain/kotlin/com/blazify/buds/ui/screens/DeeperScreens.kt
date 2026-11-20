@@ -1,6 +1,7 @@
 package com.blazify.buds.ui.screens
 
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -693,6 +694,7 @@ private fun ThreeDCard(state: BudsState, change: (Change) -> Unit) {
                 }
             }
         }
+        com.blazify.buds.ui.LocalSpatial.current?.let { spatial -> EverythingIn3D(spatial) { if (playing) { sound.stop(); playing = false } } }
         if (Toggle.Surround in state.toggles) {
             SwitchRow(
                 Toggle.Surround.icon(), "Earbuds' surround", state.toggles[Toggle.Surround] == true,
@@ -735,5 +737,41 @@ private fun HeadFromAbove(angle: Float?, modifier: Modifier) {
             drawCircle(palette.accent.copy(alpha = 0.25f), r * 0.2f, p)
             drawCircle(palette.accent, r * 0.1f, p)
         }
+    }
+}
+
+/** The switch that puts whatever is playing, in any app, into 3D, and the two ways it can sound. */
+@Composable
+private fun EverythingIn3D(spatial: com.blazify.buds.ui.Spatial, beforeOn: () -> Unit) {
+    val palette = LocalPalette.current
+    val now by spatial.state.collectAsState()
+    val on = now is com.blazify.buds.ui.SpatialState.On || now is com.blazify.buds.ui.SpatialState.Starting
+    var mode by remember { mutableStateOf((now as? com.blazify.buds.ui.SpatialState.On)?.mode ?: com.blazify.buds.core.spatial.SpatialMode.Speakers) }
+    SwitchRow(
+        BudsIcons.Spatial, "3D for everything", on,
+        { want -> if (want) { beforeOn(); spatial.turnOn(mode) } else spatial.turnOff() },
+        detail = when (val s = now) {
+            is com.blazify.buds.ui.SpatialState.On -> if (s.apps == 0) "On. Play a song in any app" else "On for ${s.apps} playing now"
+            com.blazify.buds.ui.SpatialState.Starting -> "Asking Android…"
+            is com.blazify.buds.ui.SpatialState.Blocked -> s.why
+            com.blazify.buds.ui.SpatialState.Off -> "Songs in Blazify, YouTube Music and other apps, in 3D"
+        },
+        color = palette.cancelling,
+    )
+    if (on) {
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                com.blazify.buds.core.spatial.SpatialMode.Speakers to "Speakers around you",
+                com.blazify.buds.core.spatial.SpatialMode.Orbit to "8D",
+            ).forEach { (m, name) ->
+                Choice(name, mode == m, Modifier.weight(1f), centered = true) {
+                    mode = m
+                    spatial.mode(m)
+                }
+            }
+        }
+    }
+    if (now is com.blazify.buds.ui.SpatialState.Blocked && (now as com.blazify.buds.ui.SpatialState.Blocked).why.contains("computer")) {
+        Hint("One time, with the phone plugged into a computer: adb shell pm grant com.blazify.buds android.permission.DUMP")
     }
 }

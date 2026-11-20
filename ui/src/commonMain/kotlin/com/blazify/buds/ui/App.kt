@@ -70,7 +70,7 @@ private val TABS = listOf(
 @Composable
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
-        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
+        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind, LocalSpatial provides hub.spatial,
             LocalSoundOut provides remember(hub) {
                 object : SoundOut {
                     override fun play(samples: ShortArray, loop: Boolean) = hub.playSound(samples, loop)

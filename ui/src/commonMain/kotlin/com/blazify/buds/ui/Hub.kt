@@ -47,6 +47,9 @@ interface Platform {
 
     fun stopSound() {}
 
+    /** 3D for whatever is playing, where this platform can reach other apps' sound; null where it can't. */
+    val spatial: Spatial? get() = null
+
     /** Holds the media volume at a set level for the hearing test, or puts it back as it was. */
     fun steadyVolume(on: Boolean) {}
 }
@@ -59,6 +62,9 @@ data class Pair2(val device: Device, val support: Support, val battery: Battery?
  * connected stays in the list; one removed by a swipe comes back by itself the next time it connects.
  */
 class Hub(private val platform: Platform, private val scope: CoroutineScope, private val store: Settings? = Settings()) {
+    /** 3D for whatever is playing, where the platform allows it. */
+    val spatial: Spatial? get() = platform.spatial
+
     private val list = MutableStateFlow<List<Pair2>>(emptyList())
     val earbuds: StateFlow<List<Pair2>> = list
     private val chosen = MutableStateFlow<Buds?>(null)

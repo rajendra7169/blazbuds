@@ -28,7 +28,7 @@ import java.util.UUID
 private const val TAG = "Blazbuds"
 
 @SuppressLint("MissingPermission")
-class AndroidPlatform(private val context: Context) : Platform {
+class AndroidPlatform(private val context: Context, override val spatial: com.blazify.buds.ui.Spatial? = null) : Platform {
     private val adapter get() = context.getSystemService(BluetoothManager::class.java)?.adapter
 
     override suspend fun paired(): List<Device> = runCatching {
