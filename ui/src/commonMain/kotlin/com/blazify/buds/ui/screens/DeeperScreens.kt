@@ -591,7 +591,10 @@ fun AboutSection(state: BudsState) {
             }
         }
     }
-    Hint("Battery is shown in the steps the earbuds report: fifths, so 20, 40, 60, 80 or 100%. Firmware updates come from the brand's own app.")
+    // Some earbuds (the Liberty 4 NC among them) report battery only in fifths; say so only when that is what shows.
+    val levels = listOfNotNull(state.left, state.right, state.case).map { it.percent }
+    val fifths = levels.isNotEmpty() && levels.all { it % 20 == 0 }
+    Hint((if (fifths) "Battery is shown in the steps the earbuds report, which may be fifths: 20, 40, 60, 80 or 100%. " else "") + "Firmware updates come from the brand's own app.")
 }
 
 /** Bluetooth doesn't say what a host is; computers usually say so in their name. */
