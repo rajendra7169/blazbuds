@@ -281,8 +281,55 @@ private fun nameTheWindowClass() {
 }
 
 fun main(args: Array<String>) {
+    // One Blazbuds at a time: two would fight over the earbuds, which let only one app talk to them. Opened again,
+    // it asks the one already running to show its window, and leaves.
+    if (!OneCopy.claim(args)) return
     nameTheWindowClass()
     app(args)
+}
+
+/**
+ * Keeps Blazbuds to a single copy on the computer. The first copy listens on a small local port that only this
+ * computer can reach; a second one finds it busy, sends "show" and quits, and the first brings its window up.
+ */
+private object OneCopy {
+    private const val PORT = 47613
+    private var server: java.net.ServerSocket? = null
+
+    /** Raised when another start asked this copy to show itself. */
+    val wake = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    fun claim(args: Array<String>): Boolean {
+        if ("--demo" in args) return true
+        val listening = runCatching { java.net.ServerSocket(PORT, 4, java.net.InetAddress.getLoopbackAddress()) }.getOrNull()
+        if (listening != null) {
+            server = listening
+            Thread({
+                while (!listening.isClosed) {
+                    runCatching {
+                        listening.accept().use { peer ->
+                            peer.soTimeout = 2_000
+                            val asked = peer.getInputStream().bufferedReader().readLine()
+                            // Says who it is, so a second start knows it found Blazbuds and not some other program.
+                            peer.getOutputStream().write("blazbuds\n".toByteArray())
+                            if (asked == "show") wake.value++
+                        }
+                    }
+                }
+            }, "one-copy").apply { isDaemon = true }.start()
+            return true
+        }
+        // The port is taken. Leave only if it is Blazbuds that answers; anything else, start as usual.
+        val found = runCatching {
+            java.net.Socket().use { socket ->
+                socket.connect(java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), PORT), 1_000)
+                socket.soTimeout = 2_000
+                socket.getOutputStream().write((if ("--hidden" in args) "hello\n" else "show\n").toByteArray())
+                socket.getInputStream().bufferedReader().readLine() == "blazbuds"
+            }
+        }.getOrDefault(false)
+        return !found
+    }
 }
 
 private fun app(args: Array<String>) = application {
@@ -294,6 +341,9 @@ private fun app(args: Array<String>) = application {
     val hub = remember { if (demo) null else Hub(DesktopPlatform, scope) }
     val demoBuds = remember { if (demo) DemoBuds() else null }
     var shown by remember { mutableStateOf("--hidden" !in args) }
+    // Opened again while running: show the window this copy has.
+    val asked by OneCopy.wake.collectAsState()
+    LaunchedEffect(asked) { if (asked > 0) shown = true }
     var panel by remember { mutableStateOf(false) }
     val windowState = rememberWindowState(size = DpSize(440.dp, 900.dp))
     val current by (hub?.current ?: remember { kotlinx.coroutines.flow.MutableStateFlow(demoBuds) }).collectAsState()
