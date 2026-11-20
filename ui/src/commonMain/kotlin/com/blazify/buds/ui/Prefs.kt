@@ -93,6 +93,22 @@ class Prefs(private val store: Settings = Settings()) {
         }
     }
 
+    /** The star ask's memory: done for good, the version whose clock runs, since when, and how often it asked. */
+    val starDone: Boolean get() = store.getBoolean(STAR_DONE, false)
+    val starVersion: String? get() = store.getStringOrNull(STAR_VERSION)
+    val starSince: Long get() = store.getLong(STAR_SINCE, 0L)
+    val starShown: Int get() = store.getInt(STAR_SHOWN, 0)
+
+    fun startStarClock(version: String, now: Long) {
+        store.putString(STAR_VERSION, version)
+        store.putLong(STAR_SINCE, now)
+        store.putInt(STAR_SHOWN, 0)
+    }
+
+    fun starAsked() = store.putInt(STAR_SHOWN, starShown + 1)
+
+    fun starStop() = store.putBoolean(STAR_DONE, true)
+
     /** When GitHub was last asked, in milliseconds since 1970, so reopening the app doesn't ask again each time. */
     var lastUpdateCheck: Long
         get() = store.getLong(LAST_UPDATE_CHECK, 0L)
@@ -115,6 +131,10 @@ class Prefs(private val store: Settings = Settings()) {
         const val CHECK_UPDATES = "check_updates"
         const val DISMISSED_UPDATE = "dismissed_update"
         const val KNOWN_UPDATE = "known_update"
+        const val STAR_DONE = "star_done"
+        const val STAR_VERSION = "star_version"
+        const val STAR_SINCE = "star_since"
+        const val STAR_SHOWN = "star_shown"
         const val DECLINED_UPDATE = "declined_update"
         const val DECLINED_AT = "declined_update_at"
         const val REMINDED_UPDATE = "reminded_update"

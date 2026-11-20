@@ -45,6 +45,7 @@ import com.blazify.buds.ui.screens.HomeScreen
 import com.blazify.buds.ui.screens.MyDevicesScreen
 import com.blazify.buds.ui.screens.Place
 import com.blazify.buds.ui.blocks.drawRocket
+import com.blazify.buds.ui.blocks.drawStar
 import com.blazify.buds.ui.screens.ChangelogScreen
 import com.blazify.buds.ui.screens.SettingsScreen
 import com.blazify.buds.ui.screens.SupportScreen
@@ -91,6 +92,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
             val earbuds by hub.earbuds.collectAsState()
             if (watchUpdates) UpdateWatch(prefs)
             UpdatePopup(prefs, hub.look)
+            StarPopup(prefs)
             val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()
             var place by remember { mutableStateOf(start) }
@@ -324,5 +326,44 @@ private fun UpdatePopup(prefs: Prefs, look: SystemLook) {
         ),
         onDismissRequest = later,
     ) { time -> drawRocket(time) }
+}
+
+/**
+ * "Enjoying Blazbuds?": the star ask, when [StarPrompt] says it is due. It waits a little after the app opens, so the
+ * update check has spoken first, and stays away on a launch where a newer version is waiting.
+ */
+@Composable
+private fun StarPopup(prefs: Prefs) {
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        @OptIn(kotlin.time.ExperimentalTime::class)
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        if (!StarPrompt.onOpened(prefs, now)) return@LaunchedEffect
+        kotlinx.coroutines.delay(15_000)
+        if (prefs.knownUpdate != null) return@LaunchedEffect
+        prefs.starAsked()
+        open = true
+    }
+    if (!open) return
+    com.blazify.buds.ui.blocks.PromptCard(
+        title = "Enjoying Blazbuds?",
+        body = "A star on GitHub helps others find it. It's free, with no ads.",
+        buttons = com.blazify.buds.ui.blocks.PromptButtons(
+            primary = "Star it",
+            onPrimary = {
+                prefs.starStop()
+                open = false
+                runCatching { uri.openUri(REPO_URL) }
+            },
+            secondary = "Already starred",
+            onSecondary = {
+                prefs.starStop()
+                open = false
+            },
+        ),
+        // Tapping outside only closes it; the next ask comes on its day.
+        onDismissRequest = { open = false },
+    ) { time -> drawStar(time) }
 }
 

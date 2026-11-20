@@ -160,6 +160,16 @@ class Shots {
                     }
                 }
             }
+            shot(dir, "star-$look", 340, 380) {
+                BudsTheme(theme) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background).padding(20.dp)) {
+                        com.blazify.buds.ui.blocks.PromptCardLayout(
+                            "Enjoying Blazbuds?", "A star on GitHub helps others find it. It's free, with no ads.",
+                            com.blazify.buds.ui.blocks.PromptButtons("Star it", {}, "Already starred", {}), 0.15f, { t -> with(com.blazify.buds.ui.blocks.RocketArt) { star(t) } },
+                        )
+                    }
+                }
+            }
             shot(dir, "panel-$look", 360, 460) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) {
