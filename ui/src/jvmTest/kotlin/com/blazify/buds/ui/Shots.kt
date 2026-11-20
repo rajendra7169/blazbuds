@@ -1,5 +1,6 @@
 package com.blazify.buds.ui
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.ImageComposeScene
@@ -82,6 +83,26 @@ class Shots {
                     }
                 }
                 BudsApp(buds, mine, startTab = Tab.Sound)
+            }
+            shot(dir, "battery-$look", 412, 915) {
+                val buds = remember { DemoBuds() }
+                BudsTheme(theme) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalPrefs provides Prefs(com.russhwolf.settings.MapSettings().apply {
+                        val now = kotlin.time.Clock.System.now().epochSeconds
+                        val name = buds.state.value.name
+                        putString("battery_history_$name", (0 until 96).joinToString("\n") { i ->
+                            val t = now - (95 - i) * 900L
+                            val l = if (i < 40) 100 - i * 2 else if (i < 52) 20 + (i - 40) * 6 else 92 - (i - 52)
+                            val r = (l - 5).coerceAtLeast(5)
+                            val c = if (i in 40..51) 80 - (i - 40) * 2 else -1
+                            "$t,$l,$r,$c"
+                        })
+                    })) {
+                        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background).padding(16.dp)) {
+                            com.blazify.buds.ui.screens.BatterySection(buds.state.value)
+                        }
+                    }
+                }
             }
             listOf("intro", "hearing", "taste", "result", "age", "quiet").forEachIndexed { step, name ->
                 shot(dir, "earprint-$name-$look", 412, 915) {

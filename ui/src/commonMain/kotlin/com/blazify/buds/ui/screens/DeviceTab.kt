@@ -26,4 +26,5 @@ fun DeviceTab(state: BudsState, change: (Change) -> Unit, open: (Place) -> Unit)
             LinkRow(BudsIcons.Support, "Help", "Answers, and details to send", color = Hue.Green) { open(Place.Support) }
             LinkRow(BudsIcons.Settings, "Settings", "Look and motion", color = Hue.Slate) { open(Place.Settings) }
         }
+        BatterySection(state)
     }
