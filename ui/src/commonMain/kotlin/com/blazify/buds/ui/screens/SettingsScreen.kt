@@ -1,45 +1,256 @@
 package com.blazify.buds.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.blazify.buds.ui.LocalLook
 import com.blazify.buds.ui.LocalPrefs
+import com.blazify.buds.ui.PROFILE_URL
+import com.blazify.buds.ui.REPO_URL
+import com.blazify.buds.ui.Updates
+import com.blazify.buds.ui.VERSION
 import com.blazify.buds.ui.blocks.Choice
 import com.blazify.buds.ui.blocks.Hint
+import com.blazify.buds.ui.blocks.Hue
 import com.blazify.buds.ui.blocks.Panel
 import com.blazify.buds.ui.blocks.SectionTitle
 import com.blazify.buds.ui.blocks.SwitchRow
+import com.blazify.buds.ui.blocks.press
 import com.blazify.buds.ui.icons.BudsIcons
+import com.blazify.buds.ui.resources.Res
+import com.blazify.buds.ui.resources.developer_photo
 import com.blazify.buds.ui.theme.LocalPalette
 import com.blazify.buds.ui.theme.ThemeChoice
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun SettingsScreen(back: (() -> Unit)?) = PlaceFrame("Settings", back) {
+fun SettingsScreen(back: (() -> Unit)?, openChangelog: () -> Unit = {}) = PlaceFrame("Settings", back) {
     val prefs = LocalPrefs.current
-    val palette = LocalPalette.current
     Panel {
         SectionTitle("Look")
-        Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("Like the system", prefs.theme == ThemeChoice.System) { prefs.theme(ThemeChoice.System) }
-            Choice("Light", prefs.theme == ThemeChoice.Light) { prefs.theme(ThemeChoice.Light) }
-            Choice("Dark", prefs.theme == ThemeChoice.Dark) { prefs.theme(ThemeChoice.Dark) }
-        }
         Spacer(Modifier.height(8.dp))
-        SwitchRow(BudsIcons.Moon, "Less motion", prefs.reduceMotion, { prefs.reduceMotion(it) }, detail = "Fades instead of slides, and the earbuds hold still", color = com.blazify.buds.ui.blocks.Hue.Indigo)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ThemeTile(ThemeChoice.System, "System", BudsIcons.Auto, prefs.theme == ThemeChoice.System, Modifier.weight(1f)) { prefs.theme(it) }
+            ThemeTile(ThemeChoice.Light, "Light", BudsIcons.Sun, prefs.theme == ThemeChoice.Light, Modifier.weight(1f)) { prefs.theme(it) }
+            ThemeTile(ThemeChoice.Dark, "Dark", BudsIcons.Moon, prefs.theme == ThemeChoice.Dark, Modifier.weight(1f)) { prefs.theme(it) }
+        }
+        Spacer(Modifier.height(12.dp))
+        SwitchRow(BudsIcons.Moon, "Less motion", prefs.reduceMotion, { prefs.reduceMotion(it) }, detail = "Fades instead of slides, and the earbuds hold still", color = Hue.Indigo)
     }
+    UpdatesPanel(openChangelog)
+    DeveloperPanel()
+    OtherAppsPanel()
     Panel {
         SectionTitle("About Blazbuds")
-        Text("Version ${com.blazify.buds.ui.VERSION}", style = MaterialTheme.typography.bodyMedium, color = palette.text)
+        Text("Version $VERSION", style = MaterialTheme.typography.bodyMedium, color = LocalPalette.current.text)
         Spacer(Modifier.height(6.dp))
-        Hint("No ads, no account, nothing sent anywhere: the app talks only to your earbuds.")
+        Hint("No ads and no account. The app talks to your earbuds, and goes online only to ask GitHub whether a newer version is out, which you can switch off above.")
         Spacer(Modifier.height(6.dp))
-        Hint("Free software under the GNU GPL 3.0. The Soundcore protocol is understood thanks to the OpenSCQ30 and Gadgetbridge projects. Text is set in Figtree (SIL Open Font License).")
+        Hint("Free software under the GNU GPL 3.0, built on the work of the open projects named in its readme. Text is set in Figtree (SIL Open Font License).")
+    }
+}
+
+/** A small picture of the app in that look, its icon and its name; the chosen one is ringed. */
+@Composable
+private fun ThemeTile(choice: ThemeChoice, label: String, icon: ImageVector, selected: Boolean, modifier: Modifier, pick: (ThemeChoice) -> Unit) {
+    val palette = LocalPalette.current
+    val ring by animateColorAsState(if (selected) palette.accent else palette.line, label = "ring")
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier.clip(shape).border(if (selected) 2.dp else 1.dp, ring, shape).press(role = Role.RadioButton) { pick(choice) }.padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // A tiny screen: light, dark, or split down the middle for "like the system".
+        val light = Color(0xFFF5F7F8)
+        val dark = Color(0xFF111518)
+        Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(10.dp)).background(if (choice == ThemeChoice.Dark) dark else light)) {
+            if (choice == ThemeChoice.System) Box(Modifier.fillMaxWidth(0.5f).fillMaxHeight().align(Alignment.CenterEnd).background(dark))
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.width(28.dp).height(6.dp).clip(CircleShape).background(palette.accent))
+                Box(Modifier.width(40.dp).height(5.dp).clip(CircleShape).background(Color(0x55888888)))
+                Box(Modifier.width(22.dp).height(5.dp).clip(CircleShape).background(Color(0x55888888)))
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(icon, null, tint = if (selected) palette.accent else palette.muted, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** Whether to look for new versions, what was found, and the way to it; plus what changed in each version. */
+@Composable
+private fun UpdatesPanel(openChangelog: () -> Unit) {
+    val prefs = LocalPrefs.current
+    val palette = LocalPalette.current
+    val look = LocalLook.current
+    val uri = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<String?>(null) }
+    Panel {
+        SectionTitle("Updates")
+        SwitchRow(BudsIcons.Refresh, "Look for new versions", prefs.checkUpdates, { prefs.checkUpdates(it) }, detail = "Asks GitHub now and then; nothing about you is sent", color = Hue.Green)
+        val update = prefs.knownUpdate
+        if (update != null) {
+            Spacer(Modifier.height(8.dp))
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(palette.accent.copy(alpha = 0.12f)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Blazbuds ${update.version} is out", style = MaterialTheme.typography.titleSmall, color = palette.text)
+                val notes = update.notes.lines().filter { it.isNotBlank() }.take(6).joinToString("\n") { it.trim().trimStart('#').trim() }
+                if (notes.isNotBlank()) Text(notes, style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                val file = update.fileFor(look)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (file != null) Choice("Download", true, icon = BudsIcons.Download) { uri.openUri(file) }
+                    Choice("Release page", false, icon = BudsIcons.OpenLink) { uri.openUri(update.page) }
+                }
+                if (file == null) Hint("Get it the same way you got this version.")
+            }
+        } else if (prefs.checkUpdates) {
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(result ?: "You have version $VERSION.", style = MaterialTheme.typography.bodyMedium, color = palette.muted, modifier = Modifier.weight(1f))
+                Choice(if (checking) "Checking…" else "Check now", false, icon = BudsIcons.Refresh) {
+                    if (checking) return@Choice
+                    checking = true
+                    scope.launch {
+                        val found = Updates.latest()
+                        checking = false
+                        result = when {
+                            found == null -> "Couldn't reach GitHub. Try again later."
+                            Updates.isNewer(found.version) -> { prefs.knownUpdate = found; null }
+                            else -> "You have the newest version, $VERSION."
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        SettingsRow(BudsIcons.Spark, "What's new", "What changed in each version", Hue.Orange, openChangelog)
+    }
+}
+
+/** Who makes Blazbuds, in a few words: no links, no location. */
+@Composable
+private fun DeveloperPanel() {
+    val palette = LocalPalette.current
+    Panel {
+        SectionTitle("Developer")
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Image(
+                painterResource(Res.drawable.developer_photo), "Rajendra Pandey",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(64.dp).clip(CircleShape).border(2.dp, palette.accent, CircleShape),
+            )
+            Column(Modifier.weight(1f)) {
+                Text("Rajendra Pandey", style = MaterialTheme.typography.titleMedium, color = palette.text, fontWeight = FontWeight.SemiBold)
+                Text("Builds Blazbuds", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "I build Blazbuds on my own, in the open. It began because I wanted one app for all my earbuds, whatever brand they are, " +
+                "that looks the way I think one should. What goes into each version is mostly what people tell me is broken or missing.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = palette.muted,
+        )
+    }
+}
+
+private data class OtherApp(val name: String, val about: String, val hue: Color, val url: String)
+
+/** The developer's other apps; public ones open their code, private ones the developer's page. */
+private val OTHER_APPS = listOf(
+    OtherApp("Blazify", "A free music player and YouTube Music client", Color(0xFFFFA726), "https://github.com/rajendra7169/blazify"),
+    OtherApp("Blazix", "A video player with offline viewing and no ads", Color(0xFFE5484D), PROFILE_URL),
+    OtherApp("Fitevo", "Fitness, food and workouts, kept on your phone", Color(0xFF30A46C), "https://github.com/rajendra7169/fitevo"),
+    OtherApp("NexTerm", "A modern terminal for Windows", Color(0xFF6E56CF), "https://github.com/rajendra7169/NexTerm"),
+)
+
+@Composable
+private fun OtherAppsPanel() {
+    val palette = LocalPalette.current
+    val uri = LocalUriHandler.current
+    Panel(padding = 8.dp) {
+        SectionTitle("More apps by the developer", Modifier.padding(start = 8.dp, top = 8.dp))
+        OTHER_APPS.forEach { app ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { uri.openUri(app.url) }.padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(app.hue), contentAlignment = Alignment.Center) {
+                    Text(app.name.take(1), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(app.name, style = MaterialTheme.typography.bodyLarge, color = palette.text)
+                    Text(app.about, style = MaterialTheme.typography.bodySmall, color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(BudsIcons.OpenLink, null, tint = palette.muted, modifier = Modifier.size(18.dp))
+            }
+        }
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { uri.openUri(REPO_URL) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Blazbuds' own code", style = MaterialTheme.typography.bodyMedium, color = palette.accent, modifier = Modifier.weight(1f))
+            Icon(BudsIcons.OpenLink, null, tint = palette.accent, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+/** A row that opens another page: an icon in a coloured circle, a title and a line under it. */
+@Composable
+fun SettingsRow(icon: ImageVector, title: String, detail: String, hue: Color, onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press(onClick = onClick).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(36.dp).clip(CircleShape).background(hue), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = palette.text)
+            Text(detail, style = MaterialTheme.typography.bodyMedium, color = palette.muted)
+        }
+        Icon(BudsIcons.Forward, null, tint = palette.muted, modifier = Modifier.size(18.dp))
     }
 }
