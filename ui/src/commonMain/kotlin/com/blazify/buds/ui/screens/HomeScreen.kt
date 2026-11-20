@@ -181,7 +181,7 @@ private fun LinkBanner(state: BudsState, retry: () -> Unit, bluetoothOn: Boolean
                             !bluetoothOn -> "Turn it on and your earbuds connect by themselves."
                             else -> when (state.link) {
                             Link.Connecting -> "This takes a second or two."
-                            Link.Busy -> "Only one app can control earbuds at a time, and another app (often the brand's own, like Soundcore) has them. Close it from your recent apps; Blazbuds takes over by itself."
+                            Link.Busy -> "Only one app can control earbuds at a time, and another app has them: often the brand's own (like Soundcore), or Blazbuds on your other phone or computer when they are connected to both. Close it there; Blazbuds takes over by itself."
                             else -> "Take them out of the case and check Bluetooth is on."
                             }
                         },
