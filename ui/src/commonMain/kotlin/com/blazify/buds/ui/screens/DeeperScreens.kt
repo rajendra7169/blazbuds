@@ -373,6 +373,7 @@ fun TouchAction.label() = when (this) {
     TouchAction.PlayPause -> "Play or pause"
     TouchAction.VoiceAssistant -> "Voice assistant"
     TouchAction.ListeningMode -> "Change listening mode"
+    TouchAction.GamingMode -> "Gaming mode"
     TouchAction.None -> "Nothing"
 }
 
@@ -513,6 +514,7 @@ private val PROMPTS = listOf(
     Toggle.BassBoost to "Turns up the bass",
     Toggle.SpeakToChat to "Pauses the music when you start talking",
     Toggle.Upscaling to "Brings back detail compressed music loses",
+    Toggle.VoicePrompt to "Says the mode's name and other news out loud",
 )
 
 @Composable
@@ -626,6 +628,7 @@ private fun Toggle.hue() = when (this) {
     Toggle.BassBoost -> com.blazify.buds.ui.blocks.Hue.Amber
     Toggle.SpeakToChat -> com.blazify.buds.ui.blocks.Hue.Teal
     Toggle.Upscaling -> com.blazify.buds.ui.blocks.Hue.Orange
+    Toggle.VoicePrompt -> com.blazify.buds.ui.blocks.Hue.Green
 }
 
 /** The EarPrint at the top of the Sound tab: an invitation to make one, or the one there is with a switch. */

@@ -78,7 +78,20 @@ data class Battery(val percent: Int, val charging: Boolean = false, val seenAt: 
 
 enum class ListeningMode { NoiseCancelling, Transparency, Normal }
 
-enum class CancelStyle { Adaptive, Manual, Travel }
+enum class CancelStyle {
+    Adaptive,
+    Manual,
+    Travel,
+
+    /** Older Soundcore models' cancelling tuned for buses, trains and planes. */
+    Transport,
+
+    /** Tuned for rooms full of voices. */
+    Indoor,
+
+    /** Tuned for traffic and the street. */
+    Outdoor,
+}
 
 enum class Travel { Plane, Train, Bus, Car }
 
@@ -112,6 +125,8 @@ data class SoundOptions(
     val modes: List<ListeningMode> = ListeningMode.entries,
     /** Whether Manual cancelling has strengths to pick; without them it is plain, steady cancelling. */
     val levels: Boolean = true,
+    /** How many steps the manual cancelling strength has. */
+    val manualLevels: Int = 5,
 )
 
 data class Equalizer(
@@ -149,6 +164,7 @@ enum class TouchAction {
     PlayPause,
     VoiceAssistant,
     ListeningMode,
+    GamingMode,
     None,
 }
 
@@ -184,6 +200,8 @@ enum class Toggle {
 
     /** Restores the detail compressed music loses (Sony's DSEE). */
     Upscaling,
+    /** Spoken prompts, such as the mode's name when it changes. */
+    VoicePrompt,
 }
 
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())

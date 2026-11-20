@@ -92,8 +92,9 @@ fun ModeDetails(
                             if (sound.options.environment) SwitchRow(null, "Environment detection", sound.environmentDetection, onEnvironment, detail = "Also follows how loud it is around you")
                         }
                         CancelStyle.Manual -> if (sound.options.levels) {
-                            Hint("You choose how strongly it cancels: 1 is lightest, 5 is strongest.")
-                            LevelSteps(sound.manualLevel) { onCancel(CancelStyle.Manual, it, null) }
+                            val steps = sound.options.manualLevels
+                            Hint("You choose how strongly it cancels: 1 is lightest, $steps is strongest.")
+                            LevelSteps(sound.manualLevel, steps) { onCancel(CancelStyle.Manual, it, null) }
                         } else {
                             Hint("Cuts out the noise around you, the same all the time.")
                         }
@@ -105,6 +106,9 @@ fun ModeDetails(
                                 }
                             }
                         }
+                        CancelStyle.Transport -> Hint("Tuned for the low rumble of buses, trains and planes.")
+                        CancelStyle.Indoor -> Hint("Tuned for offices, cafés and rooms full of voices.")
+                        CancelStyle.Outdoor -> Hint("Tuned for traffic and the noise of the street.")
                     }
                     if (sound.options.wind) SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
@@ -162,21 +166,21 @@ fun Hint(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Strength from 1 to 5: five numbered steps that fill from the left, each a deeper shade than the one before, with
- * lightest and strongest marked at the ends.
+ * Strength from 1 to [steps] (five on most earbuds): numbered steps that fill from the left, each a deeper shade than
+ * the one before, with lightest and strongest marked at the ends.
  */
 @Composable
-fun LevelSteps(level: Int, onPick: (Int) -> Unit) {
+fun LevelSteps(level: Int, steps: Int = 5, onPick: (Int) -> Unit) {
     val palette = LocalPalette.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            (1..5).forEach { step ->
+            (1..steps).forEach { step ->
                 val on = step <= level
-                val shade = palette.cancelling.copy(alpha = 0.45f + 0.11f * step)
+                val shade = palette.cancelling.copy(alpha = 0.45f + 0.55f * step / steps)
                 val fill by animateColorAsState(if (on) shade else palette.raised, tween(Motion.NORMAL), label = "step")
                 Box(
                     Modifier.weight(1f).height(48.dp).background(fill)
-                        .semantics { contentDescription = "Strength $step of 5" }
+                        .semantics { contentDescription = "Strength $step of $steps" }
                         .press(role = Role.RadioButton) { onPick(step) },
                     contentAlignment = Alignment.Center,
                 ) {

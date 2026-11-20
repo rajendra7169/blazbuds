@@ -458,6 +458,8 @@ class MelodyBuds(
         TouchAction.VolumeDown -> 0x0C
         TouchAction.PreviousSong -> if (oldTrack()) 0x04 else 0x05
         TouchAction.NextSong -> if (oldTrack()) 0x05 else 0x06
+        // Not something a touch can do on these earbuds.
+        TouchAction.GamingMode -> null
     }
 
     override suspend fun refresh() {

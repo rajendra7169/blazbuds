@@ -331,7 +331,9 @@ object A3947 {
             CancelStyle.Manual -> 0
             CancelStyle.Adaptive -> 1
             CancelStyle.Travel -> 2
-        }
+            // Kinds only older models have; this one keeps what it had.
+            CancelStyle.Transport, CancelStyle.Indoor, CancelStyle.Outdoor -> now[3].u()
+        }.toByte()
         it[4] = ((now[4].u() and 0x02) or if (sound.windReduction) 1 else 0).toByte()
         it[5] = if (sound.environmentDetection) 1 else 0
         it[6] = sound.travel.ordinal.toByte()

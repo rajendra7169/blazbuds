@@ -79,7 +79,7 @@ class MelodyNoise(private val modes: List<MelodyModel.Mode>) {
     fun bitFor(style: CancelStyle, step: Int?, lastLevel: Int?): Int? = when (style) {
         CancelStyle.Adaptive -> smart
         CancelStyle.Manual -> levels.getOrNull(step?.let { levelAt(it) } ?: lastLevel ?: levels.lastIndex)
-        CancelStyle.Travel -> null
+        CancelStyle.Travel, CancelStyle.Transport, CancelStyle.Indoor, CancelStyle.Outdoor -> null
     }
 
     /** A level's place shown as a step from 1 to 5, spread out: three levels show as 1, 3 and 5. */
