@@ -174,6 +174,12 @@ class JieliBuds(
     }
 
     private fun handle(packet: Rcsp) {
+        // Twice a second the earbuds say how they are: [number, maker, product, version, address, ?, left, right, ?, ?].
+        if (packet.isNews && packet.opcode == 0xC2) {
+            val b = packet.body
+            if (b.size >= 6) batteries(b[b.size - 4], b[b.size - 3])
+            return
+        }
         log("<- $packet")
         if (packet.isAnswer && packet.body.size >= 2) {
             waiting[packet.body[1].toInt() and 0xFF]?.complete(packet)
@@ -221,11 +227,7 @@ class JieliBuds(
             val kind = blocks[at + 1].toInt() and 0xFF
             val data = blocks.copyOfRange(at + 2, at + 1 + size)
             when (kind) {
-                0 -> {
-                    // Each level with its top bit set when it's known.
-                    fun level(i: Int) = data.getOrNull(i)?.toInt()?.and(0xFF)?.takeIf { it and 0x80 != 0 }?.let { Battery((it and 0x7F).coerceAtMost(100)) }
-                    flow.update { it.copy(left = level(0), right = level(1), case = level(2)) }
-                }
+                0 -> if (data.size >= 2) batteries(data[0], data[1])
                 2 -> {
                     var k = 0
                     while (k + 3 <= data.size) {
@@ -239,6 +241,19 @@ class JieliBuds(
             }
             at += 1 + size
         }
+    }
+
+    /**
+     * Each earbud's level: the low seven bits are the percent, the top bit says it's charging in the case (seen on
+     * the Ultima: 0xE4 in the case, 0x64 in the ear, both 100 %). The case's own level isn't sent.
+     */
+    private fun batteries(left: Byte, right: Byte) {
+        fun level(b: Byte): Battery? {
+            val v = b.toInt() and 0xFF
+            val percent = v and 0x7F
+            return if (percent in 1..100) Battery(percent, charging = v and 0x80 != 0) else null
+        }
+        flow.update { it.copy(left = level(left), right = level(right)) }
     }
 
     private fun publish() {
