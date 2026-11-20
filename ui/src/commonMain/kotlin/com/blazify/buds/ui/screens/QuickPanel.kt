@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -55,8 +57,14 @@ fun QuickPanel(state: BudsState, change: (Change) -> Unit, openApp: () -> Unit) 
                 }
                 state.sound?.let { sound ->
                     ModeSwitch(sound.mode, modes = sound.options.modes) { change(Change.Mode(it)) }
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Scene.DEFAULTS.forEach { scene -> Choice(scene.name, scene.matches(state)) { scene.changes().forEach(change) } }
+                    // Every scene in sight: three to a line, as a small panel can't be scrolled sideways with a mouse.
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Scene.DEFAULTS.chunked(3).forEach { line ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                line.forEach { scene -> Choice(scene.name, scene.matches(state), Modifier.weight(1f), centered = true) { scene.changes().forEach(change) } }
+                                repeat(3 - line.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
                     }
                 }
             }
