@@ -10,6 +10,7 @@ import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.EqPreset
 import com.blazify.buds.core.model.Equalizer
+import com.blazify.buds.core.model.FitResult
 import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Multipoint
@@ -24,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -84,6 +86,7 @@ class MelodyBuds(
     private var customs: List<Melody.CustomEq>? = null
     private var taps: List<Melody.Tap>? = null
     private var firmware: String? = null
+    @kotlin.concurrent.Volatile private var fitWaiter: CompletableDeferred<FitResult?>? = null
 
     fun start() {
         if (runner != null) return
@@ -149,7 +152,7 @@ class MelodyBuds(
             model = MelodyModel.find(name, productId)
             noise = model?.modes?.let(::MelodyNoise)?.takeIf { !it.isEmpty && has(Melody.SET_NOISE) }
             log("product ${productId?.let { hex4(it shr 8) + hex2(it) }}: ${model?.name ?: "not in the list"}")
-            flow.update { it.copy(link = Link.Connected, model = model?.name ?: it.model, canRing = has(Melody.FIND) && model?.has(MelodyModel.NO_FIND) != true) }
+            flow.update { it.copy(link = Link.Connected, model = model?.name ?: it.model, canRing = has(Melody.FIND) && model?.has(MelodyModel.NO_FIND) != true, canFitTest = has(Melody.FIT_TEST)) }
             subscribe()
             readAll()
             val polling = scope.launch {
@@ -171,11 +174,15 @@ class MelodyBuds(
 
     private fun has(command: Int) = accepts?.has(command) == true
 
-    /** Asks for the news that keeps the screen current: battery, in-ear and noise mode, where the earbuds offer it. */
+    /**
+     * Asks for the news that keeps the screen current, where the earbuds offer it: battery, in-ear and noise mode, and
+     * the fit test's verdict on earbuds that have one, as it comes only as news.
+     */
     private suspend fun subscribe() {
         val offered = request(Melody.OFFERED)?.payload?.takeIf { it.size >= 2 && it[0].toInt() == 0 }
             ?.let { p -> p.copyOfRange(2, minOf(p.size, 2 + (p[1].toInt() and 0xFF))).map { it.toInt() and 0xFF } }
-        val codes = listOf(1, 2, 3).filter { offered == null || it in offered }
+        val wanted = listOf(1, 2, 3) + if (has(Melody.FIT_TEST)) listOf(Melody.NEWS_FIT) else emptyList()
+        val codes = wanted.filter { offered == null || it in offered }
         if (codes.isEmpty()) return
         if (has(Melody.SUBSCRIBE)) send(Melody.SUBSCRIBE, byteArrayOf(codes.size.toByte()) + codes.map { it.toByte() })
         else codes.forEach { send(Melody.SUBSCRIBE_ONE, byteArrayOf(it.toByte())) }
@@ -254,6 +261,7 @@ class MelodyBuds(
             Melody.NEWS -> when (message.at(0)) {
                 Melody.NEWS_BATTERY -> batteries(Melody.battery(p, 1))
                 Melody.NEWS_NOISE -> noiseNews(p, 1)
+                Melody.NEWS_FIT -> fitWaiter?.complete(Melody.fit(p, 1))
                 Melody.NEWS_GAME -> {
                     // Four older OPPO models put the state third.
                     val state = if (productId in LATE_GAME) message.at(3) else message.at(1)
@@ -595,6 +603,28 @@ class MelodyBuds(
         if (!flow.value.canRing || connection == null) return
         // One sound from both earbuds; there is no choosing a side.
         request(Melody.FIND, byteArrayOf(if (left || right) 1 else 0))
+    }
+
+    /**
+     * The earbuds play a tone and listen to how each tip seals, about nine seconds on OnePlus Buds 4; both must be in
+     * the ears. The verdict comes as news; after 15 seconds without one, or once it is in, the test is stopped as the
+     * earbuds' own app stops it when its sheet closes.
+     */
+    override suspend fun fitTest(): FitResult? {
+        if (connection == null || !has(Melody.FIT_TEST)) return null
+        val waiter = CompletableDeferred<FitResult?>()
+        fitWaiter = waiter
+        try {
+            val started = request(Melody.FIT_TEST, byteArrayOf(1)) ?: return null
+            if (started.at(0) != 0) {
+                log("fit test refused: ${started.at(0)}")
+                return null
+            }
+            return withTimeoutOrNull(15_000) { waiter.await() }
+        } finally {
+            fitWaiter = null
+            withContext(NonCancellable) { runCatching { send(Melody.FIT_TEST, byteArrayOf(0)) } }
+        }
     }
 
     override fun watch(on: Boolean) {

@@ -1,6 +1,7 @@
 package com.blazify.buds.core.oneplus
 
 import com.blazify.buds.core.model.Battery
+import com.blazify.buds.core.model.FitResult
 
 /**
  * The commands of the OnePlus / OPPO / realme protocol this app uses, and readers for their answers. Commands
@@ -31,6 +32,7 @@ object Melody {
     const val SET_TAPS = 0x0401
     const val SET_SWITCH = 0x0403
     const val SET_NOISE = 0x0404
+    const val FIT_TEST = 0x0405
     const val SET_EQ = 0x0406
     const val PHONE_STATE = 0x0413
     const val SAVE_EQ = 0x0418
@@ -51,6 +53,7 @@ object Melody {
     // News codes (the first byte of a 0x0204 payload).
     const val NEWS_BATTERY = 0x01
     const val NEWS_NOISE = 0x03
+    const val NEWS_FIT = 0x04
     const val NEWS_GAME = 0x05
 
     /** Ids asked of a model whose list gives no ids of its own, as HeyMelody does. */
@@ -145,6 +148,31 @@ object Melody {
     fun firmwareNumber(firmware: String?): Int {
         val parts = firmware?.split('.')?.map { it.toIntOrNull() ?: 0 }.orEmpty()
         return if (parts.size == 3) parts.take(2).filter { it != 0 }.minOrNull() ?: 0 else parts.firstOrNull() ?: 0
+    }
+
+    /**
+     * The fit test's verdict, `<part> <seal>` pairs from [from] (part 1 left, 2 right): 1 a good seal, 0 average and
+     * 6 poor, which both mean the earbud wants settling or another tip, as the earbuds' own app says; anything else,
+     * or a part left out, is no verdict for that side. Null when neither side has one.
+     */
+    fun fit(news: ByteArray, from: Int): FitResult? {
+        fun seal(part: Int): Boolean? {
+            var at = from
+            while (at + 1 < news.size) {
+                if (news[at].toInt() and 0xFF == part) {
+                    return when (news[at + 1].toInt() and 0xFF) {
+                        1 -> true
+                        0, 6 -> false
+                        else -> null
+                    }
+                }
+                at += 2
+            }
+            return null
+        }
+        val left = seal(1)
+        val right = seal(2)
+        return if (left == null && right == null) null else FitResult(left, right)
     }
 
     /** Switches: `<count>` then `<id> <value>` pairs; only the ids the earbuds have come back. */

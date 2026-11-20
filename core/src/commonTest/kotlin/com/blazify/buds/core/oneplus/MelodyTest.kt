@@ -5,6 +5,7 @@ import com.blazify.buds.core.catalog.Family
 import com.blazify.buds.core.link.Device
 import com.blazify.buds.core.model.Battery
 import com.blazify.buds.core.model.CancelStyle
+import com.blazify.buds.core.model.FitResult
 import com.blazify.buds.core.model.ListeningMode
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -215,5 +216,18 @@ class MelodyTest {
             model.presets
             model.touchRows
         }
+    }
+
+    @Test
+    fun readsTheFitTest() {
+        // OnePlus Buds 4, both sealing well, as QuickBuds recorded it.
+        assertEquals(FitResult(true, true), Melody.fit(one("AA 0C 00 00 04 02 FF 05 00 04 01 01 02 01").payload, 1))
+        // Average and poor both ask for the earbud to be settled or another tip.
+        assertEquals(FitResult(false, false), Melody.fit(hex("04 01 00 02 06"), 1))
+        // An error code, or a side left out, is no verdict for that side; none at all is no result.
+        assertEquals(FitResult(null, true), Melody.fit(hex("04 01 09 02 01"), 1))
+        assertEquals(FitResult(true, null), Melody.fit(hex("04 01 01"), 1))
+        assertNull(Melody.fit(hex("04"), 1))
+        assertTrue(Melody.Accepts.of(hex("00 FF 77 5A EA 67 0E 20 07"))!!.has(Melody.FIT_TEST))
     }
 }

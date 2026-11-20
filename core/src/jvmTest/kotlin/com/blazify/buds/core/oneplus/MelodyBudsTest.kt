@@ -7,6 +7,7 @@ import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.Equalizer
+import com.blazify.buds.core.model.FitResult
 import com.blazify.buds.core.model.Link
 import com.blazify.buds.core.model.ListeningMode
 import com.blazify.buds.core.model.Press
@@ -38,6 +39,8 @@ class MelodyBudsTest {
         var taps = "00 12 01 01 01 01 01 01 02 01 01 01 03 00 01 01 04 08 01 01 06 00 01 01 05 07 02 01 01 00 02 01 02 01 02 01 03 00 " +
             "02 01 04 08 02 01 06 00 02 01 05 07 01 06 02 00 01 06 03 00 01 06 06 00 02 06 02 00 02 06 03 00 02 06 06 00"
         val written = mutableListOf<MelodyMessage>()
+        /** What the fit test reports after it starts: left good, right poor, as `04 <part> <seal>...` news. */
+        var fit = "04 01 01 02 06"
 
         override fun read(into: ByteArray): Int {
             while (!closed) {
@@ -77,6 +80,10 @@ class MelodyBudsTest {
                     }
                     0x0403 -> {
                         switches[m.at(0)] = m.at(1)
+                        hex("00")
+                    }
+                    0x0405 -> {
+                        if (m.at(0) == 1) out.add(MelodyFrame.encode(Melody.NEWS, 0xFF, hex(fit)))
                         hex("00")
                     }
                     0x0404 -> {
@@ -144,6 +151,21 @@ class MelodyBudsTest {
             buds.apply(Change.Preset(Equalizer.CUSTOM))
             val saved = synchronized(fake.written) { fake.written.last { it.command == Melody.SAVE_EQ } }
             assertEquals(4, saved.at(3))
+        }
+    }
+
+    @Test
+    fun theFitTestGivesEachSidesSeal() {
+        val fake = FakeBuds4()
+        withBuds(fake) { buds ->
+            assertEquals(true, buds.until { it.isReady && it.firmware != null }.canFitTest)
+            // Fit news is asked for along with battery, in-ear and noise mode.
+            val subscribed = synchronized(fake.written) { fake.written.first { it.command == Melody.SUBSCRIBE } }
+            assertEquals(listOf(4, 1, 2, 3, 4), subscribed.payload.map { it.toInt() })
+            assertEquals(FitResult(left = true, right = false), buds.fitTest())
+            // Started, then stopped once the verdict was in.
+            val sent = synchronized(fake.written) { fake.written.filter { it.command == Melody.FIT_TEST }.map { it.at(0) } }
+            assertEquals(listOf(1, 0), sent)
         }
     }
 
