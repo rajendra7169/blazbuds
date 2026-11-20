@@ -111,7 +111,10 @@ fun FindScreen(state: BudsState, ring: (Boolean, Boolean) -> Unit, back: () -> U
                 right = true
             }
         }
-        Hint("The sound plays through the earbuds like music, so they must be connected and out of the case. Bring your phone closer if you hear nothing.")
+        Hint(
+            if (state.canRing) "The earbuds make the sound themselves, so it plays even when they aren't playing music. They must be connected and out of the case."
+            else "The sound plays through the earbuds like music, so they must be connected and out of the case. Bring your phone closer if you hear nothing.",
+        )
     }
 }
 

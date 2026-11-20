@@ -196,7 +196,15 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
 
     val canFind: Boolean get() = platform.canFind
 
-    fun findSound(left: Boolean, right: Boolean) = platform.findSound(left, right)
+    /**
+     * Find my earbuds: earbuds that can ring by themselves do (louder, and heard even when nothing plays to them);
+     * the rest play the phone's or computer's sound, like music.
+     */
+    fun findSound(left: Boolean, right: Boolean) {
+        val buds = chosen.value
+        if (buds != null && buds.state.value.canRing) scope.launch { runCatching { buds.ring(left, right) } }
+        else platform.findSound(left, right)
+    }
 
     fun playSound(samples: ShortArray, loop: Boolean) = platform.playSound(samples, loop)
 
