@@ -121,8 +121,9 @@ class NothingTest {
 
     @Test
     fun aFlatCurveHasNoOverallCut() {
+        // Minus zero, as ear (web), BudsLink, swift-nothing-ear and Nothing Linux all write it.
         val bytes = NothingCommands.curve(0.0, -1.0, 0.0, NothingCurve(140f, 0.8f, 980f, 0.7f, 6900f, 1.0f))
-        assertContentEquals(hex("03 00 00 00 00"), bytes.copyOfRange(0, 5))
+        assertContentEquals(hex("03 00 00 00 80"), bytes.copyOfRange(0, 5))
     }
 
     @Test

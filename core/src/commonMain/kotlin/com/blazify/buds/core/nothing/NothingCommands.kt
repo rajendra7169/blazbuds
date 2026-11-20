@@ -1,6 +1,7 @@
 package com.blazify.buds.core.nothing
 
 import com.blazify.buds.core.model.Battery
+import kotlin.math.pow
 
 /**
  * The commands Blazbuds sends to Nothing and CMF earbuds, and how to read and write what they carry. The numbers and
@@ -134,8 +135,8 @@ object NothingCommands {
     fun curve(bass: Double, mid: Double, treble: Double, shape: NothingCurve): ByteArray {
         fun whole(db: Double) = kotlin.math.round(db.coerceIn(-6.0, 6.0)).toFloat()
         val (b, m, t) = Triple(whole(bass), whole(mid), whole(treble))
-        val peak = maxOf(b, m, t)
-        val total = if (peak > 0f) -peak else 0f
+        // Minus zero when nothing is boosted, as Nothing's app, ear (web) and BudsLink all send it.
+        val total = -maxOf(0f, b, m, t)
         val out = ArrayList<Byte>()
         out += 3
         out += float(total)
@@ -162,6 +163,38 @@ object NothingCommands {
         }
         return if (found == 0) null else gains.toList()
     }
+
+    /**
+     * A curve of any other length (one of the person's saved sounds, most often eight bands) as the earbuds' bass,
+     * mid and treble: each is the average of the bands that fall in its part, the bands taken as spread evenly from
+     * 100 Hz to 12.8 kHz the way the app's eight-band sounds are. Bass is below 300 Hz, treble from 2.4 kHz up.
+     */
+    fun threeBands(gains: List<Double>): List<Double> {
+        if (gains.size == 3) return gains
+        if (gains.isEmpty()) return listOf(0.0, 0.0, 0.0)
+        val at = spread(gains.size)
+        fun part(from: Double, to: Double, middle: Double): Double {
+            val inside = gains.indices.filter { at[it] >= from && at[it] < to }
+            return if (inside.isNotEmpty()) inside.sumOf { gains[it] } / inside.size else gainAt(gains, middle)
+        }
+        return listOf(part(0.0, 300.0, 140.0), part(300.0, 2_400.0, 980.0), part(2_400.0, Double.MAX_VALUE, 5_000.0))
+    }
+
+    /** The gain a curve of [gains] (spread as in [threeBands]) has at [hz], read along a straight line between bands. */
+    fun gainAt(gains: List<Double>, hz: Double): Double {
+        if (gains.isEmpty()) return 0.0
+        if (gains.size == 1) return gains[0]
+        val at = spread(gains.size)
+        if (hz <= at.first()) return gains.first()
+        if (hz >= at.last()) return gains.last()
+        val i = at.indexOfLast { it <= hz }
+        val share = kotlin.math.ln(hz / at[i]) / kotlin.math.ln(at[i + 1] / at[i])
+        return gains[i] + (gains[i + 1] - gains[i]) * share
+    }
+
+    /** Where [count] bands sit when spread evenly, on a log scale, from 100 Hz to 12.8 kHz. */
+    private fun spread(count: Int): List<Double> =
+        if (count == 1) listOf(1_000.0) else List(count) { 100.0 * 128.0.pow(it / (count - 1.0)) }
 
     private fun float(f: Float): List<Byte> {
         val bits = f.toRawBits()

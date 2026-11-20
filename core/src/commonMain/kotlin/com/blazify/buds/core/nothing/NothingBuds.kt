@@ -346,8 +346,8 @@ class NothingBuds(
             }
             is Change.Bands -> {
                 val shape = known?.curve ?: return
-                val gains = change.left.map { kotlin.math.round(it.coerceIn(Equalizer.MIN_DB, Equalizer.MAX_DB)) }
-                if (gains.size < 3) return
+                // A saved sound of another length is read as bass, mid and treble.
+                val gains = C.threeBands(change.left).map { kotlin.math.round(it.coerceIn(Equalizer.MIN_DB, Equalizer.MAX_DB)) }
                 val custom = C.customPreset(known.eq)
                 bands = gains.take(3)
                 val switching = eqMode != custom

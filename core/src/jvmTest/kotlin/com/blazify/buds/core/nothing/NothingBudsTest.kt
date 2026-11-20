@@ -151,6 +151,17 @@ class NothingBudsTest {
     }
 
     @Test
+    fun anEightBandSavedSoundGoesOutAsBassMidTreble() {
+        val ear = FakeEar(nothingEar)
+        withEar(ear) { buds ->
+            buds.apply(Change.Bands(listOf(5.0, 3.0, 0.0, 1.0, 2.0, -1.0, -2.0, -3.0)))
+            assertEquals(listOf(4.0, 1.0, -2.0), buds.state.value.equalizer?.left)
+        }
+        val curve = ear.writes.first { it.first == NothingCommands.SET_CURVE }.second
+        assertContentEquals(NothingCommands.curve(4.0, 1.0, -2.0, NothingCurve(140f, 0.8f, 980f, 0.7f, 3400f, 1.0f)), curve)
+    }
+
+    @Test
     fun wakesEarbudsThatAskForIt() {
         val ear = FakeEar(nothingEar, needsWaking = true)
         withEar(ear) { buds -> assertEquals("Nothing Ear", buds.state.value.model) }

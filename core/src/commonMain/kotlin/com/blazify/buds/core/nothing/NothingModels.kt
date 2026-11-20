@@ -77,7 +77,8 @@ data class NothingModel(
                 taps = mapOf(Press.Double to listOf(NX, PR, VA), Press.Triple to listOf(NX, PR, VA, N), Press.Long to listOf(NC, VA, UP, DN, N)),
             ),
             NothingModel("B174", "Nothing Ear (open)", noise = emptySet(), curve = EAR, inEar = false, taps = OPEN_TAPS),
-            NothingModel("B190", "Nothing Ear (3a)", bass = true, spatial = true),
+            // Its own three-band sound sits where the Ear's does (swift-nothing-ear, BudsLink).
+            NothingModel("B190", "Nothing Ear (3a)", curve = EAR, bass = true, spatial = true),
             NothingModel("B170", "Nothing Headphone (1)", NothingForm.Headphones, curve = WIDE, bass = true, spatial = true),
             NothingModel("B163", "CMF Buds Pro", noise = setOf(NothingNoise.HIGH, NothingNoise.MID, NothingNoise.LOW, NothingNoise.OFF, NothingNoise.TRANSPARENCY), curve = EAR, taps = mapOf(Press.Double to listOf(PP, PR, NX, VA), Press.Triple to listOf(PR, NX, VA), Press.Long to listOf(NC, VA))),
             NothingModel("B164", "CMF Neckband Pro", NothingForm.Neckband, curve = CMF, bass = true, spatial = true, inEar = false),
