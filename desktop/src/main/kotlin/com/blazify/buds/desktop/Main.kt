@@ -332,7 +332,7 @@ private fun app(args: Array<String>) = application {
         ) {
             // Never narrower or shorter than the phone layout, so nothing breaks.
             window.minimumSize = Dimension(360, 560)
-            androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true) {
+            androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true, androidx.compose.ui.platform.LocalUriHandler provides LinkOpener) {
                 if (hub != null) BudsApp(hub, prefs) else BudsApp(demoBuds!!, prefs)
             }
         }
@@ -369,5 +369,23 @@ private fun app(args: Array<String>) = application {
     }
 
     if (!shown && !trayWorks) exitApplication()
+}
+
+/**
+ * Opens links in the browser. Java's own way does nothing on some Linux desktops, so the system's opener is the
+ * fallback (xdg-open on Linux, start on Windows).
+ */
+private object LinkOpener : androidx.compose.ui.platform.UriHandler {
+    override fun openUri(uri: String) {
+        val opened = runCatching {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(java.net.URI(uri))
+                true
+            } else false
+        }.getOrDefault(false)
+        if (opened) return
+        val windows = System.getProperty("os.name").orEmpty().startsWith("Windows")
+        runCatching { ProcessBuilder(if (windows) listOf("cmd", "/c", "start", "", uri) else listOf("xdg-open", uri)).start() }
+    }
 }
 

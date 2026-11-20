@@ -142,6 +142,8 @@ class Shots {
                     BudsApp(DemoBuds(), prefs(theme))
                 }
             }
+            shot(dir, "settings-$look", 440, 2000) { BudsApp(DemoBuds(), prefs(theme), Place.Settings) }
+            shot(dir, "changelog-$look", 440, 1100) { BudsApp(DemoBuds(), prefs(theme), Place.Changelog) }
             shot(dir, "panel-$look", 360, 460) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) {
