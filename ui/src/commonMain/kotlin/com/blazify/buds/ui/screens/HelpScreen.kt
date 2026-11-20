@@ -97,7 +97,7 @@ private fun details(state: BudsState?, version: String, look: String, withLog: B
 }
 
 /** Opens a new issue on GitHub with the title and text filled in. */
-private fun issueUrl(title: String, body: String, label: String): String {
+private fun issueUrl(title: String, body: String, label: String, form: String): String {
     fun enc(s: String) = buildString {
         s.encodeToByteArray().forEach { b ->
             val c = b.toInt() and 0xFF
@@ -105,7 +105,8 @@ private fun issueUrl(title: String, body: String, label: String): String {
             if (ch.isLetterOrDigit() && c < 128 || ch in "-_.~") append(ch) else append('%').append(c.toString(16).uppercase().padStart(2, '0'))
         }
     }
-    return "$REPO_URL/issues/new?labels=${enc(label)}&title=${enc(title)}&body=${enc(body)}"
+    // Naming the form keeps GitHub on it; the text given replaces the form's own.
+    return "$REPO_URL/issues/new?template=${enc(form)}&labels=${enc(label)}&title=${enc(title)}&body=${enc(body)}"
 }
 
 @Composable
@@ -144,7 +145,7 @@ private fun ReportPanel(state: BudsState?, version: String) {
         Choice("Report", false, icon = BudsIcons.Send) {
             val body = "**What happened**\n\n\n**What you expected**\n\n\n**Details** (paste what Blazbuds copied here)\n\n" +
                 details(state, version, look, withLog = false)
-            uri.openUri(issueUrl("Problem: ", body, "bug"))
+            uri.openUri(issueUrl("Problem: ", body, "bug", "problem.md"))
         }
     }
 }
@@ -198,7 +199,7 @@ private fun RequestPanel(state: BudsState?, version: String) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice("Send request", ready, icon = BudsIcons.Send) {
-                if (ready) uri.openUri(issueUrl("Earbuds request: ${brand.ifBlank { name }}", text, "device request"))
+                if (ready) uri.openUri(issueUrl("Earbuds request: ${brand.ifBlank { name }}", text, "device request", "earbuds-request.md"))
             }
             Choice(if (copied) "Copied" else "Copy instead", false, icon = if (copied) BudsIcons.Check else BudsIcons.Copy) {
                 clipboard.setText(AnnotatedString(text))
