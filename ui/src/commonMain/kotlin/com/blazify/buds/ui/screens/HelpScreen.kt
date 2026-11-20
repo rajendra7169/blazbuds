@@ -65,7 +65,7 @@ fun SupportScreen(state: BudsState?, version: String, back: () -> Unit) {
     PlaceFrame("Help", back) {
         Panel(padding = 8.dp) {
             QUESTIONS.forEachIndexed { i, (question, answer) ->
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { open = if (open == i) -1 else i }.padding(10.dp)) {
+                Column(Modifier.fillMaxWidth().press { open = if (open == i) -1 else i }.padding(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(question, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
                         Icon(if (open == i) BudsIcons.Close else BudsIcons.Plus, null, tint = palette.muted, modifier = Modifier.size(18.dp))
@@ -246,7 +246,7 @@ private fun Field(value: String, change: (String) -> Unit, label: String, hint: 
 @Composable
 private fun HueDot(icon: androidx.compose.ui.graphics.vector.ImageVector, hue: androidx.compose.ui.graphics.Color) {
     androidx.compose.foundation.layout.Box(
-        Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape).background(hue),
+        Modifier.size(40.dp).background(hue, androidx.compose.foundation.shape.CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))

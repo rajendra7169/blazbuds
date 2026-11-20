@@ -261,13 +261,13 @@ fun AmbientLevel(level: Int, steps: Int, onPick: (Int) -> Unit) {
 fun SwitchRow(icon: ImageVector?, title: String, on: Boolean, onChange: (Boolean) -> Unit, detail: String? = null, enabled: Boolean = true, color: androidx.compose.ui.graphics.Color? = null) {
     val palette = LocalPalette.current
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press(enabled = enabled, role = Role.Switch) { onChange(!on) }
+        Modifier.fillMaxWidth().press(enabled = enabled, role = Role.Switch) { onChange(!on) }
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (icon != null && color != null) {
-            Box(Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(36.dp).background(color, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
             }
         } else if (icon != null) {

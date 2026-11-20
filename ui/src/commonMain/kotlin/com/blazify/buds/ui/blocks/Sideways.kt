@@ -132,7 +132,7 @@ private fun ArrowButton(icon: ImageVector, label: String, enabled: Boolean, onCl
     val palette = LocalPalette.current
     val shade by animateFloatAsState(if (enabled) 1f else 0.35f, label = "arrow")
     Box(
-        Modifier.size(32.dp).alpha(shade).clip(CircleShape).background(palette.raised)
+        Modifier.size(32.dp).alpha(shade).background(palette.raised, CircleShape)
             .press(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

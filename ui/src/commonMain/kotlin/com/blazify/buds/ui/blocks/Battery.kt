@@ -81,7 +81,7 @@ fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: and
                     modifier = Modifier.size(ring * 0.42f).graphicsLayer { scaleX = if (mirrored) -1f else 1f },
                 )
                 if (battery?.charging == true) {
-                    Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.accent), contentAlignment = Alignment.Center) {
+                    Box(Modifier.align(Alignment.BottomEnd).size(18.dp).background(palette.accent, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
                         Icon(BudsIcons.Bolt, null, tint = palette.onAccent, modifier = Modifier.size(12.dp))
                     }
                 }

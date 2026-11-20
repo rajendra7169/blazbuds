@@ -124,7 +124,7 @@ fun PresetTile(
         )
         if (corner != null) Box(Modifier.align(Alignment.TopEnd).padding(4.dp)) { corner() }
         if (chosen) {
-            Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(24.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.92f)), contentAlignment = Alignment.Center) {
+            Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(24.dp).background(Color.White.copy(alpha = 0.92f), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(BudsIcons.Check, "Chosen", tint = from, modifier = Modifier.size(16.dp))
             }
         }

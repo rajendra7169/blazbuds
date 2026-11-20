@@ -180,7 +180,7 @@ private fun DeviceRow(row: Pair2, chosen: Boolean, onClick: () -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(row.device.name, style = MaterialTheme.typography.titleMedium, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.size(8.dp).clip(CircleShape).background(if (row.device.connected) palette.good else palette.line))
+                Box(Modifier.size(8.dp).background(if (row.device.connected) palette.good else palette.line, CircleShape))
                 Text(
                     if (row.device.connected) "Connected" + (row.battery?.let { " · ${it.percent}%" } ?: "") else "Not connected",
                     style = MaterialTheme.typography.bodyMedium,
@@ -234,7 +234,7 @@ fun ConnectGuideScreen(name: String, look: com.blazify.buds.ui.SystemLook, openS
         Panel {
             steps.forEachIndexed { i, step ->
                 Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.size(26.dp).clip(CircleShape).background(palette.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(26.dp).background(palette.accent.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
                         Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = palette.accent)
                     }
                     Text(step, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
@@ -282,7 +282,7 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
             }
             brand.steps.forEachIndexed { i, step ->
                 Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.size(26.dp).clip(CircleShape).background(palette.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(26.dp).background(palette.accent.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
                         Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = palette.accent)
                     }
                     Text(step, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))

@@ -334,7 +334,7 @@ private fun <T> TileGrid(items: List<T>, tile: @Composable (Int, T, Modifier) ->
 @Composable
 private fun TileAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(30.dp).clip(androidx.compose.foundation.shape.CircleShape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.18f)).press(onClick = onClick),
+        Modifier.size(30.dp).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.18f), androidx.compose.foundation.shape.CircleShape).press(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, label, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(16.dp))

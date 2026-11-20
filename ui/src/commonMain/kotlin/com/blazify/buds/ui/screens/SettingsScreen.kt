@@ -106,9 +106,9 @@ private fun ThemeTile(choice: ThemeChoice, label: String, icon: ImageVector, sel
         Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(10.dp)).background(if (choice == ThemeChoice.Dark) dark else light)) {
             if (choice == ThemeChoice.System) Box(Modifier.fillMaxWidth(0.5f).fillMaxHeight().align(Alignment.CenterEnd).background(dark))
             Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Box(Modifier.width(28.dp).height(6.dp).clip(CircleShape).background(palette.accent))
-                Box(Modifier.width(40.dp).height(5.dp).clip(CircleShape).background(Color(0x55888888)))
-                Box(Modifier.width(22.dp).height(5.dp).clip(CircleShape).background(Color(0x55888888)))
+                Box(Modifier.width(28.dp).height(6.dp).background(palette.accent, CircleShape))
+                Box(Modifier.width(40.dp).height(5.dp).background(Color(0x55888888), CircleShape))
+                Box(Modifier.width(22.dp).height(5.dp).background(Color(0x55888888), CircleShape))
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -226,7 +226,7 @@ private fun OtherAppsPanel() {
         SectionTitle("More apps by the developer", Modifier.padding(start = 8.dp, top = 8.dp))
         OTHER_APPS.forEach { app ->
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { uri.openUri(app.url) }.padding(8.dp),
+                Modifier.fillMaxWidth().press { uri.openUri(app.url) }.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -243,7 +243,7 @@ private fun OtherAppsPanel() {
                 Icon(BudsIcons.OpenLink, null, tint = palette.muted, modifier = Modifier.size(18.dp))
             }
         }
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { uri.openUri(REPO_URL) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().press { uri.openUri(REPO_URL) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Blazbuds' own code", style = MaterialTheme.typography.bodyMedium, color = palette.accent, modifier = Modifier.weight(1f))
             Icon(BudsIcons.OpenLink, null, tint = palette.accent, modifier = Modifier.size(16.dp))
         }
@@ -255,11 +255,11 @@ private fun OtherAppsPanel() {
 fun SettingsRow(icon: ImageVector, title: String, detail: String, hue: Color, onClick: () -> Unit) {
     val palette = LocalPalette.current
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press(onClick = onClick).padding(vertical = 6.dp),
+        Modifier.fillMaxWidth().press(onClick = onClick).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(36.dp).clip(CircleShape).background(hue), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).background(hue, CircleShape), contentAlignment = Alignment.Center) {
             Icon(icon, null, tint = Color.White, modifier = Modifier.size(18.dp))
         }
         Column(Modifier.weight(1f)) {

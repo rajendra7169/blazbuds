@@ -222,7 +222,7 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                                 "Play again",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = palette.accent,
-                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).press { turn++ }.padding(10.dp),
+                                modifier = Modifier.press { turn++ }.padding(10.dp),
                             )
                         }
                     }
@@ -257,7 +257,7 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                                 "No difference",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = palette.accent,
-                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).press {
+                                modifier = Modifier.press {
                                     test.choose(null)
                                     if (test.done) stage = Stage.Result
                                 }.padding(10.dp),
@@ -300,7 +300,7 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
                             "Test again",
                             style = MaterialTheme.typography.labelLarge,
                             color = palette.accent,
-                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).press {
+                            modifier = Modifier.press {
                                 sound.stop()
                                 stage = Stage.Intro
                             }.padding(10.dp),
@@ -316,7 +316,7 @@ fun EarPrintScreen(state: BudsState, change: (Change) -> Unit, back: () -> Unit,
 private fun StepLine(number: Int, title: String, detail: String) {
     val palette = LocalPalette.current
     Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-        Box(Modifier.size(28.dp).clip(CircleShape).background(palette.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(28.dp).background(palette.accent.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
             Text("$number", style = MaterialTheme.typography.labelLarge, color = palette.accent)
         }
         Column(Modifier.weight(1f)) {
@@ -421,7 +421,7 @@ private fun TwoEarCurve(left: List<Double>, right: List<Double>) {
 private fun Legend(color: Color, label: String) {
     val palette = LocalPalette.current
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(width = 16.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(color))
+        Box(Modifier.size(width = 16.dp, height = 4.dp).background(color, RoundedCornerShape(2.dp)))
         Text(label, style = MaterialTheme.typography.labelSmall, color = palette.muted)
     }
 }

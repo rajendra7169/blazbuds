@@ -81,8 +81,9 @@ fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composab
     Column(
         modifier
             .fillMaxWidth()
-            .clip(CardShape)
-            .background(palette.card)
+            // The card drawn round rather than clipped round: nothing in it reaches the corners, and on slower phones
+            // clipping every card to its rounded shape costs the graphics chip a lot while scrolling.
+            .background(palette.card, CardShape)
             .border(1.dp, palette.line.copy(alpha = if (palette.dark) 0.6f else 1f), CardShape)
             .padding(padding),
         content = content,
@@ -97,7 +98,7 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, action: String? = 
         Text(text, style = MaterialTheme.typography.titleMedium, color = palette.text, modifier = Modifier.weight(1f))
         if (action != null) {
             Row(
-                Modifier.clip(RoundedCornerShape(12.dp)).press(onClick = onAction).padding(horizontal = 8.dp, vertical = 6.dp),
+                Modifier.press(onClick = onAction).padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(action, style = MaterialTheme.typography.labelLarge, color = palette.accent)
@@ -150,7 +151,7 @@ fun LinkRow(icon: ImageVector, title: String, detail: String?, modifier: Modifie
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // A coloured circle with a white symbol, each kind of thing in its own colour.
-        Box(Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color ?: palette.accent), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).background(color ?: palette.accent, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
             Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
         }
         Column(Modifier.weight(1f)) {

@@ -73,11 +73,11 @@ private fun NavButton(item: NavItem, chosen: Boolean, modifier: Modifier, onClic
     val pill by animateColorAsState(if (chosen) palette.accent.copy(alpha = if (palette.dark) 0.20f else 0.14f) else palette.card.copy(alpha = 0f), tween(Motion.NORMAL), label = "pill")
     val ink by animateColorAsState(if (chosen) palette.accent else palette.muted, tween(Motion.NORMAL), label = "ink")
     Column(
-        modifier.clip(RoundedCornerShape(16.dp)).press(role = Role.Tab, onClick = onClick),
+        modifier.press(role = Role.Tab, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.width(56.dp).height(30.dp).clip(RoundedCornerShape(15.dp)).background(pill), contentAlignment = Alignment.Center) {
+        Box(Modifier.width(56.dp).height(30.dp).background(pill, RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) {
             Icon(item.icon, null, tint = ink, modifier = Modifier.size(22.dp))
         }
         Text(item.label, style = MaterialTheme.typography.labelMedium, color = if (chosen) palette.text else palette.muted, modifier = Modifier.padding(top = 4.dp))

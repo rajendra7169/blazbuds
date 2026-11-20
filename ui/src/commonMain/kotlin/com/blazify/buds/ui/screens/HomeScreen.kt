@@ -121,7 +121,7 @@ private fun TopBar(state: BudsState, open: (Place) -> Unit) {
     val palette = LocalPalette.current
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).press { open(Place.Earbuds) }.padding(4.dp),
+            Modifier.weight(1f).press { open(Place.Earbuds) }.padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {

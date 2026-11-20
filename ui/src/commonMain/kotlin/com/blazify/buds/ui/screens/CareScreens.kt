@@ -134,7 +134,7 @@ private fun RingButton(label: String, on: Boolean, reachable: Boolean, onClick: 
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                Modifier.size(96.dp).clip(CircleShape).background(fill).press(enabled = reachable, role = Role.Switch, onClick = onClick),
+                Modifier.size(96.dp).background(fill, CircleShape).press(enabled = reachable, role = Role.Switch, onClick = onClick),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(BudsIcons.Earbuds, null, tint = if (on) palette.onAccent else palette.text, modifier = Modifier.size(40.dp))
