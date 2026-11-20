@@ -218,7 +218,8 @@ sealed interface Piece {
     /** One group of touch settings, laid out by [layout]. */
     data class Buttons(val layout: ButtonLayout) : Piece {
         override fun read(r: ByteReader, p: Parsed) {
-            p.buttons += layout.order.map { slot ->
+            p.buttons += layout.order.mapIndexed { i, slot ->
+                layout.gaps[i]?.let { r.ints(it) }
                 val setup = layout.setup(slot.kind)
                 val enabled = if (setup.enabled == EnabledKind.None) null else r.u8()
                 ButtonStatus(enabled, r.u8())

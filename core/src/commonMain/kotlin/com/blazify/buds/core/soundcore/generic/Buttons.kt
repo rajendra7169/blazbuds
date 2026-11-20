@@ -67,6 +67,11 @@ data class ButtonLayout(
     /** The "on" byte is there but not used: a touch that does nothing has action 0xF instead. */
     val ignoreEnabled: Boolean = false,
     val actionCommand: Int = SET_ACTION,
+    /**
+     * Bytes the earbuds put between two touches, by the place in [order] of the touch that follows them (the Liberty 4
+     * keeps its long presses, which can't be changed, between its double and triple taps).
+     */
+    val gaps: Map<Int, Int> = emptyMap(),
 ) {
     fun setup(kind: PressKind): PressSetup = presses.first { it.kind == kind }
 
