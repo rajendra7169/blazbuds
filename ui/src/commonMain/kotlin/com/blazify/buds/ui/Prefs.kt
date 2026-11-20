@@ -58,6 +58,15 @@ class Prefs(private val store: Settings = Settings()) {
         store.putBoolean(REDUCE_MOTION, on)
     }
 
+    /** Whether a card greets the earbuds as they connect (on a phone, over other apps once that is allowed). */
+    var connectPopup by mutableStateOf(store.getBoolean(CONNECT_POPUP, true))
+        private set
+
+    fun connectPopup(on: Boolean) {
+        connectPopup = on
+        store.putBoolean(CONNECT_POPUP, on)
+    }
+
     /** Whether the app may ask GitHub, now and then, if a newer Blazbuds is out. */
     var checkUpdates by mutableStateOf(store.getBoolean(CHECK_UPDATES, true))
         private set
@@ -127,7 +136,9 @@ class Prefs(private val store: Settings = Settings()) {
         store.putString(DISMISSED_UPDATE, version)
     }
 
-    private companion object {
+    companion object {
+        /** Read by the phone's connection listener, outside the app. */
+        const val CONNECT_POPUP = "connect_popup"
         const val CHECK_UPDATES = "check_updates"
         const val DISMISSED_UPDATE = "dismissed_update"
         const val KNOWN_UPDATE = "known_update"
@@ -149,6 +160,14 @@ class Prefs(private val store: Settings = Settings()) {
 }
 
 val LocalPrefs = staticCompositionLocalOf<Prefs> { error("No prefs") }
+
+/** Showing over other apps, where a system asks for it (Android): whether it is allowed, and the way to allow it. */
+interface OverApps {
+    fun allowed(): Boolean
+    fun ask()
+}
+
+val LocalOverApps = staticCompositionLocalOf<OverApps?> { null }
 
 /** Which system the app runs on, for the right download and the right words. */
 val LocalLook = staticCompositionLocalOf { SystemLook.Android }

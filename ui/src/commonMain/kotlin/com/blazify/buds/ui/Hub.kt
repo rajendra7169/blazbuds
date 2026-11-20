@@ -32,6 +32,9 @@ interface Platform {
     /** Whether Bluetooth is switched on; when it is off the system lists no paired devices at all. */
     fun bluetoothOn(): Boolean = true
 
+    /** Showing over other apps (the connect card on a phone); null where no permission is needed. */
+    val overApps: OverApps? get() = null
+
     /** Whether this platform can open its Bluetooth settings for pairing. */
     val hasBluetoothSettings: Boolean get() = false
 
@@ -105,6 +108,8 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
         platform.watchBatteryInBackground()
     }
     val look: SystemLook get() = platform.look
+
+    val overApps: OverApps? get() = platform.overApps
 
     /** Every pair that has connected, newest first: address to name. */
     private val known = linkedMapOf<String, String>().apply {

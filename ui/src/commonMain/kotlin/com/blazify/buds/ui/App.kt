@@ -73,7 +73,7 @@ private val TABS = listOf(
 @Composable
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home, watchUpdates: Boolean = true) {
     BudsTheme(prefs.theme) {
-        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalLook provides hub.look, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
+        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalLook provides hub.look, LocalOverApps provides hub.overApps, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
             LocalRoomEar provides remember(hub) {
                 object : RoomEar {
                     override fun listen(onLevel: (Double) -> Unit) = hub.listenToRoom(onLevel)

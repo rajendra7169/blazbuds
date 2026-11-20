@@ -76,6 +76,7 @@ fun SettingsScreen(back: (() -> Unit)?, openChangelog: () -> Unit = {}) = PlaceF
         Spacer(Modifier.height(12.dp))
         SwitchRow(BudsIcons.Moon, "Less motion", prefs.reduceMotion, { prefs.reduceMotion(it) }, detail = "Fades instead of slides, and the earbuds hold still", color = Hue.Indigo)
     }
+    ConnectPanel()
     UpdatesPanel(openChangelog)
     DeveloperPanel()
     OtherAppsPanel()
@@ -280,3 +281,33 @@ fun SettingsRow(icon: ImageVector, title: String, detail: String, hue: Color, on
         Icon(BudsIcons.Forward, null, tint = palette.muted, modifier = Modifier.size(18.dp))
     }
 }
+
+/** The card that greets the earbuds as they connect: on or off, and on a phone the permission it needs. */
+@Composable
+private fun ConnectPanel() {
+    val prefs = LocalPrefs.current
+    val over = com.blazify.buds.ui.LocalOverApps.current
+    // Looked at again every second while here, so coming back from the system's page shows the new answer.
+    var allowed by remember { mutableStateOf(over?.allowed() ?: true) }
+    androidx.compose.runtime.LaunchedEffect(over) {
+        while (over != null) {
+            allowed = over.allowed()
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+    Panel {
+        SectionTitle("When they connect")
+        SwitchRow(
+            BudsIcons.Earbuds, "Show the case and battery", prefs.connectPopup, { prefs.connectPopup(it) },
+            detail = "A card slides up as you open the case", color = Hue.Teal,
+        )
+        if (prefs.connectPopup && over != null && !allowed) {
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Hint("Your phone asks first: allow Blazbuds to show over other apps.", Modifier.weight(1f))
+                Choice("Allow", true) { over.ask() }
+            }
+        }
+    }
+}
+
