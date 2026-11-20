@@ -57,6 +57,7 @@ class AndroidPlatform(
                 listOf({ serial(bt, null) }, { serial(bt, 1) }, { serial(bt, 16) }),
                 { Log.i(TAG, it) },
             ).also { it.start() }
+            Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }).also { it.start() }
             Family.None -> BasicBuds(device.name, scope) { bt.connectedNow() to bt.batteryNow() }.also { it.start() }
         }
         return buds

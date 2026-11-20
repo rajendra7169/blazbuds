@@ -80,6 +80,7 @@ object LinuxPlatform : Platform {
                 { LinuxBluetooth.rfcomm(device.address, 16) },
             ),
         ).also { it.start() }
+        com.blazify.buds.core.catalog.Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { LinuxBluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }).also { it.start() }
         com.blazify.buds.core.catalog.Family.None -> BasicBuds(device.name, scope) { LinuxBluetooth.info(device.address) }.also { it.start() }
     }
 

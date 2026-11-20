@@ -147,10 +147,11 @@ private fun presetPhoto(name: String): org.jetbrains.compose.resources.DrawableR
         "dance" in n -> Res.drawable.preset_dance
         "deep" in n -> Res.drawable.preset_deep
         "electronic" in n || "edm" in n -> Res.drawable.preset_electronic
-        "flat" in n || "balanced" in n -> Res.drawable.preset_flat
+        "flat" in n || "balance" in n -> Res.drawable.preset_flat
         "hip" in n -> Res.drawable.preset_hip_hop
         "jazz" in n -> Res.drawable.preset_jazz
         "latin" in n -> Res.drawable.preset_latin
+        "country" in n -> Res.drawable.preset_acoustic
         "lounge" in n -> Res.drawable.preset_lounge
         "piano" in n -> Res.drawable.preset_piano
         "r&b" in n || "rnb" in n -> Res.drawable.preset_rnb

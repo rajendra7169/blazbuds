@@ -15,7 +15,7 @@ enum class Support {
 }
 
 /** Which protocol a model speaks, for picking its driver. */
-enum class Family { Soundcore, Huawei, None }
+enum class Family { Soundcore, Huawei, Jieli, None }
 
 /** What a device looks like, for its picture. */
 enum class Kind { StemBuds, RoundBuds, Headphones, Speaker }
@@ -60,8 +60,12 @@ object Catalog {
         device.name.contains("Liberty 4 NC", ignoreCase = true) -> LIBERTY_4_NC
         // Honor and Huawei earbuds share one protocol; Honor Choice ones call themselves "Earbuds X…".
         HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Battery, HONOR_PAIRING, Family.Huawei)
+        // Earbuds on a JieLi chip with their maker's app (checked: Ultima Boom Sleek).
+        JIELI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Full, GENERIC_PAIRING, Family.Jieli)
         else -> Model(device.name, Support.Basic, GENERIC_PAIRING)
     }
+
+    private val JIELI_NAMES = listOf(Regex("^Ultima ", RegexOption.IGNORE_CASE))
 
     private val HUAWEI_NAMES = listOf(
         Regex("^Earbuds X\\d", RegexOption.IGNORE_CASE),
@@ -74,6 +78,7 @@ object Catalog {
     fun kind(name: String): Kind {
         val n = name.lowercase()
         return when {
+            n.startsWith("ultima boom") || n.startsWith("earbuds x") -> Kind.StemBuds
             listOf("speaker", "boom", "flip", "charge", "motion", "soundlink", "partybox", "go ").any { it in n } -> Kind.Speaker
             listOf("wh-", "headphone", "space", "life q", "q20", "q30", "q35", "q45", "qc4", "qc45", "700", "max", "momentum 4", "rockerz", "tune 7").any { it in n } -> Kind.Headphones
             listOf("liberty", "airpods", "freebuds pro", "buds pro", "x7e", "nothing ear", "pixel buds pro").any { it in n } -> Kind.StemBuds
