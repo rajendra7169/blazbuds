@@ -117,8 +117,11 @@ data class Sound(
 
 /** The finer settings a brand offers for each mode; the screens show only these. */
 data class SoundOptions(
-    /** The ways of cancelling to choose from (Adaptive, Manual, Travel); empty for one way only. */
-    val cancelStyles: List<CancelStyle> = CancelStyle.entries,
+    /**
+     * The ways of cancelling to choose from; empty for one way only. The default is the Liberty 4 NC's three: older
+     * models' Transport, Indoor and Outdoor are offered only by the drivers that have them.
+     */
+    val cancelStyles: List<CancelStyle> = listOf(CancelStyle.Adaptive, CancelStyle.Manual, CancelStyle.Travel),
     val transparencyStyles: Boolean = true,
     val wind: Boolean = true,
     val environment: Boolean = true,
