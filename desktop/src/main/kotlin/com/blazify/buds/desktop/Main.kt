@@ -104,13 +104,16 @@ object DesktopPlatform : Platform {
 
     override suspend fun peek(device: Device): Pair<Boolean, Int?> = bluetooth.info(device.address)
 
+    /** What the earbuds and the app say, for "Report a problem". */
+    private val note: (String) -> Unit = { com.blazify.buds.core.Logbook.add(it) }
+
     override fun open(device: Device, scope: CoroutineScope): Buds = when (Catalog.model(device).family) {
         com.blazify.buds.core.catalog.Family.Soundcore -> Catalog.model(device).soundcore?.let { model ->
             com.blazify.buds.core.soundcore.generic.GenericSoundcoreBuds(
                 device.name.trim().removePrefix("soundcore").removePrefix("Soundcore").trim().ifEmpty { model.name },
-                model, scope, { soundcoreLink(device.address, model.service) },
+                model, scope, { soundcoreLink(device.address, model.service) }, log = note,
             ).also { it.start() }
-        } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { bluetooth.open(device.address, A3947.SERVICE) })
+        } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { bluetooth.open(device.address, A3947.SERVICE) }, log = note)
             .also { it.start() }
         com.blazify.buds.core.catalog.Family.Huawei -> com.blazify.buds.core.huawei.HuaweiBuds(
             device.name, scope,
@@ -119,18 +122,20 @@ object DesktopPlatform : Platform {
                 { bluetooth.rfcomm(device.address, 1) },
                 { bluetooth.rfcomm(device.address, 16) },
             ),
+            log = note,
         ).also { it.start() }
-        com.blazify.buds.core.catalog.Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { bluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }).also { it.start() }
+        com.blazify.buds.core.catalog.Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { bluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }, log = note).also { it.start() }
         com.blazify.buds.core.catalog.Family.Samsung -> com.blazify.buds.core.samsung.SamsungModel.of(device.name)!!.let { model ->
-            com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { bluetooth.open(device.address, model.service) }).also { it.start() }
+            com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { bluetooth.open(device.address, model.service) }, log = note).also { it.start() }
         }
-        com.blazify.buds.core.catalog.Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { bluetooth.open(device.address, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }).also { it.start() }
+        com.blazify.buds.core.catalog.Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { bluetooth.open(device.address, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }, log = note).also { it.start() }
         com.blazify.buds.core.catalog.Family.Melody -> com.blazify.buds.core.oneplus.MelodyBuds(
             device.name, scope,
             listOf(
                 { bluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERVICE) },
                 { bluetooth.open(device.address, com.blazify.buds.core.oneplus.Melody.SERIAL) },
             ),
+            log = note,
         ).also { it.start() }
         com.blazify.buds.core.catalog.Family.Sony -> com.blazify.buds.core.sony.SonyBuds(
             device.name, scope,
@@ -138,6 +143,7 @@ object DesktopPlatform : Platform {
                 { bluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V2) },
                 { bluetooth.open(device.address, com.blazify.buds.core.sony.Sony.SERVICE_V1) },
             ),
+            log = note,
         ).also { it.start() }
         com.blazify.buds.core.catalog.Family.None -> {
             // Unknown earbuds: try JieLi's login once (many budget pairs use that chip), remember, else the basics.
@@ -147,10 +153,10 @@ object DesktopPlatform : Platform {
             val open = { bluetooth.open(device.address, com.blazify.buds.core.huawei.HuaweiBuds.SERIAL) }
             when (store.get(key, null)) {
                 "false" -> basic()
-                "true" -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open).also { it.start() }
+                "true" -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open, log = note).also { it.start() }
                 else -> com.blazify.buds.core.TryingBuds(
                     scope,
-                    { verdict -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open, verdict = verdict).also { it.start() } },
+                    { verdict -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, open, log = note, verdict = verdict).also { it.start() } },
                     basic,
                     { works -> store.put(key, works.toString()) },
                 )

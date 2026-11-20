@@ -55,30 +55,30 @@ class AndroidPlatform(
             Family.Soundcore -> model.soundcore?.let { soundcore ->
                 com.blazify.buds.core.soundcore.generic.GenericSoundcoreBuds(
                     device.name.trim().removePrefix("soundcore").removePrefix("Soundcore").trim().ifEmpty { soundcore.name },
-                    soundcore, scope, { soundcoreSocket(bt, soundcore.service) }, { Log.i(TAG, it) },
+                    soundcore, scope, { soundcoreSocket(bt, soundcore.service) }, { note(it) },
                 ).also { it.start() }
-            } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { Log.i(TAG, it) }).also { it.start() }
+            } ?: SoundcoreBuds(device.name.removePrefix("soundcore ").trim(), scope, { socket(bt) }, { note(it) }).also { it.start() }
             Family.Huawei -> HuaweiBuds(
                 device.name, scope,
                 // The serial-port service first; where it lands on the wrong channel, the usual ones by number.
                 listOf({ serial(bt, null) }, { serial(bt, 1) }, { serial(bt, 16) }),
-                { Log.i(TAG, it) },
+                { note(it) },
             ).also { it.start() }
-            Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }).also { it.start() }
+            Family.Jieli -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { note(it) }).also { it.start() }
             Family.Samsung -> com.blazify.buds.core.samsung.SamsungModel.of(device.name)!!.let { model ->
-                com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { socket(bt, model.service) }, { Log.i(TAG, it) }).also { it.start() }
+                com.blazify.buds.core.samsung.SamsungBuds(device.name, model, scope, { socket(bt, model.service) }, { note(it) }).also { it.start() }
             }
-            Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { socket(bt, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }, { Log.i(TAG, it) }).also { it.start() }
+            Family.Nothing -> com.blazify.buds.core.nothing.NothingBuds(device.name, scope, { socket(bt, com.blazify.buds.core.nothing.NothingBuds.SERVICE) }, { note(it) }).also { it.start() }
             Family.Melody -> com.blazify.buds.core.oneplus.MelodyBuds(
                 device.name, scope,
                 // HeyMelody's own channel, then the plain serial port some realme earbuds use.
                 listOf({ socket(bt, com.blazify.buds.core.oneplus.Melody.SERVICE) }, { serial(bt, null) }),
-                { Log.i(TAG, it) },
+                { note(it) },
             ).also { it.start() }
             Family.Sony -> com.blazify.buds.core.sony.SonyBuds(
                 device.name, scope,
                 listOf({ service(bt, com.blazify.buds.core.sony.Sony.SERVICE_V2) }, { service(bt, com.blazify.buds.core.sony.Sony.SERVICE_V1) }),
-                { Log.i(TAG, it) },
+                { note(it) },
             ).also { it.start() }
             Family.None -> unknown(device, bt, scope)
         }
@@ -224,10 +224,10 @@ class AndroidPlatform(
         val hasSerial = bt.uuids?.any { it.uuid.toString().equals(com.blazify.buds.core.huawei.HuaweiBuds.SERIAL, true) } == true
         return when {
             known == false || !hasSerial -> basic()
-            known == true -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }).also { it.start() }
+            known == true -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { note(it) }).also { it.start() }
             else -> com.blazify.buds.core.TryingBuds(
                 scope,
-                { verdict -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { Log.i(TAG, it) }, verdict).also { it.start() } },
+                { verdict -> com.blazify.buds.core.jieli.JieliBuds(device.name, scope, { serial(bt, null) }, { note(it) }, verdict).also { it.start() } },
                 basic,
                 { works -> triedStore.putBoolean(key, works) },
             )
@@ -331,4 +331,10 @@ class AndroidPlatform(
 
     private fun BluetoothDevice.batteryNow(): Int? =
         runCatching { (javaClass.getMethod("getBatteryLevel").invoke(this) as Int).takeIf { it in 0..100 } }.getOrNull()
+}
+
+/** A line for the system log and for the app's own "Report a problem" log. */
+private fun note(line: String) {
+    Log.i(TAG, line)
+    com.blazify.buds.core.Logbook.add(line)
 }
