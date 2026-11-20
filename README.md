@@ -56,7 +56,7 @@ The app is built so each new brand plugs into the same screens.
 | Linux | Works |
 | Android 8 and later | Works |
 | iPhone | Being explored |
-| Windows | Next |
+| Windows 10 and 11 | Built, not yet tried on a Windows computer |
 
 ## Small and private
 
@@ -67,13 +67,13 @@ The Android app is about 1.2 MB. It asks for one permission, Bluetooth, and has 
 You need JDK 21.
 
 ```sh
-./gradlew :desktop:run               # the computer app (Linux)
+./gradlew :desktop:run               # the computer app (Linux or Windows)
 ./gradlew :desktop:run --args=--demo # try it without earbuds
 ./gradlew :android:assembleRelease   # the Android app
 ./gradlew :core:jvmTest              # the tests
 ```
 
-`:desktop:packageDeb` and `:desktop:packageRpm` make Linux packages.
+`:desktop:packageDeb` and `:desktop:packageRpm` make Linux packages; on a Windows computer, `:desktop:packageMsi` and `:desktop:packageExe` make the Windows installers.
 
 ## Credits
 
