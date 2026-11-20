@@ -283,6 +283,8 @@ fun main(args: Array<String>) {
 
 private fun app(args: Array<String>) = application {
     val prefs = remember { Prefs() }
+    // Watched here, for as long as the app runs, so it keeps hearing of new versions while it sits in the tray.
+    if ("--demo" !in args) com.blazify.buds.ui.UpdateWatch(prefs)
     val scope = rememberCoroutineScope()
     val demo = "--demo" in args
     val hub = remember { if (demo) null else Hub(DesktopPlatform, scope) }
@@ -333,7 +335,7 @@ private fun app(args: Array<String>) = application {
             // Never narrower or shorter than the phone layout, so nothing breaks.
             window.minimumSize = Dimension(360, 560)
             androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true, androidx.compose.ui.platform.LocalUriHandler provides LinkOpener) {
-                if (hub != null) BudsApp(hub, prefs) else BudsApp(demoBuds!!, prefs)
+                if (hub != null) BudsApp(hub, prefs, watchUpdates = false) else BudsApp(demoBuds!!, prefs)
             }
         }
     }

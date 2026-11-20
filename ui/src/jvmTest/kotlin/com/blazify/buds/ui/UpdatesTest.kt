@@ -45,4 +45,15 @@ class UpdatesTest {
         assertTrue(release.notes.length > 100_000)
         assertTrue(release.notes.startsWith("- A fix with \"quotes\" and a line\n"))
     }
+
+    @Test
+    fun aFoundUpdateIsStillThereAfterARestart() {
+        val store = com.russhwolf.settings.MapSettings()
+        val found = Release("99.0.0", "## New\n- Faster", "https://x/r", mapOf("blazbuds-99.0.0.apk" to "https://x/a.apk", "blazbuds_99.0.0_amd64.deb" to "https://x/b.deb"))
+        Prefs(store).foundUpdate(found)
+        assertEquals(found, Prefs(store).knownUpdate)
+        // An older or equal version is not kept as an update.
+        Prefs(store).foundUpdate(Release("1.0.0", "", "", emptyMap()))
+        assertEquals(null, Prefs(store).knownUpdate)
+    }
 }

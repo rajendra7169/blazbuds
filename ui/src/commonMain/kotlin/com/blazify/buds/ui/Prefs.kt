@@ -63,14 +63,32 @@ class Prefs(private val store: Settings = Settings()) {
         private set
 
     /** The newer version last found, so it shows straight away; and the one the person chose to hear no more about. */
-    var knownUpdate by mutableStateOf<Release?>(null)
+    var knownUpdate by mutableStateOf(readUpdate())
+        private set
+
+    /** Keeps what was found, so a newer version still shows after the app restarts without asking GitHub again. */
+    fun foundUpdate(release: Release?) {
+        knownUpdate = release?.takeIf { Updates.isNewer(it.version) }
+        val r = knownUpdate
+        store.putString(KNOWN_UPDATE, if (r == null) "" else listOf(r.version, r.page, r.notes, r.files.entries.joinToString(FILES) { "${it.key}$PAIR${it.value}" }).joinToString(SEP))
+    }
+
+    private fun readUpdate(): Release? = store.getString(KNOWN_UPDATE, "").split(SEP).takeIf { it.size == 4 }?.let { (v, page, notes, files) ->
+        val map = files.split(FILES).filter { PAIR in it }.associate { it.substringBefore(PAIR) to it.substringAfter(PAIR) }
+        Release(v, notes, page, map).takeIf { Updates.isNewer(it.version) }
+    }
+
+    /** When GitHub was last asked, in milliseconds since 1970, so reopening the app doesn't ask again each time. */
+    var lastUpdateCheck: Long
+        get() = store.getLong(LAST_UPDATE_CHECK, 0L)
+        set(value) = store.putLong(LAST_UPDATE_CHECK, value)
     var dismissedUpdate by mutableStateOf(store.getString(DISMISSED_UPDATE, ""))
         private set
 
     fun checkUpdates(on: Boolean) {
         checkUpdates = on
         store.putBoolean(CHECK_UPDATES, on)
-        if (!on) knownUpdate = null
+        if (!on) foundUpdate(null)
     }
 
     fun dismissUpdate(version: String) {
@@ -81,6 +99,11 @@ class Prefs(private val store: Settings = Settings()) {
     private companion object {
         const val CHECK_UPDATES = "check_updates"
         const val DISMISSED_UPDATE = "dismissed_update"
+        const val KNOWN_UPDATE = "known_update"
+        const val LAST_UPDATE_CHECK = "last_update_check"
+        const val SEP = "\u0001"
+        const val FILES = "\u0002"
+        const val PAIR = "\u0003"
         const val THEME = "theme"
         const val REDUCE_MOTION = "reduce_motion"
         const val SOUNDS = "my_sounds"

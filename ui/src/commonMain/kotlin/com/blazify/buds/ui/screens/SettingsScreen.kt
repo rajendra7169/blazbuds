@@ -160,7 +160,7 @@ private fun UpdatesPanel(openChangelog: () -> Unit) {
                         checking = false
                         result = when {
                             found == null -> "Couldn't reach GitHub. Try again later."
-                            Updates.isNewer(found.version) -> { prefs.knownUpdate = found; null }
+                            Updates.isNewer(found.version) -> { prefs.foundUpdate(found); null }
                             else -> "You have the newest version, $VERSION."
                         }
                     }

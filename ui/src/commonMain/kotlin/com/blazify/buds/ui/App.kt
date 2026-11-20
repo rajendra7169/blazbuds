@@ -69,7 +69,7 @@ private val TABS = listOf(
  * device, Help and Settings slide in over them.
  */
 @Composable
-fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
+fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home, watchUpdates: Boolean = true) {
     BudsTheme(prefs.theme) {
         CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalLook provides hub.look, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
             LocalRoomEar provides remember(hub) {
@@ -88,14 +88,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
         ) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
-            // Ask GitHub for a newer version when the app starts and every twelve hours while it keeps running (the
-            // computer app lives in the tray for days), only while the person lets it.
-            LaunchedEffect(prefs.checkUpdates) {
-                while (prefs.checkUpdates) {
-                    Updates.latest()?.let { found -> if (Updates.isNewer(found.version)) prefs.knownUpdate = found }
-                    kotlinx.coroutines.delay(12 * 60 * 60 * 1000L)
-                }
-            }
+            if (watchUpdates) UpdateWatch(prefs)
             val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()
             var place by remember { mutableStateOf(start) }
@@ -272,3 +265,28 @@ private class OnePair(private val buds: Buds) : Platform {
         )
     }
 }
+
+/**
+ * Looks for a newer version while the person lets it: when the app starts, then every few hours while it keeps
+ * running. It asks GitHub at most every six hours however often the app is opened, and what it found is kept. The
+ * computer app runs this for its whole life, not just while its window is open, since it lives in the tray.
+ */
+@Composable
+fun UpdateWatch(prefs: Prefs) {
+    LaunchedEffect(prefs.checkUpdates) {
+        while (prefs.checkUpdates) {
+            @OptIn(kotlin.time.ExperimentalTime::class)
+            val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+            if (now - prefs.lastUpdateCheck >= 6 * HOUR) {
+                Updates.latest()?.let { found ->
+                    prefs.lastUpdateCheck = now
+                    prefs.foundUpdate(found)
+                }
+            }
+            kotlinx.coroutines.delay(HOUR)
+        }
+    }
+}
+
+private const val HOUR = 60 * 60 * 1000L
+
