@@ -1,5 +1,6 @@
 package com.blazify.buds.desktop
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -339,6 +340,46 @@ private fun app(args: Array<String>) = application {
             window.minimumSize = Dimension(360, 560)
             androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true, androidx.compose.ui.platform.LocalUriHandler provides LinkOpener) {
                 if (hub != null) BudsApp(hub, prefs, watchUpdates = false) else BudsApp(demoBuds!!, prefs)
+            }
+        }
+    }
+
+    // Greet the earbuds as they connect, while the app sits in the tray: a card at the bottom right for a few seconds
+    // that never takes the keyboard. Not in the first moments after starting, nor while the main window is open.
+    val started = remember { System.currentTimeMillis() }
+    var lastLink by remember { mutableStateOf<com.blazify.buds.core.model.Link?>(null) }
+    var greet by remember { mutableStateOf(false) }
+    LaunchedEffect(state?.link) {
+        val now = state?.link
+        val arrived = now == com.blazify.buds.core.model.Link.Connected && lastLink != null && lastLink != now
+        lastLink = now
+        if (arrived && !shown && prefs.connectPopup && System.currentTimeMillis() - started > 8_000) {
+            greet = true
+            kotlinx.coroutines.delay(9_000)
+            greet = false
+        }
+    }
+    if (greet && state != null) {
+        val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
+        val greetState = rememberWindowState(
+            size = DpSize(400.dp, 330.dp),
+            position = WindowPosition((screen.x + screen.width - 420).dp, (screen.y + screen.height - 350).dp),
+        )
+        Window(
+            onCloseRequest = { greet = false },
+            state = greetState,
+            title = "Blazbuds",
+            icon = AppIcon,
+            undecorated = true,
+            transparent = true,
+            resizable = false,
+            alwaysOnTop = true,
+            focusable = false,
+        ) {
+            BudsTheme(prefs.theme) {
+                androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.LocalPrefs provides prefs) {
+                    com.blazify.buds.ui.blocks.ConnectCard(state.name, state, onOpen = { shown = true; greet = false }, onClose = { greet = false }, modifier = Modifier.padding(8.dp))
+                }
             }
         }
     }
