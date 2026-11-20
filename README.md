@@ -10,7 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><b>Download</b></a> · Android · Linux
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/android.png" width="260" alt="Download for Android: the APK"></a>
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/linux.png" width="260" alt="Download for Linux: the DEB package"></a>
+  <img src="docs/buttons/iphone.png" width="260" alt="iPhone: coming soon">
 </p>
 
 <p align="center">
@@ -70,11 +72,13 @@ Missing yours? Use **Help › Request your earbuds** in the app.
 
 ## Download
 
-| | |
-|---|---|
-| Android 8 and later | The `.apk` from the [latest release](https://github.com/rajendra7169/blazbuds/releases/latest) |
-| Linux | The `.deb` from the latest release, then `sudo apt install ./blazbuds_1.2.0_amd64.deb` |
-| iPhone | Coming |
+<p align="center">
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/android.png" width="260" alt="Download for Android: the APK"></a>
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/linux.png" width="260" alt="Download for Linux: the DEB package"></a>
+  <img src="docs/buttons/iphone.png" width="260" alt="iPhone: coming soon">
+</p>
+
+On Linux, install the downloaded package with `sudo apt install ./blazbuds_1.2.0_amd64.deb`. Android needs version 8 or later. The app tells you when a new version is out.
 
 ## Private
 
