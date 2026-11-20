@@ -761,7 +761,7 @@ private fun EverythingIn3D(spatial: com.blazify.buds.ui.Spatial, beforeOn: () ->
     if (on) {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(
-                com.blazify.buds.core.spatial.SpatialMode.Speakers to "Speakers around you",
+                com.blazify.buds.core.spatial.SpatialMode.Speakers to "Surround",
                 com.blazify.buds.core.spatial.SpatialMode.Orbit to "8D",
             ).forEach { (m, name) ->
                 Choice(name, mode == m, Modifier.weight(1f), centered = true) {

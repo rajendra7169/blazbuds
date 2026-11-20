@@ -9,7 +9,10 @@ import kotlin.math.tanh
 
 /** How the sound is placed round the listener. */
 enum class SpatialMode {
-    /** Like a pair of speakers in front of you in a room, instead of inside your head. */
+    /**
+     * Surround: five speakers round you, as in a cinema. Left, centre and right in front; the width and the room of
+     * the song from two speakers behind.
+     */
     Speakers,
 
     /** The pair of speakers slowly travels round your head. */
@@ -29,6 +32,11 @@ class Spatializer(private val rate: Int) {
     var orbitSeconds = 12.0
 
     private val sources = arrayOf(Source(rate), Source(rate))
+    private val centre = Source(rate)
+    private val rears = arrayOf(Source(rate), Source(rate))
+    private val roomRears = arrayOf(Source(rate), Source(rate))
+    private val rearLine = Delay((rate * 0.03).toInt() + 2)
+    private var rearLow = 0.0
     private val echoes = arrayOf(Source(rate), Source(rate), Source(rate), Source(rate))
     private val echoLine = Delay((rate * 0.05).toInt() + 2)
     private val echoLineR = Delay((rate * 0.05).toInt() + 2)
@@ -43,11 +51,26 @@ class Spatializer(private val rate: Int) {
             val r = input[f * 2 + 1].toDouble()
             val turn = if (orbit) 2 * PI * ((time.toDouble() / rate / orbitSeconds) % 1.0) else 0.0
             time++
-            // The two speakers, 30° either side of where you face (or of where the orbit has got to).
             var outL = 0.0
             var outR = 0.0
-            sources[0].render(l, turn - SPREAD).let { outL += it.first; outR += it.second }
-            sources[1].render(r, turn + SPREAD).let { outL += it.first; outR += it.second }
+            if (orbit) {
+                // The song as one sound travelling round, a little wide so it stays stereo.
+                sources[0].render(l, turn - ORBIT_SPREAD).let { outL += it.first; outR += it.second }
+                sources[1].render(r, turn + ORBIT_SPREAD).let { outL += it.first; outR += it.second }
+            } else {
+                // Surround: what both channels share goes to the centre, the rest to the front pair, and the
+                // difference between them (the song's width and room) to the pair behind, a moment later.
+                val mid = (l + r) * 0.5
+                val sideSig = (l - r) * 0.5
+                sources[0].render(l - 0.35 * mid, -FRONT).let { outL += it.first; outR += it.second }
+                sources[1].render(r - 0.35 * mid, FRONT).let { outL += it.first; outR += it.second }
+                centre.render(mid * 0.55, 0.0).let { outL += it.first; outR += it.second }
+                rearLine.push(sideSig)
+                val late = rearLine.read(REAR_DELAY * rate)
+                rearLow += 0.35 * (late - rearLow)
+                rears[0].render(rearLow * REAR_GAIN, -REAR).let { outL += it.first; outR += it.second }
+                rears[1].render(-rearLow * REAR_GAIN, REAR).let { outL += it.first; outR += it.second }
+            }
             // Echoes off the side walls, arriving from wider angles a few milliseconds later.
             echoLine.push(l)
             echoLineR.push(r)
@@ -58,10 +81,16 @@ class Spatializer(private val rate: Int) {
                 val angle = turn + (if (fromLeft) -1 else 1) * ECHO_ANGLES[k]
                 echo.render(s, angle).let { outL += it.first; outR += it.second }
             }
-            // A small room after it all.
+            // A small room after it all. In surround it comes from behind, so even a song that's the same in both
+            // channels has something round you.
             val (wl, wr) = room.process(l + r)
-            outL += wl
-            outR += wr
+            if (orbit) {
+                outL += wl
+                outR += wr
+            } else {
+                roomRears[0].render(wl * 1.8, -REAR - 0.3).let { outL += it.first; outR += it.second }
+                roomRears[1].render(wr * 1.8, REAR + 0.3).let { outL += it.first; outR += it.second }
+            }
             output[f * 2] = soft(outL * GAIN).toFloat()
             output[f * 2 + 1] = soft(outR * GAIN).toFloat()
         }
@@ -72,10 +101,14 @@ class Spatializer(private val rate: Int) {
     /** One sound at an angle round the head, as heard by each ear. */
     private class Source(rate: Int) {
         private val line = Delay((rate * 0.0012).toInt() + 4)
+        private val sampleTime = 1.0 / rate
+        // Splits each ear's sound at about 1.2 kHz: the head hides treble, but bass bends round it.
+        private val split = 1 - kotlin.math.exp(-2 * PI * 1200.0 / rate)
         private var farLow = 0.0
+        private var nearLow = 0.0
+        private var shadowLow = 0.0
         private var darkL = 0.0
         private var darkR = 0.0
-        private val sampleTime = 1.0 / rate
 
         /** Left and right ear for [x] coming from [angle] radians clockwise from straight ahead. */
         fun render(x: Double, angle: Double): Pair<Double, Double> {
@@ -84,22 +117,29 @@ class Spatializer(private val rate: Int) {
             val front = cos(angle)
             // Woodworth's round head: how much later it reaches the far ear.
             val lag = HEAD / SOUND * (abs(asin(side.coerceIn(-1.0, 1.0))) + abs(side)) / sampleTime
-            val near = x
             val far = line.read(lag)
             val shade = abs(side)
-            // The far ear sits in the head's shadow: quieter, and duller the more the sound is to one side.
-            farLow += (0.95 - 0.8 * shade) * (far - farLow)
-            val farEar = farLow * (1 - 0.65 * shade)
-            var left = if (side >= 0) farEar else near
-            var right = if (side >= 0) near else farEar
-            // From behind, the outer ear hides the treble.
+            // Far ear: the bass nearly whole, the treble hidden by the head, the more so the more to one side.
+            farLow += split * (far - farLow)
+            val farHigh = far - farLow
+            shadowLow += (0.9 - 0.75 * shade) * (farHigh - shadowLow)
+            val farEar = farLow * (1 - 0.18 * shade) + shadowLow * (1 - 0.8 * shade)
+            // Near ear: a touch brighter as the sound turns towards it.
+            nearLow += split * (x - nearLow)
+            val nearHigh = x - nearLow
+            // In front, the outer ear lifts the presence a little; behind, it hides it.
+            val presence = 0.18 * front
+            val nearEar = nearLow + nearHigh * (1 + 0.25 * shade + presence)
+            val farEarLit = farEar + (far - farLow) * presence * (1 - shade) * 0.5
+            var left = if (side >= 0) farEarLit else nearEar
+            var right = if (side >= 0) nearEar else farEarLit
             val behind = (-front).coerceAtLeast(0.0)
             if (behind > 0) {
-                val k = 0.25 + 0.6 * (1 - behind)
+                val k = 0.2 + 0.6 * (1 - behind)
                 darkL += k * (left - darkL)
                 darkR += k * (right - darkR)
-                left = left * (1 - 0.35 * behind) + darkL * 0.35 * behind
-                right = right * (1 - 0.35 * behind) + darkR * 0.35 * behind
+                left = left * (1 - 0.4 * behind) + darkL * 0.4 * behind
+                right = right * (1 - 0.4 * behind) + darkR * 0.4 * behind
             } else {
                 darkL = left
                 darkR = right
@@ -186,7 +226,11 @@ class Spatializer(private val rate: Int) {
     companion object {
         private const val HEAD = 0.0875
         private const val SOUND = 343.0
-        private const val SPREAD = PI / 6
+        private const val FRONT = PI / 5.2
+        private const val REAR = PI * 0.64
+        private const val REAR_DELAY = 0.014
+        private const val REAR_GAIN = 0.9
+        private const val ORBIT_SPREAD = PI / 9
         private val ECHO_DELAYS = doubleArrayOf(0.009, 0.011, 0.017, 0.021)
         private val ECHO_GAINS = doubleArrayOf(0.28, 0.28, 0.18, 0.18)
         private val ECHO_ANGLES = doubleArrayOf(PI * 0.4, PI * 0.4, PI * 0.6, PI * 0.6)

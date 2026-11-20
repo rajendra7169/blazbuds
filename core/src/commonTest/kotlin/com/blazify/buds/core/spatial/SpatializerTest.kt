@@ -30,7 +30,9 @@ class SpatializerTest {
         val rate = 48_000
         val spatial = Spatializer(rate).also { it.mode = SpatialMode.Orbit; it.orbitSeconds = 4.0 }
         val quarter = rate // a quarter of the way round each second
-        val tone = { i: Int -> (0.4 * sin(2 * PI * 300 * i / rate)).toFloat() }
+        // Full-range noise, like music: the head hides the treble from the far ear but lets the bass round.
+        val random = kotlin.random.Random(3)
+        val tone = { _: Int -> (random.nextDouble() * 0.6 - 0.3).toFloat() }
         val levels = (0 until 4).map { q ->
             val input = FloatArray(quarter * 2) { tone(q * quarter + it / 2) }
             val output = FloatArray(quarter * 2)
@@ -38,6 +40,6 @@ class SpatializerTest {
             level(output, 1) / level(output, 0)
         }
         // Right-heavy while it is on the right (the first half round), left-heavy on the way back.
-        assertTrue(levels[0] > 1.05 && levels[3] < 0.95, levels.toString())
+        assertTrue(levels[0] > 1.1 && levels[1] > 1.1 && levels[2] < 0.9 && levels[3] < 0.9, levels.toString())
     }
 }
