@@ -62,6 +62,13 @@ class HuaweiBuds(
     private var preset: Int? = null
     private var autoPause: Boolean? = null
     private var lowLatency: Boolean? = null
+
+    /**
+     * Honor Choice earbuds keep their settings as numbered values in groups (EQ, taps, holds, switches), read with
+     * `01 3A` and written with `01 39`; recorded from Honor's own app talking to the X7e Active. Empty for pairs
+     * that don't answer it.
+     */
+    private val props = mutableMapOf<Pair<Int, Int>, Int>()
     @kotlin.concurrent.Volatile private var watching = true
 
     fun start() {
@@ -116,6 +123,7 @@ class HuaweiBuds(
         send(link, HuaweiPacket.ask(INFO_SERVICE, INFO, 1, 3, 7, 9, 10, 12, 15, 17))
         // Everything else this family can have; only what's answered shows.
         READS.forEach { send(link, it) }
+        HONOR_PROPS.chunked(5).forEach { send(link, readProps(it)) }
         val handling = scope.launch {
             for (packet in answers) handle(packet)
         }
@@ -164,6 +172,29 @@ class HuaweiBuds(
                 }
                 flow.update { it.copy(left = level(0), right = level(1), case = level(2), overall = packet.field(1)?.firstOrNull()?.toInt()?.and(0xFF)?.takeIf { p -> p in 1..100 }?.let { p -> Battery(p) }) }
             }
+            PROP_READ -> {
+                val blocks = packet.field(0x81) ?: return
+                var at = 0
+                while (at + 2 <= blocks.size) {
+                    val size = blocks[at + 1].toInt() and 0xFF
+                    val inner = blocks.copyOfRange(at + 2, minOf(blocks.size, at + 2 + size))
+                    at += 2 + size
+                    var k = 0
+                    var group = -1
+                    var prop = -1
+                    var value: Int? = null
+                    while (k + 2 <= inner.size) {
+                        val type = inner[k].toInt() and 0xFF
+                        val len = inner[k + 1].toInt() and 0xFF
+                        val v = inner.copyOfRange(k + 2, minOf(inner.size, k + 2 + len))
+                        val number = v.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+                        when (type) { 3 -> group = number; 4 -> prop = number; 5 -> if (v.isNotEmpty()) value = number }
+                        k += 2 + len
+                    }
+                    if (group >= 0 && prop >= 0 && value != null) props[group to prop] = value!!
+                }
+                publishSettings()
+            }
             NOISE_READ, NOISE_PUSH -> {
                 val data = packet.field(1) ?: return
                 // The read gives (strength, mode); a change made on the earbuds gives the mode alone.
@@ -210,6 +241,7 @@ class HuaweiBuds(
 
     /** Puts what the earbuds have answered into the state, as the screens know it. */
     private fun publishSettings() {
+        if (props.isNotEmpty()) return publishHonor()
         val sound = noise?.let { mode ->
             Sound(
                 mode = when (mode) { 1 -> ListeningMode.NoiseCancelling; 2 -> ListeningMode.Transparency; else -> ListeningMode.Normal },
@@ -238,6 +270,55 @@ class HuaweiBuds(
         flow.update { it.copy(sound = sound, equalizer = equalizer, controls = controls, toggles = toggles) }
     }
 
+    /** The Honor Choice settings, as the screens know them. */
+    private fun publishHonor() {
+        val equalizer = props[EQ]?.let { current ->
+            Equalizer(current, HONOR_PRESETS.map { (id, name) -> EqPreset(id, name, emptyList()) }, emptyList(), emptyList(), custom = false)
+        }
+        val actions = buildMap {
+            for ((key, slot) in HONOR_TAPS) props[slot]?.let { code -> HONOR_ACTIONS[key.second]?.entries?.firstOrNull { it.value == code }?.key?.let { put(key, it) } }
+        }
+        val controls = if (actions.isEmpty()) null else TouchControls(
+            actions = actions,
+            available = HONOR_ACTIONS.getValue(Press.Double).keys.toList(),
+            availableFor = HONOR_ACTIONS.mapValues { it.value.keys.toList() },
+        )
+        val toggles = buildMap {
+            HONOR_SWITCHES.forEach { (toggle, slot) -> props[slot]?.let { put(toggle, it == 1) } }
+        }
+        // Honor's own app offers no noise control on these, so none is shown here either.
+        flow.update { it.copy(sound = null, equalizer = equalizer, controls = controls, toggles = toggles) }
+    }
+
+    private fun readProps(slots: List<Pair<Int, Int>>): HuaweiPacket {
+        val blocks = slots.flatMap { (group, prop) ->
+            listOf<Byte>(0x02, 0x0E, 0x03, 0x04) + int4(group) + listOf<Byte>(0x04, 0x04) + int4(prop) + listOf<Byte>(0x05, 0x00)
+        }
+        return HuaweiPacket(0x01, 0x3A, mapOf(1 to blocks.toByteArray()))
+    }
+
+    private fun writeProp(slot: Pair<Int, Int>, value: Int) =
+        HuaweiPacket(0x01, 0x39, mapOf(1 to int4(slot.first).toByteArray(), 2 to int4(slot.second).toByteArray(), 3 to int4(value).toByteArray()))
+
+    private fun int4(n: Int) = listOf((n shr 24).toByte(), (n shr 16).toByte(), (n shr 8).toByte(), n.toByte())
+
+    private suspend fun honorChange(link: Connection, change: Change): Boolean {
+        val (slot, value) = when (change) {
+            is Change.Preset -> EQ to change.id
+            is Change.Touch -> {
+                val slot = HONOR_TAPS[change.ear to change.press] ?: return true
+                val value = HONOR_ACTIONS[change.press]?.get(change.action) ?: return true
+                slot to value
+            }
+            is Change.Switch -> (HONOR_SWITCHES[change.toggle] ?: return true) to (if (change.on) 1 else 0)
+            else -> return false
+        }
+        props[slot] = value
+        publishHonor()
+        set(link, writeProp(slot, value), readProps(listOf(slot)))
+        return true
+    }
+
     private fun action(press: Press, code: Int): TouchAction = when {
         press == Press.Long -> if (code == LONG_NOISE) TouchAction.ListeningMode else TouchAction.None
         else -> when (code) {
@@ -262,6 +343,7 @@ class HuaweiBuds(
 
     override suspend fun apply(change: Change) {
         val link = connection ?: return
+        if (props.isNotEmpty() && honorChange(link, change)) return
         when (change) {
             is Change.Mode -> {
                 val mode = when (change.mode) { ListeningMode.NoiseCancelling -> 1; ListeningMode.Transparency -> 2; ListeningMode.Normal -> 0 }
@@ -334,6 +416,24 @@ class HuaweiBuds(
         const val BATTERY_SERVICE = 0x01
         const val BATTERY = 0x08
         const val BATTERY_PUSH = 0x27
+
+        private const val PROP_READ = 0x013A
+        private val EQ = 3 to 4
+        private val HONOR_PRESETS = listOf(0 to "Default", 1 to "Bass boost", 2 to "Treble boost")
+        private val HONOR_TAPS = mapOf(
+            (Ear.Left to Press.Double) to (4 to 2), (Ear.Right to Press.Double) to (4 to 3),
+            (Ear.Left to Press.Triple) to (4 to 5), (Ear.Right to Press.Triple) to (4 to 6),
+            (Ear.Left to Press.Long) to (5 to 2), (Ear.Right to Press.Long) to (5 to 3),
+        )
+
+        /** What each kind of touch can do on Honor Choice earbuds, with the number for each. */
+        private val HONOR_ACTIONS = mapOf(
+            Press.Double to linkedMapOf(TouchAction.PlayPause to 1, TouchAction.NextSong to 2, TouchAction.PreviousSong to 3, TouchAction.VoiceAssistant to 0, TouchAction.None to 4),
+            Press.Triple to linkedMapOf(TouchAction.PreviousSong to 1, TouchAction.NextSong to 0, TouchAction.None to 2),
+            Press.Long to linkedMapOf(TouchAction.VolumeUp to 0, TouchAction.VolumeDown to 1, TouchAction.None to 2),
+        )
+        private val HONOR_SWITCHES = mapOf(Toggle.Surround to (6 to 0), Toggle.DynamicBass to (6 to 1), Toggle.GamingMode to (6 to 2))
+        private val HONOR_PROPS = listOf(EQ) + HONOR_TAPS.values + HONOR_SWITCHES.values
 
         /** Something these earbuds send over and over that isn't about settings. */
         private const val CHATTER = 0x0A0D

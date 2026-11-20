@@ -29,4 +29,15 @@ class HuaweiPacketTest {
         val noise = hex("7f 80 80 80 a8 81 81 02 83 a0 58 c3 d0 84")
         assertEquals(0, HuaweiPacket.Reader().feed(noise, noise.size).size)
     }
+
+    @Test
+    fun readsHonorSettingsTheWayHonorsAppDoes() {
+        // Honor's app asking the X7e Active for its EQ (group 3, setting 4), and the answer: Treble boost (2).
+        val ask = HuaweiPacket(0x01, 0x3A, mapOf(1 to hex("02 0e 03 04 00 00 00 03 04 04 00 00 00 04 05 00")))
+        val encoded = HuaweiPacket.encode(ask)
+        val back = HuaweiPacket.Reader().feed(encoded, encoded.size).single()
+        assertContentEquals(hex("02 0e 03 04 00 00 00 03 04 04 00 00 00 04 05 00"), back.field(1))
+        val answer = HuaweiPacket.encode(HuaweiPacket(0x01, 0x3A, mapOf(0x81 to hex("82 12 03 04 00 00 00 03 04 04 00 00 00 04 05 04 00 00 00 02"))))
+        assertEquals(0x013A, HuaweiPacket.Reader().feed(answer, answer.size).single().id)
+    }
 }
