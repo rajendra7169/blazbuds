@@ -8,8 +8,10 @@ import com.blazify.buds.core.model.BudsState
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.EqPreset
+import com.blazify.buds.core.model.Host
 import com.blazify.buds.core.model.Equalizer
 import com.blazify.buds.core.model.ListeningMode
+import com.blazify.buds.core.model.Multipoint
 import com.blazify.buds.core.model.Press
 import com.blazify.buds.core.model.Sound
 import com.blazify.buds.core.model.SoundOptions
@@ -62,6 +64,10 @@ class HuaweiBuds(
     private var preset: Int? = null
     private var autoPause: Boolean? = null
     private var lowLatency: Boolean? = null
+
+    /** Dual-connect: on or off, and the devices the earbuds remember, by their place in the earbuds' list. */
+    private var twoDevices: Boolean? = null
+    private val hosts = sortedMapOf<Int, Host>()
 
     /**
      * Honor Choice earbuds keep their settings as numbered values in groups (EQ, taps, holds, switches), read with
@@ -123,6 +129,7 @@ class HuaweiBuds(
         send(link, HuaweiPacket.ask(INFO_SERVICE, INFO, 1, 3, 7, 9, 10, 12, 15, 17))
         // Everything else this family can have; only what's answered shows.
         READS.forEach { send(link, it) }
+        send(link, ASK_HOSTS)
         HONOR_PROPS.chunked(5).forEach { send(link, readProps(it)) }
         val handling = scope.launch {
             for (packet in answers) handle(packet)
@@ -214,6 +221,9 @@ class HuaweiBuds(
                 packet.field(2)?.firstOrNull()?.let { preset = it.toInt() and 0xFF }
                 publishSettings()
             }
+            DUAL_READ -> packet.field(1)?.takeIf { it.size == 1 }?.let { twoDevices = it[0].toInt() == 1; publishHosts() }
+            DUAL_LIST -> host(packet)?.let { (index, host) -> hosts[index] = host; publishHosts() }
+            DUAL_CHANGED -> connection?.let { link -> scope.launch { runCatching { askHosts(link) } } }
             PAUSE_READ -> packet.field(1)?.firstOrNull()?.let { autoPause = it.toInt() == 1; publishSettings() }
             LATENCY_READ -> (packet.field(2) ?: packet.field(1))?.firstOrNull()?.let { lowLatency = it.toInt() == 1; publishSettings() }
             (INFO_SERVICE shl 8) or INFO -> {
@@ -237,6 +247,19 @@ class HuaweiBuds(
             return
         }
         runCatching { send(link, HuaweiPacket.ask(BATTERY_SERVICE, BATTERY, 1, 2, 3)) }
+    }
+
+    /** Dual-connect as the Device tab shows it; nothing until the earbuds say whether they have it. */
+    private fun publishHosts() {
+        val on = twoDevices ?: return
+        flow.update { it.copy(multipoint = Multipoint(on, hosts.values.toList())) }
+    }
+
+    /** Asks for the remembered devices again, starting the list afresh. */
+    private suspend fun askHosts(link: Connection) {
+        hosts.clear()
+        send(link, HuaweiPacket.ask(0x2B, 0x2F, 1))
+        send(link, ASK_HOSTS)
     }
 
     /** Puts what the earbuds have answered into the state, as the screens know it. */
@@ -345,6 +368,13 @@ class HuaweiBuds(
         val link = connection ?: return
         if (props.isNotEmpty() && honorChange(link, change)) return
         when (change) {
+            is Change.TwoDevices -> {
+                twoDevices = change.on
+                publishHosts()
+                set(link, HuaweiPacket(0x2B, 0x2E, mapOf(1 to byteArrayOf(if (change.on) 1 else 0))), HuaweiPacket.ask(0x2B, 0x2F, 1))
+            }
+            is Change.HostConnection -> hostCommand(link, if (change.connect) HOST_CONNECT else HOST_DISCONNECT, change.address)
+            is Change.Forget -> hostCommand(link, HOST_FORGET, change.address)
             is Change.Mode -> {
                 val mode = when (change.mode) { ListeningMode.NoiseCancelling -> 1; ListeningMode.Transparency -> 2; ListeningMode.Normal -> 0 }
                 noise = mode
@@ -386,6 +416,16 @@ class HuaweiBuds(
                 else -> {}
             }
             else -> {}
+        }
+    }
+
+    /** Connects, disconnects or forgets one remembered device, then lists them again once the earbuds have done it. */
+    private suspend fun hostCommand(link: Connection, command: Int, address: String) {
+        val mac = macBytes(address) ?: return
+        runCatching {
+            send(link, HuaweiPacket(0x2B, 0x33, mapOf(command to mac)))
+            delay(1_500)
+            askHosts(link)
         }
     }
 
@@ -446,6 +486,36 @@ class HuaweiBuds(
         private const val PAUSE_READ = 0x2B11
         private const val LATENCY_READ = 0x2B6C
 
+        // Dual-connect, as OpenFreebuds documents it for Huawei's FreeBuds: on/off read (2B 2F) and write (2B 2E),
+        // the remembered devices one message each (2B 31), what to do with one (2B 33), and "something changed" (2B 36).
+        private const val DUAL_READ = 0x2B2F
+        private const val DUAL_LIST = 0x2B31
+        private const val DUAL_CHANGED = 0x2B36
+        private val ASK_HOSTS = HuaweiPacket.ask(0x2B, 0x31, 1)
+        private const val HOST_CONNECT = 1
+        private const val HOST_DISCONNECT = 2
+        private const val HOST_FORGET = 3
+
+        /**
+         * One remembered device from a 2B 31 answer: its place in the list (3), its address (4), whether it is connected
+         * (5: 0 not, 9 playing, anything else connected) and its name (9).
+         */
+        fun host(packet: HuaweiPacket): Pair<Int, Host>? {
+            val mac = packet.field(4)?.takeIf { it.size == 6 } ?: return null
+            val index = packet.field(3)?.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) } ?: return null
+            val state = packet.field(5)?.firstOrNull()?.toInt()?.and(0xFF) ?: 0
+            val address = mac.joinToString(":") { "%02X".format(it) }
+            val name = packet.field(9)?.decodeToString()?.trim()?.takeIf { it.isNotEmpty() } ?: address
+            return index to Host(name, address, connected = state > 0, playing = state == 9)
+        }
+
+        /** "AA:BB:CC:DD:EE:FF" (or without colons) as the six bytes the earbuds use. */
+        fun macBytes(address: String): ByteArray? {
+            val hex = address.filter { it.isLetterOrDigit() }
+            if (hex.length != 12) return null
+            return ByteArray(6) { hex.substring(it * 2, it * 2 + 2).toIntOrNull(16)?.toByte() ?: return null }
+        }
+
         /** Press and hold set to switch the noise control. */
         private const val LONG_NOISE = 10
 
@@ -459,6 +529,7 @@ class HuaweiBuds(
             HuaweiPacket.ask(0x2B, 0x4A, 1, 2, 3, 4, 5, 6, 7, 8),
             HuaweiPacket.ask(0x2B, 0x11, 1),
             HuaweiPacket.ask(0x2B, 0x6C, 2),
+            HuaweiPacket.ask(0x2B, 0x2F, 1),
         )
 
         fun presetName(id: Int) = when (id) {

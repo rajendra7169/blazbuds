@@ -40,4 +40,31 @@ class HuaweiPacketTest {
         val answer = HuaweiPacket.encode(HuaweiPacket(0x01, 0x3A, mapOf(0x81 to hex("82 12 03 04 00 00 00 03 04 04 00 00 00 04 05 04 00 00 00 02"))))
         assertEquals(0x013A, HuaweiPacket.Reader().feed(answer, answer.size).single().id)
     }
+
+    @Test
+    fun readsARememberedDeviceForDualConnect() {
+        val name = "Pixel 8".encodeToByteArray()
+        val packet = HuaweiPacket(
+            0x2B, 0x31,
+            mapOf(2 to byteArrayOf(2), 3 to byteArrayOf(1), 4 to hex("a4 c1 38 0b 22 ff"), 5 to byteArrayOf(9), 7 to byteArrayOf(0), 9 to name),
+        )
+        val (index, host) = HuaweiBuds.host(packet)!!
+        assertEquals(1, index)
+        assertEquals("A4:C1:38:0B:22:FF", host.address)
+        assertEquals("Pixel 8", host.name)
+        assertEquals(true, host.connected)
+        assertEquals(true, host.playing)
+        // A row without a whole address is not a device.
+        assertEquals(null, HuaweiBuds.host(HuaweiPacket(0x2B, 0x31, mapOf(3 to byteArrayOf(0), 4 to hex("a4 c1")))))
+    }
+
+    @Test
+    fun turnsAnAddressBackIntoTheBytesTheEarbudsUse() {
+        assertContentEquals(hex("a4 c1 38 0b 22 ff"), HuaweiBuds.macBytes("A4:C1:38:0B:22:FF"))
+        assertContentEquals(hex("a4 c1 38 0b 22 ff"), HuaweiBuds.macBytes("a4c1380b22ff"))
+        assertEquals(null, HuaweiBuds.macBytes("A4:C1:38"))
+        // Forgetting a device is 2B 33 with field 3 holding its address.
+        val forget = HuaweiPacket.encode(HuaweiPacket(0x2B, 0x33, mapOf(3 to HuaweiBuds.macBytes("A4:C1:38:0B:22:FF")!!)))
+        assertContentEquals(hex("5a 00 0b 00 2b 33 03 06 a4 c1 38 0b 22 ff"), forget.copyOf(forget.size - 2))
+    }
 }
