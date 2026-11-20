@@ -103,7 +103,7 @@ fun MyDevicesScreen(
             Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AddArt(size = 140.dp)
                 Text("No devices yet", style = MaterialTheme.typography.titleLarge, color = palette.text)
-                Hint("Earbuds that connect to this device appear here by themselves.", Modifier.padding(horizontal = 24.dp))
+                Hint("Earbuds and headphones that connect to this device appear here by themselves.", Modifier.padding(horizontal = 24.dp))
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -263,20 +263,24 @@ fun ConnectGuideScreen(name: String, look: com.blazify.buds.ui.SystemLook, openS
 @Composable
 fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: () -> Unit, look: com.blazify.buds.ui.SystemLook = com.blazify.buds.ui.SystemLook.Android) {
     val palette = LocalPalette.current
-    var which by remember { mutableIntStateOf(0) }
+    var which by remember { mutableIntStateOf(PAIRING.lastIndex) }
+    val showing = com.blazify.buds.ui.blocks.rememberDeviceCycle()
     PlaceFrame("Add device", back) {
-        WorksWith()
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            AddArt(size = 150.dp)
-            Text("Pair your earbuds", style = MaterialTheme.typography.titleLarge, color = palette.text)
-            Hint("Put them in pairing mode, pair them in Bluetooth settings, then come back.", Modifier.padding(horizontal = 24.dp))
+            AddArt(size = 150.dp, showing = showing)
+            com.blazify.buds.ui.blocks.DeviceWord("Pair your ", showing, MaterialTheme.typography.titleLarge, palette.text)
+            Hint("Pick your brand for its steps. Any earbuds or headphones connect, whichever you pick.", Modifier.padding(horizontal = 24.dp))
         }
-        BluetoothMockup(look, "Your earbuds", pairing = true)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Catalog.pairingHelp.forEachIndexed { i, (name, _) -> Choice(name, which == i) { which = i } }
-        }
+        BrandPicker(which) { which = it }
+        val brand = PAIRING[which]
         Panel {
-            Catalog.pairingHelp[which].second.forEachIndexed { i, step ->
+            Text(if (brand.models.isEmpty()) "Any earbuds or headphones" else brand.name, style = MaterialTheme.typography.titleMedium, color = palette.text)
+            if (brand.models.isNotEmpty()) Text(brand.models, style = MaterialTheme.typography.bodySmall, color = palette.muted)
+            Row(Modifier.padding(top = 8.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(BudsIcons.Check, null, tint = palette.good, modifier = Modifier.size(18.dp))
+                Text(brand.can, style = MaterialTheme.typography.bodyMedium, color = palette.text)
+            }
+            brand.steps.forEachIndexed { i, step ->
                 Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                     Box(Modifier.size(26.dp).clip(CircleShape).background(palette.accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
                         Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = palette.accent)
@@ -285,6 +289,7 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
                 }
             }
         }
+        BluetoothMockup(look, "Your earbuds", pairing = true)
         if (openSettings != null) {
             Row(
                 Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(28.dp)).background(palette.accent)
@@ -302,42 +307,63 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
     }
 }
 
-/** A brand the app fully controls: some of its models, and what the app can do with them. */
-private data class Brand(val name: String, val models: String, val can: String)
+/** A brand: some of its models, what the app can do with them, and how to put them in pairing mode. */
+private class PairBrand(val name: String, val models: String, val can: String, val steps: List<String>)
 
-private val BRANDS = listOf(
-    Brand("Soundcore", "Liberty, Life, Space, P, A, R, Sport and Sleep series", "Battery, listening modes, sound and your own curve, touch controls, EarPrint on the Liberty 4 NC"),
-    Brand("Samsung Galaxy Buds", "Buds, Buds+, Live, Pro, Buds2, Buds FE, Buds3, Buds4", "Battery, noise cancelling and ambient, presets and, from Buds3, your own curve, touch lock"),
-    Brand("Sony", "WH-1000XM, WF-1000XM, LinkBuds, WF-C, WH-CH, ULT WEAR", "Battery, noise cancelling with ambient level, your own curve, speak-to-chat, touch"),
-    Brand("Nothing and CMF", "Ear, Ear (a), Ear (1) to (3), Ear (open), CMF Buds", "Battery, listening modes, Advanced equalizer, fit test, touch controls"),
-    Brand("OnePlus, OPPO and realme", "Buds, Nord Buds, Enco and realme Buds, 140 models", "Battery, listening modes, your own curve, 3D sound, fit test, touch"),
-    Brand("Honor and Huawei", "Honor Choice Earbuds X, FreeBuds", "Battery with the case, sound presets, touch controls, dual-connect"),
-    Brand("Ultima and JieLi earbuds", "Ultima Boom and many lower-priced pairs on the JieLi chip", "Battery with the case, sound presets and your own curve, touch, gaming mode"),
+private const val PICK = "Pick them in your Bluetooth settings, then come back here."
+
+/** The brands the app knows well, which double as the list of what it works with; "Not sure" last, for anything. */
+private val PAIRING = listOf(
+    PairBrand(
+        "Soundcore", "Liberty, Life, Space, P, A, R and Sport series, Sleep A30",
+        "Battery, listening modes, your own sound, touch controls; EarPrint on the Liberty 4 NC",
+        listOf("Earbuds: put both in the case and leave the lid open. Headphones: turn them off.", "Hold the case's button, or the headphones' power button, about 3 seconds until the light flashes.", PICK),
+    ),
+    PairBrand(
+        "Samsung", "Galaxy Buds, Buds+, Live, Pro, Buds2, Buds FE, Buds3, Buds4",
+        "Battery, noise cancelling and ambient, presets and, from Buds3, your own sound, touch lock",
+        listOf("Put both earbuds in the case, close the lid for 5 seconds, then open it.", "If they don't show up, put them in your ears and touch and hold both touchpads about 3 seconds.", PICK),
+    ),
+    PairBrand(
+        "Sony", "WH-1000XM, WF-1000XM, LinkBuds, WF-C, WH-CH, ULT WEAR",
+        "Battery, noise cancelling with ambient level, your own sound, speak-to-chat, touch",
+        listOf("Headphones: turn them off, then hold the power button about 7 seconds until the light flashes.", "Earbuds: put both in your ears and touch and hold both sensors about 5 seconds.", PICK),
+    ),
+    PairBrand(
+        "Nothing and CMF", "Ear, Ear (a), Ear (1) to (3), Ear (open), CMF Buds",
+        "Battery, listening modes, Advanced equalizer, fit test, touch controls",
+        listOf("Put both earbuds in the case and leave the lid open.", "Hold the button on the case about 2 seconds until the light flashes.", PICK),
+    ),
+    PairBrand(
+        "OnePlus, OPPO, realme", "Buds, Nord Buds, Enco and realme Buds, about 140 models",
+        "Battery, listening modes, your own sound, 3D sound, fit test, touch",
+        listOf("Put both earbuds in the case and leave the lid open.", "Hold the button on the case about 2 seconds until the light flashes white.", PICK),
+    ),
+    PairBrand(
+        "Honor and Huawei", "Honor Choice Earbuds X, FreeBuds",
+        "Battery with the case, sound presets, touch controls, dual-connect",
+        listOf("Put both earbuds in the case and leave the lid open.", "Hold the button on the case about 2 seconds until the light flashes white.", PICK),
+    ),
+    PairBrand(
+        "Ultima and others", "Ultima Boom and many lower-priced earbuds",
+        "Battery with the case, sound presets and your own sound, touch, gaming mode",
+        listOf("Take both earbuds out of the case; most wait to be paired with a flashing light.", "If not, touch and hold both earbuds about 5 seconds until the light flashes.", PICK),
+    ),
+    PairBrand(
+        "Not sure", "",
+        "Any earbuds or headphones get battery and the basics; the brands above get much more",
+        listOf("Put the earbuds in their case with the lid open, or turn the headphones off.", "Hold the case's button, or the power button, until a light flashes. The leaflet in the box says how if not.", PICK),
+    ),
 )
 
-/** Which earbuds the app knows well, at the top of Add device, so people know before they pair. */
+/** The brands as buttons that wrap onto as many lines as they need. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun WorksWith() {
-    val palette = LocalPalette.current
-    var open by remember { mutableIntStateOf(-1) }
-    Panel(padding = 8.dp) {
-        SectionTitle("Works with", Modifier.padding(start = 8.dp, top = 6.dp))
-        BRANDS.forEachIndexed { i, brand ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).press { open = if (open == i) -1 else i }.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(BudsIcons.Check, null, tint = palette.good, modifier = Modifier.size(18.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(brand.name, style = MaterialTheme.typography.bodyLarge, color = palette.text)
-                        Text(brand.models, style = MaterialTheme.typography.bodySmall, color = palette.muted, maxLines = if (open == i) 3 else 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Icon(if (open == i) BudsIcons.Close else BudsIcons.Plus, null, tint = palette.muted, modifier = Modifier.size(16.dp))
-                }
-                AnimatedVisibility(open == i) {
-                    Text(brand.can, style = MaterialTheme.typography.bodyMedium, color = palette.text, modifier = Modifier.padding(start = 28.dp, top = 6.dp))
-                }
-            }
+private fun BrandPicker(which: Int, pick: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle("Your brand")
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            PAIRING.forEachIndexed { i, brand -> Choice(brand.name, which == i) { pick(i) } }
         }
-        Hint("Any other Bluetooth earbuds get battery and the basics. Missing yours? Ask in Help.", Modifier.padding(8.dp))
     }
 }
-
