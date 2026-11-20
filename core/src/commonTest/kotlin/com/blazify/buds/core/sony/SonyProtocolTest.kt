@@ -1,0 +1,177 @@
+package com.blazify.buds.core.sony
+
+import com.blazify.buds.core.model.Battery
+import com.blazify.buds.core.model.Equalizer
+import com.blazify.buds.core.model.ListeningMode
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * The command set, against real messages: the WF-1000XM5's answers from a user's device report in PairFree
+ * (data/sony/reports/WF-1000XM5_6.1.0.txt), first answers from Gadgetbridge's notes, and the set commands Gadgetbridge's
+ * tests check for set one and set two.
+ */
+class SonyProtocolTest {
+    private fun hex(s: String) = s.split(" ").filter { it.isNotEmpty() }.map { it.toInt(16).toByte() }.toByteArray()
+    private fun ByteArray?.text() = this?.let { SonyFrame.hex(it) }
+
+    private val xm5Functions = hex(
+        "07 00 2e 10 ff 12 ff 13 ff 14 ff 15 ff 16 ff 17 ff 23 ff 25 36 11 ff 27 ff 29 ff 2a ff 92 ff 50 11 6b 08 70 01 90 ff " +
+            "a1 12 c1 ff c2 ff e2 1b f1 38 fc 0d 93 ff f6 33 f9 41 d1 3b 94 ff 40 2e 42 3a 44 ff ff 2d 19 ff f3 26 e7 1a d2 20 " +
+            "fd 2b b6 1d b0 42 b2 43 b8 1f b7 15 34 3f f4 23 f5 24",
+    )
+
+    @Test
+    fun theFirstAnswerSaysWhichSet() {
+        assertEquals(SonySet.One, Sony.setOf(hex("01 00 40 10"))) // WH-1000XM3
+        assertEquals(SonySet.One, Sony.setOf(hex("01 00 70 00"))) // WF-SP800N
+        assertEquals(SonySet.Two, Sony.setOf(hex("01 00 03 00 00 00 00 00"))) // WH-1000XM5
+        assertEquals(SonySet.Two, Sony.setOf(hex("01 00 03 00 30 18 00 00"))) // WF-1000XM5
+        assertNull(Sony.setOf(hex("05 01 00")))
+    }
+
+    @Test
+    fun modelAndFirmware() {
+        assertEquals(1 to "WF-1000XM5", Sony.text(hex("05 01 0a 57 46 2d 31 30 30 30 58 4d 35")))
+        assertEquals(2 to "6.1.0", Sony.text(hex("05 02 05 36 2e 31 2e 30")))
+    }
+
+    @Test
+    fun theXm5sFunctionsGiveWhatToAskFor() {
+        val functions = Sony.functions(SonySet.Two, xm5Functions)
+        assertEquals(46, functions.size)
+        val f = SonyFeatures.from(SonySet.Two, functions)
+        assertEquals(listOf(0x09, 0x0A), f.batteries)
+        assertEquals(0x17, f.noise)
+        assertEquals(0x00, f.eq)
+        assertTrue(f.eqCustom)
+        assertTrue(f.upscaling)
+        assertTrue(f.wearPause)
+        assertEquals(0x0C, f.speakToChat)
+        assertEquals(0x05, f.autoOff)
+        assertEquals(0x03, f.keys)
+    }
+
+    @Test
+    fun setOneListsOneByteFunctions() {
+        val f = SonyFeatures.from(SonySet.One, Sony.functions(SonySet.One, hex("07 00 08 11 51 62 e2 f3 f4 f5 f6")))
+        assertEquals(listOf(0x00), f.batteries)
+        assertEquals(0x02, f.noise)
+        assertEquals(0x01, f.eq)
+        assertEquals(0x05, f.speakToChat)
+        assertEquals(0x04, f.autoOff)
+        assertEquals(0x06, f.keys)
+    }
+
+    @Test
+    fun batteries() {
+        // The left earbud away (0), the right full.
+        val pair = Sony.batteries(hex("23 09 00 00 64 00 64 64"))!!
+        assertNull(pair.left)
+        assertEquals(Battery(100), pair.right)
+        assertEquals(Battery(40), Sony.batteries(hex("23 0a 28 00 1e"))!!.case)
+        assertEquals(Battery(70, charging = true), Sony.batteries(hex("11 00 46 01"))!!.overall)
+        assertEquals(Battery(55, charging = true), Sony.batteries(hex("13 01 50 00 37 01"))!!.right)
+        assertTrue(Sony.isBattery(SonySet.One, 0x13) && Sony.isBattery(SonySet.Two, 0x25) && !Sony.isBattery(SonySet.Two, 0x13))
+    }
+
+    @Test
+    fun setTwoNoiseControl() {
+        val ambient = SonyNoise(SonySet.Two, hex("67 17 01 01 01 00 14"))
+        assertEquals(ListeningMode.Transparency, ambient.mode)
+        assertEquals(false, ambient.voice)
+        val news = SonyNoise(SonySet.Two, hex("69 17 01 01 00 01 0a"))
+        assertEquals(ListeningMode.NoiseCancelling, news.mode)
+        assertEquals(true, news.voice)
+        // Gadgetbridge's layout for 17: 68 17, changed, on, ambient, voice, level.
+        assertEquals("68 17 01 01 00 00 14", ambient.set(ListeningMode.NoiseCancelling).text())
+        assertEquals("68 17 01 00 01 00 14", ambient.set(ListeningMode.Normal).text())
+        assertEquals("68 17 01 01 01 01 14", ambient.set(voice = true).text())
+        // The WF-1000XM4's longer 17, with the noise cancelling value written as dual.
+        assertEquals("68 17 01 01 00 02 00 14", SonyNoise(SonySet.Two, hex("67 17 01 00 00 00 00 14")).set(ListeningMode.NoiseCancelling).text())
+        // Ambient sound only.
+        val only = SonyNoise(SonySet.Two, hex("67 22 01 01 00 0a"))
+        assertEquals(listOf(ListeningMode.Transparency, ListeningMode.Normal), only.modes)
+        assertNull(only.set(ListeningMode.NoiseCancelling))
+        assertEquals("68 22 01 00 00 0a", only.set(ListeningMode.Normal).text())
+    }
+
+    @Test
+    fun setOneNoiseControlMatchesGadgetbridge() {
+        val cancelling = SonyNoise(SonySet.One, hex("67 02 01 00 01 01 00 00"))
+        assertEquals(ListeningMode.NoiseCancelling, cancelling.mode)
+        assertEquals("68 02 11 00 00 01 00 00", cancelling.set(ListeningMode.Transparency).text())
+        assertEquals("68 02 00 00 00 01 00 00", cancelling.set(ListeningMode.Normal).text())
+        val ambient = SonyNoise(SonySet.One, hex("67 02 01 00 00 01 00 00"))
+        assertEquals(ListeningMode.Transparency, ambient.mode)
+        assertEquals("68 02 11 00 01 01 00 00", ambient.set(ListeningMode.NoiseCancelling).text())
+        // With the dual and single setting, noise cancelling is written as dual (2).
+        assertEquals("68 02 11 02 02 01 00 00", SonyNoise(SonySet.One, hex("67 02 00 02 00 01 00 00")).set(ListeningMode.NoiseCancelling).text())
+        assertEquals("68 02 11 02 00 01 01 0a", SonyNoise(SonySet.One, hex("67 02 01 02 02 01 00 0a")).set(ListeningMode.Transparency, voice = true).text())
+    }
+
+    @Test
+    fun theXm5sEqualizer() {
+        val eq = SonyEq(SonySet.Two, 0x00, customizable = true)
+        assertTrue(eq.read(hex("51 00 06 15 0c 00 00 10 00 11 00 12 00 13 00 14 00 15 00 16 00 17 00 a0 00 a1 00 a2 00")))
+        assertTrue(eq.read(hex("5b 00 06 10 00 01 01 01 90 01 03 e8 01 09 c4 01 18 9c 01 3e 80")))
+        assertTrue(eq.read(hex("57 00 a2 06 0e 0a 0a 0a 0a 0a")))
+        val shown = eq.equalizer()!!
+        assertEquals(Equalizer.CUSTOM, shown.presetId)
+        assertEquals(listOf("Off", "Bright", "Excited", "Mellow", "Relaxed", "Vocal", "Treble boost", "Bass boost", "Speech"), shown.presets.map { it.name })
+        assertEquals(listOf(400, 1000, 2500, 6300, 16000), shown.frequencies)
+        assertEquals(listOf(0.0, 0.0, 0.0, 0.0, 0.0), shown.left)
+        assertTrue(shown.custom)
+        // The curve keeps the user setting it was in and Clear Bass as it was.
+        assertEquals("58 00 a2 06 0e 0f 0b 0a 0e 0a", eq.curve(listOf(5.0, 1.0, 0.0, 4.0, 0.0)).text())
+        assertEquals("58 00 10 00", eq.choose(0x10).text())
+        assertTrue(!eq.read(hex("57 02 10 00")))
+    }
+
+    @Test
+    fun setOneEqualizerMatchesGadgetbridge() {
+        val eq = SonyEq(SonySet.One, 0x01, customizable = true)
+        eq.read(hex("57 01 10 06 0a 0a 0a 0a 0a 0a"))
+        assertEquals(0x10, eq.equalizer()!!.presetId)
+        assertEquals("58 01 10 00", eq.choose(0x10).text())
+        assertEquals("58 01 ff 06 0a 0f 0b 0a 0e 0a", eq.curve(listOf(5.0, 1.0, 0.0, 4.0, 0.0)).text())
+        assertEquals("58 01 ff 06 0a 07 03 0a 0c 10", eq.curve(listOf(-3.0, -7.0, 0.0, 2.0, 6.0)).text())
+    }
+
+    @Test
+    fun switches() {
+        assertEquals("f8 03 00 01", Sony.setWearPause(SonySet.One, true).text())
+        assertEquals("e8 02 00 01", Sony.setUpscaling(SonySet.One, true).text())
+        assertEquals("f8 05 01 01", Sony.setSpeakToChat(SonySet.One, 0x05, true).text())
+        assertEquals("f8 01 00", Sony.setWearPause(SonySet.Two, true).text())
+        assertEquals("e8 01 01", Sony.setUpscaling(SonySet.Two, true).text())
+        assertEquals("f8 0c 00 01", Sony.setSpeakToChat(SonySet.Two, 0x0C, true).text())
+        // The WF-1000XM5 with all three off; set two writes on as 0.
+        assertEquals(false, Sony.wearPauseOn(SonySet.Two, hex("f7 01 01")))
+        assertEquals(false, Sony.speakToChatOn(SonySet.Two, 0x0C, hex("f7 0c 01 01")))
+        assertEquals(false, Sony.upscalingOn(SonySet.Two, hex("e7 01 00")))
+        assertEquals(true, Sony.wearPauseOn(SonySet.One, hex("f7 03 00 01")))
+        assertNull(Sony.upscalingOn(SonySet.Two, hex("e7 00 00")))
+    }
+
+    @Test
+    fun automaticPowerOff() {
+        assertEquals("f8 04 01 01 01", Sony.setAutoOff(SonySet.One, 0x04, 0x01, 0x00).text())
+        assertEquals("f8 04 01 11 00", Sony.setAutoOff(SonySet.One, 0x04, Sony.OFF_NEVER, 0x00).text())
+        assertEquals("f8 04 01 10 00", Sony.setAutoOff(SonySet.One, 0x04, Sony.OFF_WHEN_TAKEN_OFF, 0x00).text())
+        assertEquals(listOf(0x10, 0x11), Sony.autoOffChoices(SonySet.Two, 0x05, hex("21 05 02 10 11")))
+        assertEquals(0x10 to 0x00, Sony.autoOffSetting(SonySet.Two, 0x05, hex("27 05 10 00")))
+        assertEquals("28 05 11 00", Sony.setAutoOff(SonySet.Two, 0x05, Sony.OFF_NEVER, 0x00).text())
+        assertEquals(30, Sony.minutes(0x01))
+        assertEquals(0x04, Sony.idFor(15))
+    }
+
+    @Test
+    fun touchKeys() {
+        assertEquals(listOf(0x35, 0x20), Sony.keys(0x03, hex("f7 03 02 35 20")))
+        assertEquals("f8 06 02 ff 20", Sony.setKeys(0x06, listOf(Sony.KEY_NONE, Sony.KEY_PLAYBACK)).text())
+        assertEquals("f8 03 02 00 20", Sony.setKeys(0x03, listOf(Sony.KEY_NOISE, Sony.KEY_PLAYBACK)).text())
+    }
+}
