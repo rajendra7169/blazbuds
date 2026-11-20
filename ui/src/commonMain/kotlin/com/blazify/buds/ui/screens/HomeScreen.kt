@@ -285,7 +285,7 @@ private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
     }
 }
 
-private val QUICK = listOf(Toggle.GamingMode, Toggle.Surround, Toggle.WearDetection)
+private val QUICK = listOf(Toggle.GamingMode, Toggle.Surround, Toggle.DynamicBass, Toggle.WearDetection)
 
 /** One tile in the quick switches. */
 private class Quick(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val on: Boolean, val detail: String, val flip: () -> Unit)
@@ -324,6 +324,7 @@ fun Toggle.label() = when (this) {
     Toggle.TouchLock -> "Touch lock"
     Toggle.LowBatteryPrompt -> "Low battery alert"
     Toggle.SoundLeakCompensation -> "Leak compensation"
+    Toggle.DynamicBass -> "Dynamic bass"
 }
 
 fun Toggle.icon() = when (this) {
@@ -333,6 +334,7 @@ fun Toggle.icon() = when (this) {
     Toggle.WearDetection -> BudsIcons.Ear
     Toggle.TouchLock -> BudsIcons.Lock
     Toggle.LowBatteryPrompt -> BudsIcons.Battery
+    Toggle.DynamicBass -> BudsIcons.Wave
     else -> BudsIcons.Touch
 }
 

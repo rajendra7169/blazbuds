@@ -171,6 +171,9 @@ enum class Toggle {
     TouchLock,
     LowBatteryPrompt,
     SoundLeakCompensation,
+
+    /** A lift for the bass that follows the music (Honor). */
+    DynamicBass,
 }
 
 data class Multipoint(val enabled: Boolean, val devices: List<Host> = emptyList())
