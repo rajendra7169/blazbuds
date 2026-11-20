@@ -150,6 +150,16 @@ class Shots {
             shot(dir, "changelog-$look", 440, 1100) { BudsApp(DemoBuds(), prefs(theme), Place.Changelog) }
             shot(dir, "help-$look", 440, 2100) { BudsApp(DemoBuds(), prefs(theme), Place.Support) }
             shot(dir, "add-$look", 440, 1400) { BudsApp(DemoBuds(), prefs(theme), Place.Add) }
+            shot(dir, "update-$look", 340, 380) {
+                BudsTheme(theme) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.background(com.blazify.buds.ui.theme.LocalPalette.current.background).padding(20.dp)) {
+                        com.blazify.buds.ui.blocks.PromptCardLayout(
+                            "Blazbuds 1.3.0 is here", "New features and fixes are ready. Your sounds and settings stay as they are.",
+                            com.blazify.buds.ui.blocks.PromptButtons("Update", {}, "Later", {}), 0.15f, { t -> with(com.blazify.buds.ui.blocks.RocketArt) { draw(t) } },
+                        )
+                    }
+                }
+            }
             shot(dir, "panel-$look", 360, 460) {
                 val buds = remember { DemoBuds() }
                 BudsTheme(theme) {

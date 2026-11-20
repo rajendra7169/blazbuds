@@ -78,6 +78,21 @@ class Prefs(private val store: Settings = Settings()) {
         Release(v, notes, page, map).takeIf { Updates.isNewer(it.version) }
     }
 
+    /** The popup's memory: the version put off with Later, when, and the version already reminded about once. */
+    val declinedUpdate: String? get() = store.getStringOrNull(DECLINED_UPDATE)
+    val declinedAt: Long? get() = store.getLongOrNull(DECLINED_AT)
+    val remindedUpdate: String? get() = store.getStringOrNull(REMINDED_UPDATE)
+
+    /** Later: put off for a week the first time, for good the second. */
+    fun putOffUpdate(version: String, now: Long) {
+        if (UpdatePrompt.isReminder(version, declinedUpdate)) {
+            store.putString(REMINDED_UPDATE, version)
+        } else {
+            store.putString(DECLINED_UPDATE, version)
+            store.putLong(DECLINED_AT, now)
+        }
+    }
+
     /** When GitHub was last asked, in milliseconds since 1970, so reopening the app doesn't ask again each time. */
     var lastUpdateCheck: Long
         get() = store.getLong(LAST_UPDATE_CHECK, 0L)
@@ -100,6 +115,9 @@ class Prefs(private val store: Settings = Settings()) {
         const val CHECK_UPDATES = "check_updates"
         const val DISMISSED_UPDATE = "dismissed_update"
         const val KNOWN_UPDATE = "known_update"
+        const val DECLINED_UPDATE = "declined_update"
+        const val DECLINED_AT = "declined_update_at"
+        const val REMINDED_UPDATE = "reminded_update"
         const val LAST_UPDATE_CHECK = "last_update_check"
         const val SEP = "\u0001"
         const val FILES = "\u0002"

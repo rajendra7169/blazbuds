@@ -44,6 +44,7 @@ import com.blazify.buds.ui.screens.EqualizerScreen
 import com.blazify.buds.ui.screens.HomeScreen
 import com.blazify.buds.ui.screens.MyDevicesScreen
 import com.blazify.buds.ui.screens.Place
+import com.blazify.buds.ui.blocks.drawRocket
 import com.blazify.buds.ui.screens.ChangelogScreen
 import com.blazify.buds.ui.screens.SettingsScreen
 import com.blazify.buds.ui.screens.SupportScreen
@@ -89,6 +90,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
             if (watchUpdates) UpdateWatch(prefs)
+            UpdatePopup(prefs, hub.look)
             val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()
             var place by remember { mutableStateOf(start) }
@@ -289,4 +291,38 @@ fun UpdateWatch(prefs: Prefs) {
 }
 
 private const val HOUR = 60 * 60 * 1000L
+
+/**
+ * "Blazbuds x.y is here": the popup when a newer version is known, at most as often as [UpdatePrompt] allows. Update
+ * opens this system's download (the release page where there is none); Later, or tapping outside, puts it off.
+ */
+@Composable
+private fun UpdatePopup(prefs: Prefs, look: SystemLook) {
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    val update = prefs.knownUpdate ?: return
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    val now = remember(update.version) { kotlin.time.Clock.System.now().toEpochMilliseconds() }
+    var open by remember(update.version) {
+        mutableStateOf(UpdatePrompt.shouldOffer(update.version, prefs.declinedUpdate, prefs.declinedAt, prefs.remindedUpdate, now))
+    }
+    if (!open) return
+    val later = {
+        prefs.putOffUpdate(update.version, now)
+        open = false
+    }
+    com.blazify.buds.ui.blocks.PromptCard(
+        title = "Blazbuds ${update.version} is here",
+        body = "New features and fixes are ready. Your sounds and settings stay as they are.",
+        buttons = com.blazify.buds.ui.blocks.PromptButtons(
+            primary = "Update",
+            onPrimary = {
+                open = false
+                runCatching { uri.openUri(update.fileFor(look) ?: update.page) }
+            },
+            secondary = "Later",
+            onSecondary = later,
+        ),
+        onDismissRequest = later,
+    ) { time -> drawRocket(time) }
+}
 
