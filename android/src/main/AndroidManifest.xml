@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Talking to paired earbuds. No internet, no location. -->
+    <!-- Talking to paired earbuds. Nothing else: no internet, no location. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- 3D for whatever is playing: hearing other apps' sound (it never leaves the phone), quietening their own copy,
-         and the notice that shows while it's on. DUMP is granted once from a computer; it lets the app read which
-         app is playing which sound. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.DUMP" tools:ignore="ProtectedPermissions" />
-    <!-- To read whether a playing app lets itself be heard, before quietening its own copy. -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
     <application
         android:allowBackup="true"
@@ -43,12 +31,6 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info" />
         </receiver>
         <receiver android:name=".android.WidgetAction" android:exported="false" />
-
-        <!-- 3D for whatever is playing. -->
-        <service
-            android:name=".android.SpatialService"
-            android:exported="false"
-            android:foregroundServiceType="mediaProjection" />
 
         <!-- The quick-settings tile. -->
         <service
