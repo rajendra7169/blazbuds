@@ -44,6 +44,7 @@ import com.blazify.buds.ui.screens.EqualizerScreen
 import com.blazify.buds.ui.screens.HomeScreen
 import com.blazify.buds.ui.screens.MyDevicesScreen
 import com.blazify.buds.ui.screens.Place
+import com.blazify.buds.ui.screens.ChangelogScreen
 import com.blazify.buds.ui.screens.SettingsScreen
 import com.blazify.buds.ui.screens.SupportScreen
 import com.blazify.buds.ui.screens.Tab
@@ -53,7 +54,7 @@ import com.blazify.buds.ui.theme.Motion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-const val VERSION = "0.2.0"
+const val VERSION = "1.2.0"
 
 private val TABS = listOf(
     NavItem("Home", BudsIcons.Home),
@@ -70,7 +71,7 @@ private val TABS = listOf(
 @Composable
 fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place.Earbuds, startTab: Tab = Tab.Home) {
     BudsTheme(prefs.theme) {
-        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
+        CompositionLocalProvider(LocalReduceMotion provides prefs.reduceMotion, LocalPrefs provides prefs, LocalLook provides hub.look, LocalShare provides { text: String -> hub.share(text) }, LocalCanFind provides hub.canFind,
             LocalRoomEar provides remember(hub) {
                 object : RoomEar {
                     override fun listen(onLevel: (Double) -> Unit) = hub.listenToRoom(onLevel)
@@ -87,6 +88,16 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
         ) {
             val buds by hub.current.collectAsState()
             val earbuds by hub.earbuds.collectAsState()
+            // Ask GitHub for a newer version at most every six hours, and only when the person lets it.
+            LaunchedEffect(prefs.checkUpdates) {
+                if (!prefs.checkUpdates) return@LaunchedEffect
+                @OptIn(kotlin.time.ExperimentalTime::class)
+                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+                if (now - prefs.lastUpdateCheck < 6 * 60 * 60 * 1000L && prefs.knownUpdate != null) return@LaunchedEffect
+                val found = Updates.latest() ?: return@LaunchedEffect
+                prefs.lastUpdateCheck = now
+                if (Updates.isNewer(found.version)) prefs.knownUpdate = found
+            }
             val bluetoothOn by hub.bluetoothOn.collectAsState()
             val scope = rememberCoroutineScope()
             var place by remember { mutableStateOf(start) }
@@ -203,7 +214,8 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                             }
                             ConnectGuideScreen(name, hub.look, settingsAction(hub), lookAgain = { scope.launch { hub.reload() } }, back = { place = Place.Earbuds })
                         }
-                        Place.Settings -> SettingsScreen(close)
+                        Place.Settings -> SettingsScreen(close, openChangelog = { place = Place.Changelog })
+                        Place.Changelog -> ChangelogScreen(back = { place = Place.Settings })
                         Place.Find -> if (state != null) FindScreen(state, { l, r -> hub.findSound(l, r) }, close)
                         Place.Fit -> if (now != null) FitTestScreen(now, close)
                         Place.EarPrint -> if (now != null && state != null) EarPrintScreen(state, { c -> scope.launch { now.apply(c) } }, close)

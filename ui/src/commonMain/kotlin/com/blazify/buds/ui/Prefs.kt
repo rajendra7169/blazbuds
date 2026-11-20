@@ -58,7 +58,35 @@ class Prefs(private val store: Settings = Settings()) {
         store.putBoolean(REDUCE_MOTION, on)
     }
 
+    /** Whether the app may ask GitHub, now and then, if a newer Blazbuds is out. */
+    var checkUpdates by mutableStateOf(store.getBoolean(CHECK_UPDATES, true))
+        private set
+
+    /** The newer version last found, so it shows straight away; and the one the person chose to hear no more about. */
+    var knownUpdate by mutableStateOf<Release?>(null)
+    var dismissedUpdate by mutableStateOf(store.getString(DISMISSED_UPDATE, ""))
+        private set
+
+    fun checkUpdates(on: Boolean) {
+        checkUpdates = on
+        store.putBoolean(CHECK_UPDATES, on)
+        if (!on) knownUpdate = null
+    }
+
+    fun dismissUpdate(version: String) {
+        dismissedUpdate = version
+        store.putString(DISMISSED_UPDATE, version)
+    }
+
+    /** When GitHub was last asked, in milliseconds since 1970, so it is asked at most every few hours. */
+    var lastUpdateCheck: Long
+        get() = store.getLong(LAST_UPDATE_CHECK, 0L)
+        set(value) = store.putLong(LAST_UPDATE_CHECK, value)
+
     private companion object {
+        const val CHECK_UPDATES = "check_updates"
+        const val DISMISSED_UPDATE = "dismissed_update"
+        const val LAST_UPDATE_CHECK = "last_update_check"
         const val THEME = "theme"
         const val REDUCE_MOTION = "reduce_motion"
         const val SOUNDS = "my_sounds"
@@ -66,6 +94,9 @@ class Prefs(private val store: Settings = Settings()) {
 }
 
 val LocalPrefs = staticCompositionLocalOf<Prefs> { error("No prefs") }
+
+/** Which system the app runs on, for the right download and the right words. */
+val LocalLook = staticCompositionLocalOf { SystemLook.Android }
 
 /**
  * A sound the person made: its name and the gain of each band. It travels as a short code that anyone with Blazbuds
