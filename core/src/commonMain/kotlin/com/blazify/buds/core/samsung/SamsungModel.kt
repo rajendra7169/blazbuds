@@ -64,6 +64,12 @@ enum class SamsungModel(
             else -> 0
         }
 
+    /**
+     * Voice detect: when you start talking, the earbuds let the world in and turn the music down, and go back a few
+     * seconds after you stop. The Pro models only, as GalaxyBudsClient lists them.
+     */
+    val voiceDetect: Boolean get() = this == BudsPro || this == Buds2Pro || this == Buds3Pro || this == Buds4Pro
+
     /** Whether the earbuds say which of them, and the case, are charging, from the given extended status revision. */
     fun chargingFrom(revision: Int): Boolean = when (this) {
         Buds, BudsPlus, BudsLive, BudsPro -> false

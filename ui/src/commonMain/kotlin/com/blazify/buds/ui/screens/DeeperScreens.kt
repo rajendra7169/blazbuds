@@ -512,7 +512,7 @@ private val PROMPTS = listOf(
     Toggle.Surround to "A wider, spatial sound",
     Toggle.DynamicBass to "Lifts the bass along with the music",
     Toggle.BassBoost to "Turns up the bass",
-    Toggle.SpeakToChat to "Pauses the music when you start talking",
+    Toggle.SpeakToChat to "Quiets the music and lets voices in when you start talking",
     Toggle.Upscaling to "Brings back detail compressed music loses",
     Toggle.VoicePrompt to "Says the mode's name and other news out loud",
 )

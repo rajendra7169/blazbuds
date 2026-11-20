@@ -31,6 +31,8 @@ data class SamsungStatus(
     val gestures: Int? = null,
     /** The strength of manual noise cancelling, from 0 (lightest), on models that have strengths. */
     val cancelLevel: Int? = null,
+    /** Voice detect, on the Pro models. */
+    val voiceDetect: Boolean? = null,
 ) {
     companion object {
         const val EXTENDED_STATUS = 0x61
@@ -83,6 +85,7 @@ data class SamsungStatus(
                 gestures = if (gestures) lockByte else null,
                 // At the same place in every layout from the Buds Pro on.
                 cancelLevel = if (model.cancelLevels > 0) at(24)?.coerceAtMost(model.cancelLevels - 1) else null,
+                voiceDetect = if (model.voiceDetect) at(26)?.let { it == 1 } else null,
             )
         }
 

@@ -176,6 +176,10 @@ class SamsungBuds(
         when (p[0].toInt() and 0xFF) {
             NOISE_CONTROLS -> if (model.noise == SamsungModel.Noise.Controls) setNoise(value)
             SET_NOISE_REDUCTION -> if (model.noise == SamsungModel.Noise.Cancelling) setNoise(if (value == 1) 1 else 0)
+            SET_DETECT_CONVERSATIONS -> if (model.voiceDetect) {
+                status = status?.copy(voiceDetect = value == 1)
+                publish()
+            }
             NOISE_REDUCTION_LEVEL -> if (model.cancelLevels > 0 && value < model.cancelLevels) {
                 status = status?.copy(cancelLevel = value)
                 publish()
@@ -268,6 +272,8 @@ class SamsungBuds(
         }
         val toggles = buildMap {
             if (model.lock(revision) != SamsungModel.Lock.None) s.touchLocked?.let { put(Toggle.TouchLock, it) }
+            // Samsung's voice detect: the world comes in and the music goes down while you talk.
+            s.voiceDetect?.let { put(Toggle.SpeakToChat, it) }
         }
         flow.update {
             it.copy(
@@ -354,7 +360,15 @@ class SamsungBuds(
                 publish()
                 send(SET_TOUCHPAD_OPTION, left, right)
             }
-            is Change.Switch -> if (change.toggle == Toggle.TouchLock) lockTouch(s, change.on)
+            is Change.Switch -> when (change.toggle) {
+                Toggle.TouchLock -> lockTouch(s, change.on)
+                Toggle.SpeakToChat -> if (model.voiceDetect && s.voiceDetect != null) {
+                    status = s.copy(voiceDetect = change.on)
+                    publish()
+                    send(SET_DETECT_CONVERSATIONS, if (change.on) 1 else 0)
+                }
+                else -> {}
+            }
             else -> {}
         }
     }
@@ -409,6 +423,7 @@ class SamsungBuds(
         const val ACKNOWLEDGEMENT = 0x42
         const val NOISE_CONTROLS_UPDATE = 0x77
         const val NOISE_CONTROLS = 0x78
+        const val SET_DETECT_CONVERSATIONS = 0x7A
         const val SET_AMBIENT_MODE = 0x80
         const val AMBIENT_MODE_UPDATED = 0x81
 

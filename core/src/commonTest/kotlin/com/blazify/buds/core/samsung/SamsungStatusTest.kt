@@ -104,6 +104,15 @@ class SamsungStatusTest {
     }
 
     @Test
+    fun voiceDetectOnTheProModelsOnly() {
+        assertEquals(true, status(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13).voiceDetect)
+        assertEquals(false, status(SamsungModel.BudsPro, SamsungCaptures.BUDS_PRO_REV10).voiceDetect)
+        // The Buds2 keep their extra-loud ambient sound at that place; the Buds FE have no voice detect.
+        assertNull(status(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10).voiceDetect)
+        assertNull(status(SamsungModel.BudsFe, SamsungCaptures.BUDS_FE_REV2).voiceDetect)
+    }
+
+    @Test
     fun cancellingStrengthOnlyWhereTheModelHasOne() {
         // The Buds2 keep something else at that place.
         assertNull(status(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10).cancelLevel)

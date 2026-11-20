@@ -170,9 +170,20 @@ class SamsungBudsTest {
     }
 
     @Test
+    fun buds2ProVoiceDetectIsTheTalkingSwitch() = withBuds(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13) { buds, fake ->
+        assertEquals(true, buds.state.value.toggles[Toggle.SpeakToChat])
+        buds.apply(Change.Switch(Toggle.SpeakToChat, false))
+        assertContentEquals(byteArrayOf(0), fake.next(SamsungBuds.SET_DETECT_CONVERSATIONS).payload)
+        assertEquals(false, buds.state.value.toggles[Toggle.SpeakToChat])
+        fake.incoming.add(ack(SamsungBuds.SET_DETECT_CONVERSATIONS, 1))
+        withTimeout(3_000) { buds.state.first { it.toggles[Toggle.SpeakToChat] == true } }
+    }
+
+    @Test
     fun buds2HaveOneCancellingStrength() = withBuds(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10) { buds, fake ->
         assertEquals(emptyList(), buds.state.value.sound!!.options.cancelStyles)
         assertEquals(false, buds.state.value.sound!!.options.levels)
+        assertEquals(null, buds.state.value.toggles[Toggle.SpeakToChat])
         buds.apply(Change.Cancelling(CancelStyle.Manual, level = 1))
         buds.ring(left = true, right = true)
         // Nothing went out for the strength: the next message is the ring.

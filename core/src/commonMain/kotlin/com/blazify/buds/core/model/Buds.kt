@@ -195,7 +195,10 @@ enum class Toggle {
 
     /** More bass, at the strength the earbuds keep (Nothing and CMF). */
     BassBoost,
-    /** Pauses the music and lets voices in when you start talking (Sony's speak-to-chat). */
+    /**
+     * Lets voices in when you start talking, and pauses the music (Sony's speak-to-chat) or turns it down (Samsung's
+     * voice detect).
+     */
     SpeakToChat,
 
     /** Restores the detail compressed music loses (Sony's DSEE). */
