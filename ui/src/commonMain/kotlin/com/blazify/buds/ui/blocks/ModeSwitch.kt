@@ -51,9 +51,8 @@ fun ListeningMode.icon() = when (this) {
  * overshoot, coloured like the mode itself.
  */
 @Composable
-fun ModeSwitch(mode: ListeningMode, modifier: Modifier = Modifier, onPick: (ListeningMode) -> Unit) {
+fun ModeSwitch(mode: ListeningMode, modifier: Modifier = Modifier, modes: List<ListeningMode> = ListeningMode.entries, onPick: (ListeningMode) -> Unit) {
     val palette = LocalPalette.current
-    val modes = ListeningMode.entries
     val index = modes.indexOf(mode)
     val tint by animateColorAsState(
         when (mode) {

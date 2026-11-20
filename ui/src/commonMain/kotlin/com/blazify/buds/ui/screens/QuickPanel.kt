@@ -54,7 +54,7 @@ fun QuickPanel(state: BudsState, change: (Change) -> Unit, openApp: () -> Unit) 
                     BatteryRow(state.left, com.blazify.buds.ui.caseBattery(state), state.right, ring = 44.dp)
                 }
                 state.sound?.let { sound ->
-                    ModeSwitch(sound.mode) { change(Change.Mode(it)) }
+                    ModeSwitch(sound.mode, modes = sound.options.modes) { change(Change.Mode(it)) }
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Scene.DEFAULTS.forEach { scene -> Choice(scene.name, scene.matches(state)) { scene.changes().forEach(change) } }
                     }

@@ -138,9 +138,9 @@ fun PresetTile(
 private fun presetPhoto(name: String): org.jetbrains.compose.resources.DrawableResource? {
     val n = name.lowercase()
     return when {
-        "signature" in n -> Res.drawable.preset_signature
+        "signature" in n || n == "default" -> Res.drawable.preset_signature
         "acoustic" in n -> Res.drawable.preset_acoustic
-        "bass boost" in n || "bass up" in n -> Res.drawable.preset_bass_booster
+        "bass boost" in n || "bass up" in n || "hard bass" in n -> Res.drawable.preset_bass_booster
         "bass reduc" in n || "less bass" in n -> Res.drawable.preset_bass_reducer
         "classical" in n -> Res.drawable.preset_classical
         "podcast" in n || "vocal" in n || "voice" in n -> Res.drawable.preset_podcast
@@ -158,7 +158,7 @@ private fun presetPhoto(name: String): org.jetbrains.compose.resources.DrawableR
         "rock" in n -> Res.drawable.preset_rock
         "small speaker" in n -> Res.drawable.preset_small_speakers
         "spoken" in n -> Res.drawable.preset_spoken_word
-        "treble boost" in n || "treble up" in n -> Res.drawable.preset_treble_booster
+        "treble boost" in n || "treble up" in n || n == "treble" -> Res.drawable.preset_treble_booster
         "treble reduc" in n -> Res.drawable.preset_treble_reducer
         else -> null
     }

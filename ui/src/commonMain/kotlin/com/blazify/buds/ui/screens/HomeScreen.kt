@@ -232,7 +232,7 @@ private fun Listening(state: BudsState, change: (Change) -> Unit) {
     Panel {
         SectionTitle("Listening")
         Spacer(Modifier.height(8.dp))
-        ModeSwitch(sound.mode) { change(Change.Mode(it)) }
+        ModeSwitch(sound.mode, modes = sound.options.modes) { change(Change.Mode(it)) }
         Spacer(Modifier.height(12.dp))
         ModeDetails(
             sound,

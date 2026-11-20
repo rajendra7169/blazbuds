@@ -76,16 +76,20 @@ fun ModeDetails(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (mode) {
                 ListeningMode.NoiseCancelling -> {
-                    // Three equal capsules, so they always fit on one line.
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Choice("Adaptive", sound.cancelStyle == CancelStyle.Adaptive, Modifier.weight(1f), centered = true) { onCancel(CancelStyle.Adaptive, null, null) }
-                        Choice("Manual", sound.cancelStyle == CancelStyle.Manual, Modifier.weight(1f), centered = true) { onCancel(CancelStyle.Manual, null, null) }
-                        Choice("Travel", sound.cancelStyle == CancelStyle.Travel, Modifier.weight(1f), centered = true) { onCancel(CancelStyle.Travel, null, null) }
+                    val styles = sound.options.cancelStyles
+                    // Equal capsules, so they always fit on one line; only the ways these earbuds have.
+                    if (styles.size > 1) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            styles.forEach { style ->
+                                Choice(style.name, sound.cancelStyle == style, Modifier.weight(1f), centered = true) { onCancel(style, null, null) }
+                            }
+                        }
                     }
-                    when (sound.cancelStyle) {
+                    if (styles.isEmpty()) Hint("Cuts out the noise around you.")
+                    else when (sound.cancelStyle) {
                         CancelStyle.Adaptive -> {
                             Hint("Adjusts by itself to your fit and to the noise around you.")
-                            SwitchRow(null, "Environment detection", sound.environmentDetection, onEnvironment, detail = "Also follows how loud it is around you")
+                            if (sound.options.environment) SwitchRow(null, "Environment detection", sound.environmentDetection, onEnvironment, detail = "Also follows how loud it is around you")
                         }
                         CancelStyle.Manual -> {
                             Hint("You choose how strongly it cancels: 1 is lightest, 5 is strongest.")
@@ -100,9 +104,11 @@ fun ModeDetails(
                             }
                         }
                     }
-                    SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
+                    if (sound.options.wind) SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
-                ListeningMode.Transparency -> {
+                ListeningMode.Transparency -> if (!sound.options.transparencyStyles) {
+                    Hint("Lets the world in, as if you weren't wearing them.")
+                } else {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Choice("Everything", sound.transparencyStyle == TransparencyStyle.Full, Modifier.weight(1f), centered = true) { onTransparency(TransparencyStyle.Full) }
                         Choice("Voices", sound.transparencyStyle == TransparencyStyle.Voice, Modifier.weight(1f), icon = BudsIcons.Voice, centered = true) {
@@ -110,7 +116,7 @@ fun ModeDetails(
                         }
                     }
                     Hint(if (sound.transparencyStyle == TransparencyStyle.Voice) "Brings voices through clearly and keeps other sounds down." else "Lets the world in, as if you weren't wearing them.")
-                    SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
+                    if (sound.options.wind) SwitchRow(BudsIcons.Wind, "Wind noise reduction", sound.windReduction, onWind)
                 }
                 ListeningMode.Normal -> Hint("No cancelling and no passthrough: the longest battery.")
             }

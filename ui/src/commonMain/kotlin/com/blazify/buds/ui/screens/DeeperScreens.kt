@@ -99,8 +99,11 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
         share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Custom › Add a code and paste:\n${sound.code()}")
 
-    TwoWay("Presets", "Custom", onSecond = custom) { custom = it }
-    Spacer(Modifier.height(14.dp))
+    // Pairs that only have presets skip the switch and the curve.
+    if (eq.custom) {
+        TwoWay("Presets", "Custom", onSecond = custom) { custom = it }
+        Spacer(Modifier.height(14.dp))
+    } else if (custom) custom = false
     if (!custom) {
         // Presets: just the sounds to pick from, each with its picture.
         TileGrid(eq.presets) { i, preset, modifier ->
@@ -423,7 +426,7 @@ fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit
             }
         }
     }
-    state.sound?.let { sound ->
+    state.sound?.takeIf { it.options.cycle }?.let { sound ->
         Panel {
             SectionTitle("Change listening mode goes through")
             Spacer(Modifier.height(4.dp))
@@ -456,7 +459,7 @@ fun ControlsScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Unit
         ) {
             Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
                 Text("${if (ear == Ear.Left) "Left" else "Right"} earbud · ${press.label()}", style = MaterialTheme.typography.titleMedium, color = palette.text, modifier = Modifier.padding(bottom = 8.dp))
-                controls.available.forEach { action ->
+                controls.choices(press).forEach { action ->
                     val chosen = controls.actions[ear to press] == action
                     Row(
                         Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).press {
