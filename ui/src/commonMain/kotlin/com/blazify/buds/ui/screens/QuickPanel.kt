@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +37,8 @@ import com.blazify.buds.ui.theme.LocalPalette
 fun QuickPanel(state: BudsState, change: (Change) -> Unit, openApp: () -> Unit) {
     val palette = LocalPalette.current
     Column(
-        Modifier.fillMaxSize().background(palette.background).padding(16.dp),
+        // As tall as what it holds: the tray window takes its height from this.
+        Modifier.fillMaxWidth().background(palette.background).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

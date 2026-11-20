@@ -326,14 +326,17 @@ private fun app(args: Array<String>) = application {
         ) {
             // Never narrower or shorter than the phone layout, so nothing breaks.
             window.minimumSize = Dimension(360, 560)
-            if (hub != null) BudsApp(hub, prefs) else BudsApp(demoBuds!!, prefs)
+            androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true) {
+                if (hub != null) BudsApp(hub, prefs) else BudsApp(demoBuds!!, prefs)
+            }
         }
     }
 
     if (panel && buds != null && state != null) {
         val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
         val panelState = rememberWindowState(
-            size = DpSize(360.dp, 330.dp),
+            // As tall as the panel's content, so nothing in it is ever cut off.
+            size = DpSize(360.dp, androidx.compose.ui.unit.Dp.Unspecified),
             position = WindowPosition((screen.x + screen.width - 380).dp, (screen.y + 12).dp),
         )
         Window(
