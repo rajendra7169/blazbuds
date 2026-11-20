@@ -74,7 +74,13 @@ object Catalog {
             Model(found.name, Support.Full, SOUNDCORE_PAIRING, Family.Soundcore, found)
         }
         // Honor and Huawei earbuds share one protocol; Honor Choice ones call themselves "Earbuds X…".
-        HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(device.name, Support.Battery, HONOR_PAIRING, Family.Huawei)
+        // The Honor Choice settings (sound, every touch, switches) were read off the X7e Active itself: full control.
+        // Huawei's own FreeBuds get battery and modes for now, until one is tried.
+        HUAWEI_NAMES.any { it.containsMatchIn(device.name) } -> Model(
+            device.name,
+            if (HONOR_CHOICE.containsMatchIn(device.name)) Support.Full else Support.Battery,
+            HONOR_PAIRING, Family.Huawei,
+        )
         // OnePlus, OPPO and realme earbuds that HeyMelody or realme Link control; realme ones only by their exact names,
         // as some realme earbuds speak something else.
         MELODY_NAMES.any { it.containsMatchIn(device.name) } || com.blazify.buds.core.oneplus.MelodyModel.knows(device.name) ->
@@ -122,6 +128,8 @@ object Catalog {
         Regex("^WI-C\\d{3}", RegexOption.IGNORE_CASE),
         Regex("^(Sony )?ULT WEAR", RegexOption.IGNORE_CASE),
     )
+
+    private val HONOR_CHOICE = Regex("^(Earbuds X\\d|HONOR (Earbuds|Choice))", RegexOption.IGNORE_CASE)
 
     private val HUAWEI_NAMES = listOf(
         Regex("^Earbuds X\\d", RegexOption.IGNORE_CASE),
