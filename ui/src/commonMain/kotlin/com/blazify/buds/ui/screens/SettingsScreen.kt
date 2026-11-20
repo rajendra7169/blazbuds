@@ -243,9 +243,20 @@ private fun OtherAppsPanel() {
                 Icon(BudsIcons.OpenLink, null, tint = palette.muted, modifier = Modifier.size(18.dp))
             }
         }
-        Row(Modifier.fillMaxWidth().press { uri.openUri(REPO_URL) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Blazbuds' own code", style = MaterialTheme.typography.bodyMedium, color = palette.accent, modifier = Modifier.weight(1f))
-            Icon(BudsIcons.OpenLink, null, tint = palette.accent, modifier = Modifier.size(16.dp))
+        // A star helps others find Blazbuds; the popup asks once a release, and here it always is.
+        Row(
+            Modifier.fillMaxWidth().press { uri.openUri(REPO_URL) }.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.size(44.dp).background(palette.accent.copy(alpha = 0.14f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(BudsIcons.GitHub, null, tint = palette.accent, modifier = Modifier.size(22.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Star Blazbuds on GitHub", style = MaterialTheme.typography.bodyLarge, color = palette.text)
+                Text("It helps others find it, and it's free", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+            }
+            Icon(BudsIcons.OpenLink, null, tint = palette.muted, modifier = Modifier.size(18.dp))
         }
     }
 }
