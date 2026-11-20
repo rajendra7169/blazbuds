@@ -157,7 +157,9 @@ private fun TopBar(state: BudsState, open: (Place) -> Unit) {
 @Composable
 private fun LinkBanner(state: BudsState, retry: () -> Unit, bluetoothOn: Boolean, turnOnBluetooth: (() -> Unit)?) {
     val palette = LocalPalette.current
-    AnimatedVisibility(state.link != Link.Connected || !bluetoothOn, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+    // Only when something needs doing: Bluetooth off, or another app holding the earbuds. Not being connected is
+    // already shown under the name at the top.
+    AnimatedVisibility(state.link == Link.Busy || !bluetoothOn, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         Panel(Modifier.padding(bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (state.link == Link.Connecting && bluetoothOn) LogoLoader(size = 28.dp) else Icon(if (bluetoothOn) BudsIcons.Info else BudsIcons.Bluetooth, null, tint = palette.warn)

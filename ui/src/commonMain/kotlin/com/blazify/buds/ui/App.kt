@@ -101,16 +101,30 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
             Box(Modifier.fillMaxSize().background(LocalPalette.current.background)) {
                 val now = buds
                 val state = now?.state?.collectAsState()?.value
-                // Back steps back inside the app: a page closes, another tab returns Home, and only Home leaves.
+                // Back steps back inside the app: a page closes, another tab returns Home, Home goes to My devices,
+                // and only My devices leaves.
                 val shownPlace = if (now == null && place == null) Place.Earbuds else place
                 val canGoBack = when (shownPlace) {
-                    null -> tab != Tab.Home
-                    Place.Earbuds -> now != null
+                    Place.Earbuds -> false
                     else -> true
+                }
+                // Earbuds that were connected and stay lost for a while: back to My devices, rather than a page of
+                // settings that can't reach them. A short drop (some pairs reconnect after a change) doesn't count.
+                var wasConnected by remember(now) { mutableStateOf(false) }
+                LaunchedEffect(now, state?.link) {
+                    when (state?.link) {
+                        com.blazify.buds.core.model.Link.Connected -> wasConnected = true
+                        com.blazify.buds.core.model.Link.Lost -> if (wasConnected && place == null) {
+                            kotlinx.coroutines.delay(8_000)
+                            wasConnected = false
+                            place = Place.Earbuds
+                        }
+                        else -> {}
+                    }
                 }
                 SystemBack(canGoBack) {
                     when (shownPlace) {
-                        null -> tab = Tab.Home
+                        null -> if (tab != Tab.Home) tab = Tab.Home else place = Place.Earbuds
                         Place.Add, Place.Connect -> place = Place.Earbuds
                         Place.Fit -> place = null
                         else -> place = null
