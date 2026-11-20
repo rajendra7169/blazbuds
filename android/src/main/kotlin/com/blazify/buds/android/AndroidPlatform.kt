@@ -145,7 +145,6 @@ class AndroidPlatform(
                 val got = record.read(chunk, 0, chunk.size)
                 if (got > 0) {
                     val level = noise.level(chunk, got, rate)
-                    android.util.Log.d("BlazbudsRoom", "level %.1f".format(level))
                     main.post { if (going.get()) onLevel(level) }
                 }
             }

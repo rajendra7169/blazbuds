@@ -29,8 +29,8 @@ class RoomNoise {
     }
 
     companion object {
-        /** From the microphone's numbers to roughly decibels in the room. */
-        const val OFFSET = 110.0
+        /** From the microphone's numbers to roughly decibels in the room; set so a phone reads what Soundcore reads in the same room. */
+        const val OFFSET = 91.0
 
         /** Quieter than this, the hearing check is precise. */
         const val QUIET = 60.0
