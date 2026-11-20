@@ -51,7 +51,7 @@ fun QuickPanel(state: BudsState, change: (Change) -> Unit, openApp: () -> Unit) 
                 if (state.left == null && state.right == null && state.overall != null) {
                     BatteryRing("Earbuds", state.overall, ring = 44.dp)
                 } else {
-                    BatteryRow(state.left, state.case, state.right, ring = 44.dp)
+                    BatteryRow(state.left, com.blazify.buds.ui.caseBattery(state), state.right, ring = 44.dp)
                 }
                 state.sound?.let { sound ->
                     ModeSwitch(sound.mode) { change(Change.Mode(it)) }

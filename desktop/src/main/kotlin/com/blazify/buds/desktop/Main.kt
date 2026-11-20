@@ -212,7 +212,9 @@ fun main(args: Array<String>) = application {
                 })
             }
             BudsTheme(prefs.theme) {
-                QuickPanel(state, change = { scope.launch { buds.apply(it) } }, openApp = { shown = true; panel = false })
+                androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.LocalPrefs provides prefs) {
+                    QuickPanel(state, change = { scope.launch { buds.apply(it) } }, openApp = { shown = true; panel = false })
+                }
             }
         }
     }

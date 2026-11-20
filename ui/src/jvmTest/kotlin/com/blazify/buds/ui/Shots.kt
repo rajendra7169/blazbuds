@@ -102,7 +102,9 @@ class Shots {
             shot(dir, "connect-phone-$look", 412, 915) { BudsApp(DemoBuds(connected = false), prefs(theme), Place.Connect) }
             shot(dir, "panel-$look", 360, 330) {
                 val buds = remember { DemoBuds() }
-                BudsTheme(theme) { QuickPanel(buds.state.value, {}, {}) }
+                BudsTheme(theme) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalPrefs provides prefs(theme)) { QuickPanel(buds.state.value, {}, {}) }
+                }
             }
         }
     }

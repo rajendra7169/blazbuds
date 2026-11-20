@@ -35,6 +35,16 @@ class Prefs(private val store: Settings = Settings()) {
         writeSounds()
     }
 
+    /** The case battery as last heard for these earbuds, kept for when both earbuds are out and can't ask the case. */
+    fun rememberCase(earbuds: String, percent: Int, at: Long) = store.putString("case_" + earbuds, "$percent,$at")
+
+    fun lastCase(earbuds: String): com.blazify.buds.core.model.Battery? =
+        store.getString("case_" + earbuds, "").split(",").takeIf { it.size == 2 }?.let { (p, t) ->
+            val percent = p.toIntOrNull() ?: return null
+            val at = t.toLongOrNull() ?: return null
+            com.blazify.buds.core.model.Battery(percent, seenAt = at)
+        }
+
     fun theme(choice: ThemeChoice) {
         theme = choice
         store.putString(THEME, choice.name)
@@ -98,5 +108,32 @@ val LocalSoundOut = staticCompositionLocalOf<SoundOut> {
         override fun play(samples: ShortArray, loop: Boolean) {}
         override fun stop() {}
         override fun steadyVolume(on: Boolean) {}
+    }
+}
+
+/**
+ * The case battery to show: the live level while an earbud sits in the case, otherwise the last one heard. The
+ * earbuds only learn the case's level through its charging contacts, so with both out they can't tell.
+ */
+@OptIn(kotlin.time.ExperimentalTime::class)
+@androidx.compose.runtime.Composable
+fun caseBattery(state: com.blazify.buds.core.model.BudsState): com.blazify.buds.core.model.Battery? {
+    val prefs = LocalPrefs.current
+    val live = state.case
+    androidx.compose.runtime.LaunchedEffect(state.name, live?.percent) {
+        if (live != null) prefs.rememberCase(state.name, live.percent, kotlin.time.Clock.System.now().epochSeconds)
+    }
+    return live ?: androidx.compose.runtime.remember(state.name, live) { prefs.lastCase(state.name) }
+}
+
+/** "just now", "5 min ago", "2 h ago", "3 days ago". */
+@OptIn(kotlin.time.ExperimentalTime::class)
+fun ago(seconds: Long): String {
+    val passed = (kotlin.time.Clock.System.now().epochSeconds - seconds).coerceAtLeast(0)
+    return when {
+        passed < 60 -> "just now"
+        passed < 3600 -> "${passed / 60} min ago"
+        passed < 86_400 -> "${passed / 3600} h ago"
+        else -> "${passed / 86_400} days ago"
     }
 }

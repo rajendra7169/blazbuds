@@ -59,8 +59,10 @@ fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: and
         tween(Motion.SLOW),
         label = "color",
     )
-    val spoken = if (battery == null) "$label: not connected" else "$label battery ${battery.percent} percent" + if (battery.charging) ", charging" else ""
-    Column(Modifier.semantics(mergeDescendants = true) { contentDescription = spoken }, horizontalAlignment = Alignment.CenterHorizontally) {
+    val old = battery?.seenAt != null
+    val spoken = if (battery == null) "$label: not connected" else "$label battery ${battery.percent} percent" + (if (battery.charging) ", charging" else "") + (battery.seenAt?.let { ", last seen " + com.blazify.buds.ui.ago(it) } ?: "")
+    // A level last heard a while ago is drawn faded, with when it was heard underneath.
+    Column(Modifier.semantics(mergeDescendants = true) { contentDescription = spoken }.graphicsLayer { alpha = if (old) 0.55f else 1f }, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(ring), contentAlignment = Alignment.Center) {
             Canvas(Modifier.size(ring)) {
                 val width = 5.dp.toPx()
@@ -99,7 +101,7 @@ fun BatteryRing(label: String, battery: Battery?, ring: Dp = 56.dp, picture: and
                 color = palette.text,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Text(label, style = MaterialTheme.typography.labelSmall, color = palette.muted)
+            Text(battery?.seenAt?.let { "$label · " + com.blazify.buds.ui.ago(it) } ?: label, style = MaterialTheme.typography.labelSmall, color = palette.muted)
         } else {
             Text(
                 if (battery?.charging == true) "$label · ${battery.percent}%" else label,

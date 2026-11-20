@@ -73,7 +73,8 @@ enum class Link {
 }
 
 /** [percent] is rounded to the earbuds' own steps: Soundcore reports in fifths, so 20, 40, 60, 80 or 100. */
-data class Battery(val percent: Int, val charging: Boolean = false)
+/** A battery level. [seenAt] is set (seconds since 1970) when it is the last level heard, not a live one. */
+data class Battery(val percent: Int, val charging: Boolean = false, val seenAt: Long? = null)
 
 enum class ListeningMode { NoiseCancelling, Transparency, Normal }
 

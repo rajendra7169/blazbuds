@@ -38,7 +38,8 @@ object Remote {
         store.putString("snap_name", state.name)
         store.putInt("snap_left", state.left?.percent ?: -1)
         store.putInt("snap_right", state.right?.percent ?: -1)
-        store.putInt("snap_case", state.case?.percent ?: -1)
+        // With both earbuds out the case can't be heard; the widget keeps its last level instead of going blank.
+        state.case?.let { store.putInt("snap_case", it.percent) }
         store.putString("snap_mode", state.sound?.mode?.name ?: "")
     }
 

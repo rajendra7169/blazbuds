@@ -218,7 +218,7 @@ private fun Earbuds(state: BudsState, heroHeight: androidx.compose.ui.unit.Dp) {
         if (state.left == null && state.right == null && state.overall != null) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { BatteryRing("Earbuds", state.overall) }
         } else {
-            BatteryRow(state.left, state.case, state.right)
+            BatteryRow(state.left, com.blazify.buds.ui.caseBattery(state), state.right)
         }
         if (state.sound == null && state.isReady) {
             Hint("These earbuds get the basics: connection and battery. Full control comes as their brand is added.", Modifier.padding(top = 8.dp))
