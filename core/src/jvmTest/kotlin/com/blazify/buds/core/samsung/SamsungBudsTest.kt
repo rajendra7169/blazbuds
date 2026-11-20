@@ -1,6 +1,7 @@
 package com.blazify.buds.core.samsung
 
 import com.blazify.buds.core.link.Connection
+import com.blazify.buds.core.model.CancelStyle
 import com.blazify.buds.core.model.Change
 import com.blazify.buds.core.model.Ear
 import com.blazify.buds.core.model.ListeningMode
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 
 /** The driver against pretend Buds2 that say what the recorded ones said, and keep what is sent to them. */
@@ -107,6 +109,77 @@ class SamsungBudsTest {
         } finally {
             buds.close()
             scope.cancel()
+        }
+    }
+
+    /** Runs [test] against pretend earbuds of [model] that first say [first]. */
+    private fun withBuds(model: SamsungModel, first: ByteArray, test: suspend (SamsungBuds, FakeBuds) -> Unit) = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val fake = FakeBuds(first)
+        val buds = SamsungBuds(model.label, model, scope, { fake }).also { it.start() }
+        try {
+            withTimeout(5_000) { buds.state.first { it.sound != null } }
+            test(buds, fake)
+        } finally {
+            buds.close()
+            scope.cancel()
+        }
+    }
+
+    private fun ack(id: Int, vararg value: Int) =
+        SamsungMessage.encode(SamsungMessage(SamsungBuds.ACKNOWLEDGEMENT, byteArrayOf(id.toByte(), *value.map { it.toByte() }.toByteArray())), legacy = false)
+
+    /** A made-up full status for the models nothing was recorded from: a revision, batteries, then [set] by place. */
+    private fun status(vararg set: Pair<Int, Int>): ByteArray {
+        val payload = ByteArray(48).also { it[0] = 1; it[2] = 80; it[3] = 80; it[7] = 60 }
+        set.forEach { (at, value) -> payload[at] = value.toByte() }
+        return SamsungMessage.encode(SamsungMessage(SamsungStatus.EXTENDED_STATUS, payload), legacy = false)
+    }
+
+    @Test
+    fun budsProCancelLowOrHigh() = withBuds(SamsungModel.BudsPro, SamsungCaptures.BUDS_PRO_REV10) { buds, fake ->
+        // Recorded with cancelling off and the strength on high.
+        val options = buds.state.value.sound!!.options
+        assertEquals(listOf(CancelStyle.Manual), options.cancelStyles)
+        assertEquals(true, options.levels)
+        assertEquals(2, options.manualLevels)
+        assertEquals(2, buds.state.value.sound!!.manualLevel)
+
+        buds.apply(Change.Cancelling(CancelStyle.Manual, level = 1))
+        assertContentEquals(byteArrayOf(0), fake.next(SamsungBuds.NOISE_REDUCTION_LEVEL).payload)
+        assertEquals(1, buds.state.value.sound!!.manualLevel)
+
+        // The earbuds put it back to high.
+        fake.incoming.add(ack(SamsungBuds.NOISE_REDUCTION_LEVEL, 1))
+        withTimeout(3_000) { buds.state.first { it.sound?.manualLevel == 2 } }
+    }
+
+    @Test
+    fun buds3ProHaveFiveStrengthsBesideAdaptive() = withBuds(SamsungModel.Buds3Pro, status(12 to 1, 24 to 2)) { buds, fake ->
+        val sound = buds.state.value.sound!!
+        assertEquals(listOf(CancelStyle.Adaptive, CancelStyle.Manual), sound.options.cancelStyles)
+        assertEquals(5, sound.options.manualLevels)
+        assertEquals(3, sound.manualLevel)
+
+        // Manual is on already, so only the strength goes.
+        buds.apply(Change.Cancelling(CancelStyle.Manual, level = 5))
+        assertContentEquals(byteArrayOf(4), fake.next(SamsungBuds.NOISE_REDUCTION_LEVEL).payload)
+        buds.apply(Change.Cancelling(CancelStyle.Adaptive))
+        assertContentEquals(byteArrayOf(3), fake.next(SamsungBuds.NOISE_CONTROLS).payload)
+        assertEquals(CancelStyle.Adaptive, buds.state.value.sound!!.cancelStyle)
+    }
+
+    @Test
+    fun buds2HaveOneCancellingStrength() = withBuds(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10) { buds, fake ->
+        assertEquals(emptyList(), buds.state.value.sound!!.options.cancelStyles)
+        assertEquals(false, buds.state.value.sound!!.options.levels)
+        buds.apply(Change.Cancelling(CancelStyle.Manual, level = 1))
+        buds.ring(left = true, right = true)
+        // Nothing went out for the strength: the next message is the ring.
+        while (true) {
+            val message = fake.sent.poll(3, TimeUnit.SECONDS) ?: error("nothing sent")
+            assertNotEquals(SamsungBuds.NOISE_REDUCTION_LEVEL, message.id)
+            if (message.id == SamsungBuds.FIND_MY_EARBUDS_START) break
         }
     }
 

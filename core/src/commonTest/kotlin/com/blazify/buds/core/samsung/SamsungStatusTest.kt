@@ -62,6 +62,7 @@ class SamsungStatusTest {
         assertEquals(1, s.preset)
         assertEquals(2, s.holdRight) // noise controls
         assertEquals(false, s.touchLocked)
+        assertEquals(1, s.cancelLevel) // high
     }
 
     @Test
@@ -99,6 +100,19 @@ class SamsungStatusTest {
         assertEquals(3, s.holdLeft) // volume
         assertEquals(false, s.touchLocked)
         assertEquals(Triple(false, false, false), s.charging)
+        assertEquals(0, s.cancelLevel) // low
+    }
+
+    @Test
+    fun cancellingStrengthOnlyWhereTheModelHasOne() {
+        // The Buds2 keep something else at that place.
+        assertNull(status(SamsungModel.Buds2, SamsungCaptures.BUDS2_REV10).cancelLevel)
+        assertNull(status(SamsungModel.Buds2Pro, SamsungCaptures.BUDS2_PRO_REV13).cancelLevel)
+        // The Buds3 Pro have five, 0 to 4; anything above is read as the strongest.
+        val payload = ByteArray(48).also { it[0] = 1; it[2] = 80; it[3] = 80; it[12] = 1; it[24] = 3 }
+        assertEquals(3, SamsungStatus.extended(SamsungModel.Buds3Pro, payload)!!.cancelLevel)
+        payload[24] = 9
+        assertEquals(4, SamsungStatus.extended(SamsungModel.Buds3Pro, payload)!!.cancelLevel)
     }
 
     @Test

@@ -53,6 +53,17 @@ enum class SamsungModel(
      */
     val pinch: Boolean get() = this == Buds3 || this == Buds3Pro || this == Buds3Fe || this == Buds4 || this == Buds4Pro
 
+    /**
+     * How many strengths manual noise cancelling has, 0 for one fixed strength: low and high on the Buds Pro, Buds FE,
+     * Buds Core and Buds3 FE, as GalaxyBudsClient lists them, and five on the Buds3 Pro, as Gadgetbridge sets them.
+     */
+    val cancelLevels: Int
+        get() = when (this) {
+            BudsPro, BudsFe, BudsCore, Buds3Fe -> 2
+            Buds3Pro -> 5
+            else -> 0
+        }
+
     /** Whether the earbuds say which of them, and the case, are charging, from the given extended status revision. */
     fun chargingFrom(revision: Int): Boolean = when (this) {
         Buds, BudsPlus, BudsLive, BudsPro -> false

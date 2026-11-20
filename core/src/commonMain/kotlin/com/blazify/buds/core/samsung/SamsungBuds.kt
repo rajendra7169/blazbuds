@@ -176,6 +176,10 @@ class SamsungBuds(
         when (p[0].toInt() and 0xFF) {
             NOISE_CONTROLS -> if (model.noise == SamsungModel.Noise.Controls) setNoise(value)
             SET_NOISE_REDUCTION -> if (model.noise == SamsungModel.Noise.Cancelling) setNoise(if (value == 1) 1 else 0)
+            NOISE_REDUCTION_LEVEL -> if (model.cancelLevels > 0 && value < model.cancelLevels) {
+                status = status?.copy(cancelLevel = value)
+                publish()
+            }
             EQUALIZER -> if (model != SamsungModel.Buds && value <= 5) {
                 status = status?.copy(preset = value)
                 publish()
@@ -202,6 +206,7 @@ class SamsungBuds(
                 SamsungModel.Noise.Cancelling -> listOf(ListeningMode.NoiseCancelling, ListeningMode.Normal)
                 SamsungModel.Noise.Controls -> ListeningMode.entries
             }
+            val levels = model.cancelLevels
             Sound(
                 mode = when (noise) {
                     1, 3 -> ListeningMode.NoiseCancelling
@@ -209,15 +214,23 @@ class SamsungBuds(
                     else -> ListeningMode.Normal
                 },
                 cancelStyle = if (noise == 3) CancelStyle.Adaptive else CancelStyle.Manual,
+                // The screens count strengths from 1; the earbuds from 0.
+                manualLevel = ((s.cancelLevel ?: (levels - 1)) + 1).coerceIn(1, levels.coerceAtLeast(1)),
                 transparencyStyle = if (s.voiceFocus == true) TransparencyStyle.Voice else TransparencyStyle.Full,
                 options = SoundOptions(
-                    cancelStyles = if (model.adaptive) listOf(CancelStyle.Adaptive, CancelStyle.Manual) else emptyList(),
+                    cancelStyles = when {
+                        model.adaptive -> listOf(CancelStyle.Adaptive, CancelStyle.Manual)
+                        // Manual alone, so its strengths show.
+                        levels > 0 -> listOf(CancelStyle.Manual)
+                        else -> emptyList()
+                    },
                     transparencyStyles = model == SamsungModel.Buds && s.voiceFocus != null,
                     wind = false,
                     environment = false,
                     cycle = false,
                     modes = modes,
-                    levels = false,
+                    levels = levels > 0 && s.cancelLevel != null,
+                    manualLevels = if (levels > 0) levels else 5,
                 ),
             )
         }
@@ -295,11 +308,23 @@ class SamsungBuds(
                     SamsungModel.Noise.Cancelling -> send(SET_NOISE_REDUCTION, if (mode == 1) 1 else 0)
                 }
             }
-            is Change.Cancelling -> if (model.adaptive) {
-                adaptiveChosen = change.style == CancelStyle.Adaptive
-                val mode = if (adaptiveChosen) 3 else 1
-                setNoise(mode)
-                send(NOISE_CONTROLS, mode)
+            is Change.Cancelling -> {
+                if (model.adaptive) {
+                    adaptiveChosen = change.style == CancelStyle.Adaptive
+                    val mode = if (adaptiveChosen) 3 else 1
+                    // A strength picked while Manual is on needs no switch first.
+                    if (s.noise != mode || change.level == null) {
+                        setNoise(mode)
+                        send(NOISE_CONTROLS, mode)
+                    }
+                }
+                val level = change.level
+                if (change.style == CancelStyle.Manual && level != null && model.cancelLevels > 0) {
+                    val raw = (level - 1).coerceIn(0, model.cancelLevels - 1)
+                    status = (status ?: s).copy(cancelLevel = raw)
+                    publish()
+                    send(NOISE_REDUCTION_LEVEL, raw)
+                }
             }
             is Change.TransparencyKind -> if (model == SamsungModel.Buds) {
                 val on = change.style == TransparencyStyle.Voice
@@ -386,6 +411,9 @@ class SamsungBuds(
         const val NOISE_CONTROLS = 0x78
         const val SET_AMBIENT_MODE = 0x80
         const val AMBIENT_MODE_UPDATED = 0x81
+
+        /** The strength of manual noise cancelling, from 0; on older models the same number is something else. */
+        const val NOISE_REDUCTION_LEVEL = 0x83
 
         /** The 2019 Buds' voice focus; the same number means something else on later models. */
         const val AMBIENT_VOICE_FOCUS = 0x85

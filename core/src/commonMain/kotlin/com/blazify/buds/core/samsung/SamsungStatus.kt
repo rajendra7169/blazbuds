@@ -29,6 +29,8 @@ data class SamsungStatus(
     val touchLocked: Boolean? = null,
     /** The gesture switches as the Buds2 and later keep them, kept whole to send back unchanged. */
     val gestures: Int? = null,
+    /** The strength of manual noise cancelling, from 0 (lightest), on models that have strengths. */
+    val cancelLevel: Int? = null,
 ) {
     companion object {
         const val EXTENDED_STATUS = 0x61
@@ -79,6 +81,8 @@ data class SamsungStatus(
                 // The gesture byte's top bit is "touch controls on".
                 touchLocked = lockByte?.let { if (gestures) it and 0x80 == 0 else it == 1 },
                 gestures = if (gestures) lockByte else null,
+                // At the same place in every layout from the Buds Pro on.
+                cancelLevel = if (model.cancelLevels > 0) at(24)?.coerceAtMost(model.cancelLevels - 1) else null,
             )
         }
 
