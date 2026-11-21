@@ -24,6 +24,8 @@ settings-no-arg = { module = "com.russhwolf:multiplatform-settings-no-arg", vers
 settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "settings" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+# Only in tests: reads back the QR codes the app makes.
+zxing-core = { module = "com.google.zxing:core", version = "3.5.3" }
 
 [plugins]
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }

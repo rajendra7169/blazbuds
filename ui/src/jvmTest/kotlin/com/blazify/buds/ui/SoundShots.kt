@@ -5,6 +5,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.use
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.blazify.buds.core.demo.DemoBuds
@@ -97,6 +99,26 @@ class SoundShots {
             File(dir, "sound-editor-a.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
             tap(62f, 875f)
             File(dir, "sound-import.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+    }
+
+    @Test
+    fun drawSharing() {
+        val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
+        dir.mkdirs()
+        val sound = SavedSound("Late night", listOf(2.0, 1.5, 0.5, 0.0, -1.0, -2.5, -3.0, -3.0))
+        shot(dir, "sound-share-qr", height = 760) {
+            androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                com.blazify.buds.ui.screens.ShareSoundDialog(sound, {}, {})
+            }
+        }
+        val sounds = Gallery.parse(File("../community/sounds.json").readText())!!
+        listOf(ThemeChoice.Dark, ThemeChoice.Light).forEach { theme ->
+            shot(dir, "sound-gallery-${theme.name.lowercase()}", height = 1100, theme = theme) {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(com.blazify.buds.ui.theme.LocalPalette.current.card)) {
+                    com.blazify.buds.ui.screens.GalleryContent(com.blazify.buds.ui.screens.GalleryState.Ready(sounds), DemoBuds.FREQUENCIES, {}, {})
+                }
+            }
         }
     }
 }

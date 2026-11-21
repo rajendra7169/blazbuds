@@ -102,6 +102,8 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     var naming by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
     var importingText by remember { mutableStateOf(false) }
+    var sharing by remember { mutableStateOf<com.blazify.buds.ui.SavedSound?>(null) }
+    var gallery by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<com.blazify.buds.ui.SavedSound?>(null) }
     // Built-in presets stay as they are; only the person's own sounds can be reshaped. The one being shaped is
     // remembered by name, as its bands change under the finger.
@@ -137,8 +139,6 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     }
     // Opens where the sound playing is: on Custom when it's one of the person's own sounds, else on Presets.
     var custom by remember { mutableStateOf(eq.preset == null && matching != null) }
-    fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
-        share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Custom › Add a code and paste:\n${sound.code()}")
 
     // A correction made from lab measurements of this very model, when the app has one for it.
     val tuned = remember(state.model, state.name, eq.frequencies, eq.custom) { com.blazify.buds.core.eq.Tuned.find(state) }
@@ -177,7 +177,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
             }
             if (mine != null) {
                 IconButton(BudsIcons.Flat, "Back to flat") { commit(List(draft.size) { 0.0 }, draft) }
-                IconButton(BudsIcons.Share, "Share ${mine.name}") { shareSound(mine.copy(gains = draft)) }
+                IconButton(BudsIcons.Share, "Share ${mine.name}") { sharing = mine.copy(gains = draft) }
             }
         }
         val editable = state.bothConnected && mine != null
@@ -249,6 +249,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         val cards = buildList<@Composable () -> Unit> {
             add { SoundSquare("New", icon = BudsIcons.Plus, dashed = true) { naming = true } }
             add { SoundSquare("Add a code", icon = BudsIcons.Download, dashed = true) { importing = true } }
+            add { SoundSquare("By others", icon = BudsIcons.Globe, dashed = true) { gallery = true } }
             prefs.sounds.forEach { sound ->
                 add {
                     SoundSquare(sound.name, gains = sound.gains, chosen = mine?.name == sound.name, onLongClick = { deleting = sound }) {
@@ -305,6 +306,18 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
             },
             dismissButton = { Choice("Cancel", false) { deleting = null } },
         )
+    }
+    sharing?.let { sound -> ShareSoundDialog(sound, share) { sharing = null } }
+    if (gallery) {
+        GallerySheet(eq.frequencies, close = { gallery = false }) { shared ->
+            var n = 1
+            var unique = shared.name
+            while (prefs.sounds.any { it.name.equals(unique, ignoreCase = true) && !same(it.gains, shared.gains) }) unique = "${shared.name} ${++n}"
+            prefs.saveSound(unique, shared.gains)
+            editing = unique
+            bands(shared.gains)
+            gallery = false
+        }
     }
     if (importingText) {
         ImportDialog(

@@ -97,7 +97,7 @@ On Linux the app adds the `blazbuds` command to `~/.local/bin` when that folder 
 
 ## Private
 
-No ads, no account and no tracking. The app talks to your earbuds and goes online only to check for a new version, which you can turn off, and to your own Home Assistant if you connect it. Your settings stay on your device.
+No ads, no account and no tracking. The app talks to your earbuds and goes online only to check for a new version, which you can turn off, to load Sounds by others when you open them, and to your own Home Assistant if you connect it. Your settings stay on your device.
 
 ## Licence
 
