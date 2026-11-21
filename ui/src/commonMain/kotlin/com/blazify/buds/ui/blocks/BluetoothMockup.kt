@@ -51,11 +51,13 @@ import com.blazify.buds.ui.icons.BudsIcons
 fun BluetoothMockup(look: SystemLook, name: String, pairing: Boolean, modifier: Modifier = Modifier) {
     val pulse = rememberInfiniteTransition(label = "tap")
     val beat by pulse.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Restart), label = "beat")
+    // The finger mark reads the pulse only as it is drawn, so the drawing of the settings isn't composed again each frame.
+    val pulseNow = { beat }
     Box(modifier.fillMaxWidth().semantics { contentDescription = "Bluetooth settings: tap $name" }, contentAlignment = Alignment.Center) {
         when (look) {
-            SystemLook.Android -> Phone(round = 30) { AndroidScreen(name, pairing, beat) }
-            SystemLook.Ios -> Phone(round = 38) { IosScreen(name, pairing, beat) }
-            else -> Window(look) { DesktopScreen(look, name, pairing, beat) }
+            SystemLook.Android -> Phone(round = 30) { AndroidScreen(name, pairing, pulseNow) }
+            SystemLook.Ios -> Phone(round = 38) { IosScreen(name, pairing, pulseNow) }
+            else -> Window(look) { DesktopScreen(look, name, pairing, pulseNow) }
         }
     }
 }
@@ -99,7 +101,7 @@ private fun Window(look: SystemLook, content: @Composable ColumnScope.() -> Unit
 }
 
 @Composable
-private fun AndroidScreen(name: String, pairing: Boolean, beat: Float) {
+private fun AndroidScreen(name: String, pairing: Boolean, beat: () -> Float) {
     Column(Modifier.padding(horizontal = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
             Icon(BudsIcons.Back, null, Modifier.size(14.dp), tint = Color(0xFF222222))
@@ -120,7 +122,7 @@ private fun AndroidScreen(name: String, pairing: Boolean, beat: Float) {
 }
 
 @Composable
-private fun IosScreen(name: String, pairing: Boolean, beat: Float) {
+private fun IosScreen(name: String, pairing: Boolean, beat: () -> Float) {
     Column(Modifier.background(Color(0xFFF2F2F7)).padding(horizontal = 10.dp)) {
         Text("‹ Settings", style = small(11, FontWeight.Normal, Color(0xFF0A84FF)), modifier = Modifier.padding(top = 6.dp))
         Text("Bluetooth", style = small(18, FontWeight.Bold), modifier = Modifier.padding(vertical = 4.dp))
@@ -141,7 +143,7 @@ private fun IosScreen(name: String, pairing: Boolean, beat: Float) {
 }
 
 @Composable
-private fun DesktopScreen(look: SystemLook, name: String, pairing: Boolean, beat: Float) {
+private fun DesktopScreen(look: SystemLook, name: String, pairing: Boolean, beat: () -> Float) {
     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(if (look == SystemLook.Windows) "Bluetooth & devices" else "Bluetooth", style = small(15, FontWeight.Bold))
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFFF4F5F7)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -171,7 +173,7 @@ private fun Section(text: String, color: Color) {
 }
 
 @Composable
-private fun Item(icon: ImageVector, title: String, detail: String?, tapped: Boolean = false, beat: Float = 0f) {
+private fun Item(icon: ImageVector, title: String, detail: String?, tapped: Boolean = false, beat: () -> Float = { 0f }) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
             .background(if (tapped) Color(0xFFE8F0FE) else Color.Transparent).padding(horizontal = 6.dp, vertical = 7.dp),
@@ -192,7 +194,7 @@ private fun Group(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun IosItem(name: String, state: String, tapped: Boolean = false, beat: Float = 0f) {
+private fun IosItem(name: String, state: String, tapped: Boolean = false, beat: () -> Float = { 0f }) {
     Row(
         Modifier.fillMaxWidth().background(if (tapped) Color(0xFFE5F0FF) else Color.Transparent).padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -205,11 +207,12 @@ private fun IosItem(name: String, state: String, tapped: Boolean = false, beat: 
 
 /** A finger's touch: a dot with a ring that spreads and fades. */
 @Composable
-private fun Finger(beat: Float) {
+private fun Finger(beat: () -> Float) {
     Box(
         Modifier.size(26.dp).drawBehind {
+            val now = beat()
             val c = Color(0xFF0F9488)
-            drawCircle(c.copy(alpha = 0.35f * (1f - beat)), radius = size.minDimension / 2 * (0.5f + 0.5f * beat))
+            drawCircle(c.copy(alpha = 0.35f * (1f - now)), radius = size.minDimension / 2 * (0.5f + 0.5f * now))
             drawCircle(c.copy(alpha = 0.8f), radius = size.minDimension * 0.2f)
         },
     )
