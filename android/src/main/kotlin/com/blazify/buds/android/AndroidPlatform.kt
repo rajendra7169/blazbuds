@@ -168,6 +168,8 @@ class AndroidPlatform(
 
     override fun watchBatteryInBackground() = BatteryJob.schedule(context)
 
+    override fun rulesChanged() = Automations.plan(context)
+
     override fun askMicrophone(done: (Boolean) -> Unit) {
         if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) done(true)
         else askMic(done)

@@ -71,6 +71,22 @@ object Remote {
         }
     }
 
+    /** Puts several changes on the earbuds in turn, connecting for a moment if the app isn't holding them. */
+    suspend fun applyAll(context: Context, changes: List<Change>): Boolean {
+        if (changes.isEmpty()) return true
+        live?.let { buds ->
+            if (buds.state.value.isReady) {
+                changes.forEach { runCatching { buds.apply(it) } }
+                remember(buds.state.value)
+                return true
+            }
+        }
+        return withBuds(context) { buds ->
+            changes.forEach { runCatching { buds.apply(it) } }
+            remember(buds.state.value)
+        }
+    }
+
     /** The next mode after the current one, for the tile. */
     suspend fun cycle(context: Context): ListeningMode? {
         val now = live?.state?.value?.takeIf { it.isReady }?.sound?.mode ?: snapshot()?.mode ?: ListeningMode.Normal

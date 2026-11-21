@@ -6,7 +6,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- Only to hear how loud the room is before the EarPrint hearing check. Nothing is recorded or kept. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- The low-battery alert, and its check every quarter hour that carries on after a restart. -->
+    <!-- The low-battery alert and the connect notice, and the battery check every quarter hour that carries on after a
+         restart (it also wakes the automations set for a time of day). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Only to ask GitHub whether a newer Blazbuds is out; can be switched off in Settings. -->
@@ -32,6 +33,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Wakes at each time automation's minute, and plans those again after a restart or an update. -->
+        <receiver android:name=".android.RuleAlarm" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- The home-screen widget, and the mode taps it sends. -->
         <receiver android:name=".android.BudsWidget" android:exported="false">

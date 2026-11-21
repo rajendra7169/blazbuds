@@ -44,6 +44,7 @@ import com.blazify.buds.ui.screens.EqualizerScreen
 import com.blazify.buds.ui.screens.HomeScreen
 import com.blazify.buds.ui.screens.MyDevicesScreen
 import com.blazify.buds.ui.screens.Place
+import com.blazify.buds.ui.screens.AutomationsScreen
 import com.blazify.buds.ui.blocks.drawRocket
 import com.blazify.buds.ui.blocks.drawCaseArt
 import com.blazify.buds.ui.blocks.drawStar
@@ -224,6 +225,10 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                         Place.Fit -> if (now != null) FitTestScreen(now, close)
                         Place.EarPrint -> if (now != null && state != null) EarPrintScreen(state, { c -> scope.launch { now.apply(c) } }, close)
                         Place.Support -> SupportScreen(state, VERSION, close)
+                        Place.Automations -> hub.rules?.let { book ->
+                            @OptIn(kotlin.time.ExperimentalTime::class)
+                            AutomationsScreen(book, now = { kotlin.time.Clock.System.now().toEpochMilliseconds() }, changed = { hub.rulesChanged() }, back = close)
+                        }
                     }
                 }
             }

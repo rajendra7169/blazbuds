@@ -31,6 +31,8 @@ class BatteryJob : JobService() {
             runCatching {
                 Remote.battery(applicationContext)?.let { state ->
                     BatteryLog().look(state)?.let { notifyLow(applicationContext, it) }
+                    // Low-battery automations, such as Normal mode to make the rest last.
+                    Automations.run(applicationContext, com.blazify.buds.ui.RuleBook().forBattery(state))
                 }
             }
             jobFinished(params, false)

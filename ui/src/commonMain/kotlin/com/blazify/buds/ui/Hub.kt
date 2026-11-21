@@ -71,6 +71,9 @@ interface Platform {
 
     /** Holds the media volume at a set level for the hearing test, or puts it back as it was. */
     fun steadyVolume(on: Boolean) {}
+
+    /** The automations changed: a phone plans its next wake-up for the time rules again. */
+    fun rulesChanged() {}
 }
 
 /** One row of the earbuds list. */
@@ -97,11 +100,37 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     /** Battery history and the low-battery alert, fed by every state the open pair reports. */
     private val batteryLog = store?.let { BatteryLog(it) }
 
+    /** The person's automations, run here while the app is open (the phone also runs them while it is closed). */
+    val rules: RuleBook? = store?.let { RuleBook(it) }
+
+    /** The open pair has been ready since it last connected, so its connect rules have had their turn. */
+    private var greeted = false
+
+    /** Puts an automation's changes on the open pair, one after another. */
+    private fun run(found: List<Rule>) {
+        val buds = chosen.value ?: return
+        found.forEach { rule ->
+            com.blazify.buds.core.Logbook.add("Automation: ${rule.trigger.words()} → ${rule.action.words()}")
+            scope.launch { rule.action.changes().forEach { runCatching { buds.apply(it) } } }
+        }
+    }
+
     init {
         scope.launch {
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
             chosen.flatMapLatest { it?.state ?: kotlinx.coroutines.flow.emptyFlow() }.collect { state ->
-                if (state.link != com.blazify.buds.core.model.Link.Connected) return@collect
+                if (state.link != com.blazify.buds.core.model.Link.Connected) {
+                    greeted = false
+                    return@collect
+                }
+                rules?.let { book ->
+                    if (state.isReady && state.sound != null && !greeted) {
+                        greeted = true
+                        book.reload()
+                        @OptIn(kotlin.time.ExperimentalTime::class) run(book.forConnect(kotlin.time.Clock.System.now().toEpochMilliseconds()))
+                    }
+                    if (state.isReady) run(book.forBattery(state))
+                }
                 // Kept so the page can still show these earbuds' controls, faded, while another app has them.
                 if (state.isReady && (state.sound != null || state.equalizer != null || state.toggles.isNotEmpty())) address?.let { at ->
                     lastReady[at] = state
@@ -112,6 +141,16 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
             }
         }
         platform.watchBatteryInBackground()
+        // Time automations, looked at twice a minute while the app runs.
+        if (rules != null) scope.launch {
+            while (true) {
+                if (chosen.value?.state?.value?.isReady == true) {
+                    rules.reload()
+                    run(rules.dueAt(localMoment(), lateBy = 1))
+                }
+                kotlinx.coroutines.delay(30_000)
+            }
+        }
     }
     val look: SystemLook get() = platform.look
 
@@ -252,6 +291,8 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     fun stopSound() = platform.stopSound()
 
     fun steadyVolume(on: Boolean) = platform.steadyVolume(on)
+
+    fun rulesChanged() = platform.rulesChanged()
 
     val canOpenSettings: Boolean get() = platform.hasBluetoothSettings
 

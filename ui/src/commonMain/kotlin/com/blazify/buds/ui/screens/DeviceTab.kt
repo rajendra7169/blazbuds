@@ -25,6 +25,9 @@ fun DeviceTab(state: BudsState, change: (Change) -> Unit, inactive: Boolean = fa
             if (state.canFitTest) LinkRow(BudsIcons.Ear, "Ear tip fit test", "Check how well they seal", color = Hue.Purple) { open(Place.Fit) }
         }
         Panel(padding = 8.dp) {
+            LinkRow(BudsIcons.Auto, "Automations", "Change them by themselves: on connect, at a time, on low battery", color = Hue.Indigo) { open(Place.Automations) }
+        }
+        Panel(padding = 8.dp) {
             LinkRow(BudsIcons.Earbuds, "My devices", "Switch earbuds or add a pair", color = Hue.Blue) { open(Place.Earbuds) }
             LinkRow(BudsIcons.Support, "Help", "Answers, and details to send", color = Hue.Green) { open(Place.Support) }
             LinkRow(BudsIcons.Settings, "Settings", "Look and motion", color = Hue.Slate) { open(Place.Settings) }
