@@ -63,7 +63,7 @@ import kotlin.math.roundToInt
 
 /** Whether two sets of bands are the same sound, to the tenth of a decibel. */
 private fun same(a: List<Double>, b: List<Double>): Boolean =
-    a.size >= 8 && b.size >= 8 && (0 until 8).all { kotlin.math.abs(a[it] - b[it]) < 0.06 }
+    a.isNotEmpty() && a.size == b.size && a.indices.all { kotlin.math.abs(a[it] - b[it]) < 0.06 }
 
 /**
  * The Sound tab: the sound itself as a curve you drag, your own saved sounds, which you can share as a short code, and
@@ -91,9 +91,17 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     }
     // The bands move under the finger and are sent once the finger lifts, so the earbuds aren't flooded.
     var draft by remember { mutableStateOf(curve) }
-    LaunchedEffect(curve) { draft = curve }
+    // A/B: the sound as it was before this round of changes, and whether that is what's playing now (A) rather than
+    // the new one (B). Undo steps back through the changes one at a time.
+    var before by remember { mutableStateOf<List<Double>?>(null) }
+    var onA by remember { mutableStateOf(false) }
+    var history by remember { mutableStateOf(listOf<List<Double>>()) }
+    var moveStart by remember { mutableStateOf<List<Double>?>(null) }
+    var fineTune by remember { mutableStateOf(false) }
+    LaunchedEffect(curve) { if (!onA) draft = curve }
     var naming by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
+    var importingText by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<com.blazify.buds.ui.SavedSound?>(null) }
     // Built-in presets stay as they are; only the person's own sounds can be reshaped. The one being shaped is
     // remembered by name, as its bands change under the finger.
@@ -103,6 +111,30 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         if (eq.preset != null) editing = null else if (matching != null) editing = matching.name
     }
     val mine = editing?.takeIf { eq.preset == null }?.let { n -> prefs.sounds.firstOrNull { it.name == n } }
+    LaunchedEffect(mine?.name) {
+        before = null
+        onA = false
+        history = emptyList()
+    }
+    /** Keeps a change to the person's sound: remembered for Undo and A/B, saved, and sent. */
+    fun commit(next: List<Double>, previous: List<Double>) {
+        if (same(next, previous)) return
+        if (before == null) before = previous
+        history = (history + listOf(previous)).takeLast(40)
+        onA = false
+        draft = next
+        mine?.let { prefs.saveSound(it.name, next) }
+        bands(next)
+    }
+    fun moving(next: List<Double>) {
+        if (moveStart == null) moveStart = draft
+        draft = next
+    }
+    fun moved() {
+        val start = moveStart ?: draft
+        moveStart = null
+        commit(draft, start)
+    }
     // Opens where the sound playing is: on Custom when it's one of the person's own sounds, else on Presets.
     var custom by remember { mutableStateOf(eq.preset == null && matching != null) }
     fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
@@ -144,26 +176,67 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                 )
             }
             if (mine != null) {
-                IconButton(BudsIcons.Undo, "Back to flat") {
-                    val flat = List(draft.size) { 0.0 }
-                    draft = flat
-                    prefs.saveSound(mine.name, flat)
-                    bands(flat)
-                }
+                IconButton(BudsIcons.Flat, "Back to flat") { commit(List(draft.size) { 0.0 }, draft) }
                 IconButton(BudsIcons.Share, "Share ${mine.name}") { shareSound(mine.copy(gains = draft)) }
             }
         }
+        val editable = state.bothConnected && mine != null
+        val compare = before?.takeIf { mine != null && !same(it, draft) }
+        // The live curve: what plays now, or the earlier sound while A is on.
         com.blazify.buds.ui.blocks.EqEditor(
-            draft,
+            if (onA && compare != null) compare else draft,
             eq.frequencies,
-            editable = state.bothConnected && mine != null,
+            editable = editable && !onA,
             height = 320.dp,
-            onChange = { draft = it },
-            onDone = {
-                mine?.let { prefs.saveSound(it.name, draft) }
-                bands(draft)
-            },
+            onChange = { moving(it) },
+            onDone = { moved() },
         )
+        // Undo, A/B, and equalizer text in and out.
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (history.isNotEmpty() && editable) {
+                Choice("Undo", false, icon = BudsIcons.Undo) {
+                    val previous = history.last()
+                    history = history.dropLast(1)
+                    onA = false
+                    draft = previous
+                    mine?.let { prefs.saveSound(it.name, previous) }
+                    bands(previous)
+                }
+            }
+            if (compare != null && state.bothConnected) {
+                Choice("A · Before", onA) { if (!onA) { onA = true; bands(compare) } }
+                Choice("B · Now", !onA) { if (onA) { onA = false; bands(draft) } }
+            }
+            Choice("Import", false, icon = BudsIcons.Download) { importingText = true }
+            Choice("Export", false, icon = BudsIcons.Share) {
+                share(com.blazify.buds.core.eq.EqText.export(mine?.name ?: if (tunedPlaying) "Tuned for ${tuned!!.label}" else "Custom", draft, eq.frequencies))
+            }
+        }
+        if (onA && compare != null) Hint("Playing your sound as it was. Tap B to hear the new one again.")
+        // Each band on its own slider, for exact values.
+        if (editable) {
+            Panel {
+                SectionTitle("Each band", action = if (fineTune) "Hide" else "Show") { fineTune = !fineTune }
+                if (fineTune) {
+                    eq.frequencies.forEachIndexed { i, hz ->
+                        val value = draft.getOrElse(i) { 0.0 }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(hz.hertz(), style = MaterialTheme.typography.labelMedium, color = palette.muted, modifier = Modifier.width(60.dp))
+                            BandSlider(value, Equalizer.MIN_DB, Equalizer.MAX_DB, hz.hertz(), Modifier.weight(1f), onChange = { v ->
+                                moving(draft.toMutableList().also { if (i < it.size) it[i] = v })
+                            }, onDone = { moved() })
+                            Text(
+                                (if (value > 0) "+" else if (value < 0) "−" else "") + "${abs(value)} dB",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = palette.text,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                modifier = Modifier.width(60.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
         if (eq.sides) {
             Panel {
                 SectionTitle("Balance")
@@ -231,6 +304,27 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                 }
             },
             dismissButton = { Choice("Cancel", false) { deleting = null } },
+        )
+    }
+    if (importingText) {
+        ImportDialog(
+            onCancel = { importingText = false },
+            onImport = { text ->
+                val code = com.blazify.buds.ui.SavedSound.fromCode(text)
+                val points = if (code == null) com.blazify.buds.core.eq.EqText.curve(text) else emptyList()
+                if (code == null && points.isEmpty()) false else {
+                    val gains = code?.gains ?: com.blazify.buds.core.eq.EqFit.fit(points, eq.frequencies, step = 0.5)
+                    val base = code?.name ?: com.blazify.buds.core.eq.EqText.name(text) ?: "Imported"
+                    var n = 1
+                    var unique = base
+                    while (prefs.sounds.any { it.name.equals(unique, ignoreCase = true) }) unique = "$base ${++n}"
+                    prefs.saveSound(unique, gains)
+                    editing = unique
+                    bands(gains)
+                    importingText = false
+                    true
+                }
+            },
         )
     }
     if (importing) {
@@ -365,6 +459,37 @@ private fun TileAction(icon: androidx.compose.ui.graphics.vector.ImageVector, la
     ) {
         Icon(icon, label, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(16.dp))
     }
+}
+
+/**
+ * Pasting equalizer text: Equalizer APO's or AutoEq's "GraphicEQ:" line, its "Filter: ON PK …" lines, or a Blazbuds
+ * code. [onImport] says whether the text could be read; when it can't, the dialog stays and says so.
+ */
+@Composable
+private fun ImportDialog(onCancel: () -> Unit, onImport: (String) -> Boolean) {
+    val palette = LocalPalette.current
+    var text by remember { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onCancel,
+        modifier = Modifier.offset(x = com.blazify.buds.ui.blocks.LocalPopupShift.current),
+        containerColor = palette.card,
+        title = { Text("Import a sound", color = palette.text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Paste an equalizer from Equalizer APO or AutoEq. It is fitted to your earbuds' bands.", color = palette.muted, style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(20_000); wrong = false },
+                    placeholder = { Text("GraphicEQ: 20 -1.2; 21 -1.1; …\nor Filter 1: ON PK Fc 100 Hz Gain -3 dB Q 1.4", color = palette.muted) },
+                    modifier = Modifier.fillMaxWidth().height(150.dp),
+                )
+                if (wrong) Text("That isn't an equalizer the app can read.", color = com.blazify.buds.ui.blocks.Hue.Red, style = MaterialTheme.typography.bodyMedium)
+            }
+        },
+        confirmButton = { Choice("Import", true) { if (!onImport(text)) wrong = true } },
+        dismissButton = { Choice("Cancel", false, onClick = onCancel) },
+    )
 }
 
 /** A small dialog with one text field. */

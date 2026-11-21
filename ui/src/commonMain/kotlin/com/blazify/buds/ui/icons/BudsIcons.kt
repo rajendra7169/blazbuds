@@ -64,6 +64,7 @@ object BudsIcons {
     val Copy = line("M9 9h10v11H9zM5 15V4h10")
     val Wave = line("M3 12h3l2.5-6 3.5 12 3-9 2 3h4")
     val Undo = line("M4 5v5h5M4.6 10A8 8 0 1 1 6 17")
+    val Flat = line("M3 8c2.5-3 4.5 3 7 0s4.5-3 7 0M3 16h18")
     val Download = line("M12 4v11M7 10l5 5 5-5M5 20h14")
     val Share = line("M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5")
     val Battery = line("M4 7h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM21 10.5v3")
