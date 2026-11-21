@@ -32,6 +32,24 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- The icon's long-press shortcuts, which Google Assistant can open by name too. -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!-- blazbuds:// links from shortcuts, the Assistant and automation apps: makes the change and closes. -->
+        <activity
+            android:name=".android.ActionActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="blazbuds" />
+            </intent-filter>
         </activity>
 
         <!-- Wakes at each time automation's minute, and plans those again after a restart or an update. -->

@@ -2,4 +2,28 @@
 <resources>
     <string name="widget_description">Battery and listening mode for your earbuds</string>
     <string name="tile_label">Earbuds mode</string>
+    <string name="shortcut_cancelling">Noise cancelling</string>
+    <string name="shortcut_transparency">Transparency</string>
+    <string name="shortcut_normal">Normal</string>
+    <string name="shortcut_find">Find earbuds</string>
+    <string name="shortcut_find_long">Find my earbuds</string>
+    <!-- What "Hey Google, open … on Blazbuds" may call each shortcut. -->
+    <string-array name="feature_cancelling">
+        <item>noise cancelling</item>
+        <item>noise cancellation</item>
+        <item>ANC</item>
+    </string-array>
+    <string-array name="feature_transparency">
+        <item>transparency</item>
+        <item>ambient sound</item>
+        <item>transparency mode</item>
+    </string-array>
+    <string-array name="feature_normal">
+        <item>normal mode</item>
+        <item>normal</item>
+    </string-array>
+    <string-array name="feature_find">
+        <item>find my earbuds</item>
+        <item>find earbuds</item>
+    </string-array>
 </resources>

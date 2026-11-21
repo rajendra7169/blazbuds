@@ -60,12 +60,19 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val platform = remember { AndroidPlatform(applicationContext, ::askMicrophone) }
             val hub = remember { Hub(platform, scope).also { this.hub = it } }
+            // Opened from the Find shortcut: straight to Find my earbuds.
+            val start = remember { if (intent?.getStringExtra(OPEN) == OPEN_FIND) com.blazify.buds.ui.screens.Place.Find else com.blazify.buds.ui.screens.Place.Earbuds }
             val current by hub.current.collectAsState()
             LaunchedEffect(current) { current?.let { platform.watchForWidget(it, scope) } }
             // Look again once Bluetooth is allowed.
             LaunchedEffect(granted) { hub.reload() }
-            BudsApp(hub)
+            BudsApp(hub, start = start)
         }
+    }
+
+    companion object {
+        const val OPEN = "open"
+        const val OPEN_FIND = "find"
     }
 
     // While the app is in front, Home shows all the connect card would, so the card stays away.

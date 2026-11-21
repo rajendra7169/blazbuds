@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon for these; Google Assistant can open them by name too
+     ("Hey Google, open noise cancelling on Blazbuds"). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.blazify.buds"
+            android:targetClass="com.blazify.buds.android.ActionActivity">
+            <parameter android:name="feature" android:key="feature" />
+        </intent>
+    </capability>
+
+    <shortcut
+        android:shortcutId="noise_cancelling"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_cancelling"
+        android:shortcutShortLabel="@string/shortcut_cancelling"
+        android:shortcutLongLabel="@string/shortcut_cancelling">
+        <intent android:action="android.intent.action.VIEW" android:data="blazbuds://mode/noise-cancelling"
+            android:targetPackage="com.blazify.buds" android:targetClass="com.blazify.buds.android.ActionActivity" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_cancelling" />
+        </capability-binding>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="transparency"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_transparency"
+        android:shortcutShortLabel="@string/shortcut_transparency"
+        android:shortcutLongLabel="@string/shortcut_transparency">
+        <intent android:action="android.intent.action.VIEW" android:data="blazbuds://mode/transparency"
+            android:targetPackage="com.blazify.buds" android:targetClass="com.blazify.buds.android.ActionActivity" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_transparency" />
+        </capability-binding>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="normal"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_normal"
+        android:shortcutShortLabel="@string/shortcut_normal"
+        android:shortcutLongLabel="@string/shortcut_normal">
+        <intent android:action="android.intent.action.VIEW" android:data="blazbuds://mode/normal"
+            android:targetPackage="com.blazify.buds" android:targetClass="com.blazify.buds.android.ActionActivity" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_normal" />
+        </capability-binding>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="find"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_find"
+        android:shortcutShortLabel="@string/shortcut_find"
+        android:shortcutLongLabel="@string/shortcut_find_long">
+        <intent android:action="android.intent.action.VIEW" android:data="blazbuds://find"
+            android:targetPackage="com.blazify.buds" android:targetClass="com.blazify.buds.android.ActionActivity" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="@array/feature_find" />
+        </capability-binding>
+    </shortcut>
+</shortcuts>
