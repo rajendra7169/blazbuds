@@ -88,7 +88,8 @@ class AndroidPlatform(
     /** The pair the app itself is showing: the widget and tile use its link, and the widget follows its state. */
     fun watchForWidget(buds: Buds, scope: CoroutineScope) {
         Remote.live = buds
-        scope.launch {
+        // Saving the snapshot and redrawing the widget are calls to the system, kept off the screen's thread.
+        scope.launch(kotlinx.coroutines.Dispatchers.Default) {
             buds.state.collect { state ->
                 if (state.isReady) {
                     Remote.remember(state)
