@@ -356,6 +356,12 @@ private fun app(args: Array<String>) = application {
     LaunchedEffect(hub) { hub?.reload() }
     // The command line's answers come from this hub, and its changes run where the app's own taps do.
     LaunchedEffect(hub) { if (hub != null) OneCopy.control = Control({ hub.current.value }, scope, prefs::lastCase) }
+    // Settings › Home Assistant: off until switched on there, then it runs for as long as the app does, tray included.
+    val haSettings = remember { HaSettings() }
+    val homeAssistant = remember(hub) {
+        hub?.let { h -> HomeAssistant(haSettings, h.current, { h.chosenAddress }, { buds, changes -> scope.launch { changes.forEach { buds.apply(it) } } }, prefs::lastCase) }
+    }
+    LaunchedEffect(homeAssistant) { homeAssistant?.start(this) }
 
     // The tray stays while the window is closed, so the earbuds are one click away.
     val trayWorks = remember { java.awt.SystemTray.isSupported() }
@@ -395,7 +401,11 @@ private fun app(args: Array<String>) = application {
             // Never narrower or shorter than the phone layout, so nothing breaks.
             window.minimumSize = Dimension(360, 560)
             androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true, androidx.compose.ui.platform.LocalUriHandler provides LinkOpener) {
-                if (hub != null) BudsApp(hub, prefs, watchUpdates = false) else BudsApp(demoBuds!!, prefs)
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.blazify.buds.ui.screens.LocalSettingsExtras provides { if (homeAssistant != null) HomeAssistantPanel(haSettings, homeAssistant) },
+                ) {
+                    if (hub != null) BudsApp(hub, prefs, watchUpdates = false) else BudsApp(demoBuds!!, prefs)
+                }
             }
         }
     }

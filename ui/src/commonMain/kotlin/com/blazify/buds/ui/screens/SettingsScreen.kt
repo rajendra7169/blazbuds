@@ -77,6 +77,7 @@ fun SettingsScreen(back: (() -> Unit)?, openChangelog: () -> Unit = {}) = PlaceF
         SwitchRow(BudsIcons.Moon, "Less motion", prefs.reduceMotion, { prefs.reduceMotion(it) }, detail = "Fades instead of slides, and the earbuds hold still", color = Hue.Indigo)
     }
     ConnectPanel()
+    LocalSettingsExtras.current(this)
     UpdatesPanel(openChangelog)
     DeveloperPanel()
     OtherAppsPanel()
