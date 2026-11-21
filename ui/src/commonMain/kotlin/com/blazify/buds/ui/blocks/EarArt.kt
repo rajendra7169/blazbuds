@@ -27,7 +27,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.graphics.vector.PathNode
+import androidx.compose.ui.graphics.vector.toPath
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -69,8 +70,24 @@ private val EAR_FOLD = "M66 26 C73 38 71 52 61 60 C57 63 55 66 53 71"
 private val EAR_FOLD_UPPER = "M66 26 C60 28 56 30 54 36"
 private val EAR_LOBE = "M58 98 C54 100 50 98 50 94"
 
-internal fun path(svg: String, side: Float): Path = PathParser().parsePathString(svg).toPath().apply {
+internal fun path(svg: String, side: Float): Path = earNodes(svg).toPath().apply {
     transform(Matrix().apply { scale(side / 112f, side / 112f) })
+}
+
+// The ear is drawn on every frame of its pulse, so each line is read from its text only once.
+private val earOutline by lazy { svgNodes(EAR_OUTLINE) }
+private val earRim by lazy { svgNodes(EAR_RIM) }
+private val earFold by lazy { svgNodes(EAR_FOLD) }
+private val earFoldUpper by lazy { svgNodes(EAR_FOLD_UPPER) }
+private val earLobe by lazy { svgNodes(EAR_LOBE) }
+
+private fun earNodes(svg: String): List<PathNode> = when (svg) {
+    EAR_OUTLINE -> earOutline
+    EAR_RIM -> earRim
+    EAR_FOLD -> earFold
+    EAR_FOLD_UPPER -> earFoldUpper
+    EAR_LOBE -> earLobe
+    else -> svgNodes(svg)
 }
 
 private fun DrawScope.drawEar(side: Float, skin: Color, line: Color) {

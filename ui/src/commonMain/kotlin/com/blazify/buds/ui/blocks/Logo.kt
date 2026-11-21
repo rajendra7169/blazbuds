@@ -22,7 +22,9 @@ import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.PathNode
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.graphics.vector.toPath
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
@@ -47,7 +49,7 @@ object LogoShape {
 
     fun path(svg: String, box: Size, inset: Float = 0f): Path {
         val side = minOf(box.width, box.height) - 2 * inset
-        val path = PathParser().parsePathString(svg).toPath()
+        val path = nodes(svg).toPath()
         path.transform(
             Matrix().apply {
                 translate((box.width - side) / 2, (box.height - side) / 2)
@@ -56,7 +58,22 @@ object LogoShape {
         )
         return path
     }
+
+    // The mark is drawn on every frame of the animated pictures, so each outline is read from its text only once.
+    private val outlineNodes by lazy { svgNodes(OUTLINE) }
+    private val openingNodes by lazy { svgNodes(OPENING) }
+    private val waveNodes by lazy { svgNodes(WAVE) }
+
+    private fun nodes(svg: String): List<PathNode> = when (svg) {
+        OUTLINE -> outlineNodes
+        OPENING -> openingNodes
+        WAVE -> waveNodes
+        else -> svgNodes(svg)
+    }
 }
+
+/** An SVG path's steps, read from its text. */
+internal fun svgNodes(svg: String): List<PathNode> = PathParser().parsePathString(svg).toNodes()
 
 /** True when the person asked their device for less motion; animations then hold still or only fade. */
 val LocalReduceMotion = staticCompositionLocalOf { false }
