@@ -171,7 +171,8 @@ class SoundcoreModel(
                 val id = if (change is Change.Preset) change.id else com.blazify.buds.core.model.Equalizer.CUSTOM
                 val bandCount = eq.channels.firstNotNullOfOrNull { it?.size } ?: setup.frequencies.size
                 val tenths = setup.gains(id, (change as? Change.Bands)?.left, bandCount) ?: return null
-                setup.steps(p, id, tenths)
+                val right = (change as? Change.Bands)?.let { setup.gains(id, it.right, bandCount) } ?: tenths
+                setup.steps(p, id, tenths, right)
             }
             is Change.Switch -> {
                 val command = switches[change.toggle] ?: return null

@@ -59,6 +59,8 @@ class EqSetup(
             left = left,
             right = right,
             custom = custom,
+            // Each ear its own bands where the message carries two channels and the model's code doesn't build it.
+            sides = custom && own == null && eq.channels.size >= 2,
         )
     }
 
@@ -75,12 +77,12 @@ class EqSetup(
         return IntArray(bandCount) { preset.tenths.getOrElse(it) { 0 } }
     }
 
-    /** The messages that set the equalizer to [presetId] with [tenths] on every channel. */
-    fun steps(p: Parsed, presetId: Int, tenths: IntArray): List<Step> {
+    /** The messages that set the equalizer to [presetId] with [tenths] on every channel, or [right] on the second. */
+    fun steps(p: Parsed, presetId: Int, tenths: IntArray, right: IntArray = tenths): List<Step> {
         own?.let { return it(p, presetId, tenths) }
         val eq = p.eq ?: return emptyList()
         val id = if (presetId == Equalizer.CUSTOM) customId else presetId
-        val target = EqState(id, eq.channels.map { tenths.copyOf() })
+        val target = EqState(id, eq.channels.mapIndexed { i, _ -> (if (i == 1) right else tenths).copyOf() })
         val keep: (Parsed) -> Unit = { it.eq = target; it.hearId?.enabled = false }
         val packet = when (write) {
             EqWrite.Plain -> Packet(SET_PLAIN, eqBytes(target))

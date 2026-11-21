@@ -340,7 +340,10 @@ class SoundcoreBuds(
             val tenths = A3947.PRESETS.getOrNull(change.id)?.second ?: return false
             equalizer(now, change.id, tenths)
         }
-        is Change.Bands -> equalizer(now, com.blazify.buds.core.model.Equalizer.CUSTOM, A3947.customTenths(now, change.left))
+        is Change.Bands -> equalizer(
+            now, com.blazify.buds.core.model.Equalizer.CUSTOM,
+            A3947.customTenths(now, change.left), A3947.customTenths(now, change.right, right = true),
+        )
         is Change.Switch -> if (change.toggle == Toggle.Ldac) {
             ack(A3947.LDAC_SET, byteArrayOf(if (change.on) 1 else 0)).also {
                 if (it) {
@@ -402,9 +405,11 @@ class SoundcoreBuds(
                 ack(A3947.EQ_SET, A3947.earPrintBody(now, saved.left, saved.right, trying = false, madeAt = saved.madeAt)).also { if (it) now[A3947.HEAR_ID] = 1 }
             } else {
                 // The usual sound message switches the profile off and keeps it on the earbuds for later.
-                val tenths = IntArray(10) { if (now[A3947.EQ_LEFT + it].toInt() and 0xFF == 0xFF) 0 else (now[A3947.EQ_LEFT + it].toInt() and 0xFF) - 120 }
+                fun channel(at: Int) = IntArray(10) { if (now[at + it].toInt() and 0xFF == 0xFF) 0 else (now[at + it].toInt() and 0xFF) - 120 }
+                val tenths = channel(A3947.EQ_LEFT)
+                val right = if (now[A3947.EQ_RIGHT].toInt() and 0xFF == 0xFF) tenths else channel(A3947.EQ_RIGHT)
                 val id = (now[A3947.PRESET].toInt() and 0xFF) or ((now[A3947.PRESET + 1].toInt() and 0xFF) shl 8)
-                ack(A3947.EQ_SET, A3947.equalizerBody(now, if (id == 0xFEFE) com.blazify.buds.core.model.Equalizer.CUSTOM else id, tenths)).also { if (it) now[A3947.HEAR_ID] = 0 }
+                ack(A3947.EQ_SET, A3947.equalizerBody(now, if (id == 0xFEFE) com.blazify.buds.core.model.Equalizer.CUSTOM else id, tenths, right)).also { if (it) now[A3947.HEAR_ID] = 0 }
             }
         }
         is Change.HearingTestMode -> ack(A3947.HEARING_TEST, byteArrayOf(if (change.on) 1 else 0))
@@ -422,15 +427,18 @@ class SoundcoreBuds(
         now[81] = (madeAt shr 24).toByte(); now[82] = (madeAt shr 16).toByte(); now[83] = (madeAt shr 8).toByte(); now[84] = madeAt.toByte()
     }
 
-    private suspend fun equalizer(now: ByteArray, presetId: Int, tenths: IntArray): Boolean {
+    private suspend fun equalizer(now: ByteArray, presetId: Int, tenths: IntArray, right: IntArray = tenths): Boolean {
         // The earbuds take sound changes only with both of them out.
         if (now[A3947.BOTH].toInt() != 1) return false
-        val ok = ack(A3947.EQ_SET, A3947.equalizerBody(now, presetId, tenths))
+        val ok = ack(A3947.EQ_SET, A3947.equalizerBody(now, presetId, tenths, right))
         if (ok) {
             val id = if (presetId == com.blazify.buds.core.model.Equalizer.CUSTOM) 0xFEFE else presetId
             now[A3947.PRESET] = id.toByte()
             now[A3947.PRESET + 1] = (id shr 8).toByte()
-            for (i in 0 until 10) now[A3947.EQ_LEFT + i] = (tenths[i].coerceIn(-120, 134) + 120).toByte()
+            for (i in 0 until 10) {
+                now[A3947.EQ_LEFT + i] = (tenths[i].coerceIn(-120, 134) + 120).toByte()
+                now[A3947.EQ_RIGHT + i] = (right[i].coerceIn(-120, 134) + 120).toByte()
+            }
         }
         return ok
     }

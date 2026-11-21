@@ -232,14 +232,18 @@ object A3947 {
 
     private fun equalizer(raw: ByteArray): Equalizer {
         val id = raw[PRESET].u() or (raw[PRESET + 1].u() shl 8)
-        // The second channel reads as absent on this model; both ears share the first.
-        val channel = if (raw[EQ_LEFT].u() == 0xFF) EQ_RIGHT else EQ_LEFT
-        val gains = (0 until 8).map { (raw[channel + it].u() - 120) / 10.0 }
+        // One channel can read as absent; then both ears share the other. Each ear's bands are its own otherwise,
+        // which is how a balance towards one side is kept.
+        val first = if (raw[EQ_LEFT].u() == 0xFF) EQ_RIGHT else EQ_LEFT
+        val second = if (raw[EQ_RIGHT].u() == 0xFF) first else EQ_RIGHT
+        fun gains(at: Int) = (0 until 8).map { (raw[at + it].u() - 120) / 10.0 }
         return Equalizer(
             presetId = if (id == CUSTOM) Equalizer.CUSTOM else id,
             presets = PRESETS.mapIndexed { i, (name, tenths) -> EqPreset(i, name, tenths.take(8).map { it / 10.0 }) },
             frequencies = FREQUENCIES,
-            left = gains,
+            left = gains(first),
+            right = gains(second),
+            sides = true,
         )
     }
 
@@ -272,12 +276,13 @@ object A3947 {
         val l = tenths(left)
         val r = tenths(right)
         val bands = if (raw[EQ_LEFT].u() == 0xFF) ByteArray(10) { 0x78 } else raw.copyOfRange(EQ_LEFT, EQ_LEFT + 10)
+        val rightBands = if (raw[EQ_RIGHT].u() == 0xFF) bands else raw.copyOfRange(EQ_RIGHT, EQ_RIGHT + 10)
         fun curveBytes(t: IntArray) = ByteArray(10) { (t[it] + 120).toByte() }
         fun limiter(t: IntArray) = drc(t).let { values -> ByteArray(10) { (values[it] + 120).toByte() }.also { it[8] = 0x6C; it[9] = 0 } }
         val out = ArrayList<Byte>(93)
         out += raw[PRESET]; out += raw[PRESET + 1]
         out += 0; out += 0
-        out.addAll(bands.toList()); out.addAll(bands.toList())
+        out.addAll(bands.toList()); out.addAll(rightBands.toList())
         if (trying) { out += 1; out += 0xFE.toByte() } else { out += 0; out += 1 }
         out += 1
         out.addAll(curveBytes(l).toList()); out.addAll(curveBytes(r).toList())
@@ -339,30 +344,38 @@ object A3947 {
         it[6] = sound.travel.ordinal.toByte()
     }
 
-    /** The equalizer message: the bands for both channels, the hearing profile echoed back switched off, and the curve the earbuds' limiter needs. */
-    fun equalizerBody(raw: ByteArray, presetId: Int, tenths: IntArray): ByteArray {
-        require(tenths.size == 10)
-        val bands = ByteArray(10) { (tenths[it].coerceIn(-120, 134) + 120).toByte() }
-        val drc = drc(tenths).let { values -> ByteArray(10) { (values[it] + 120).toByte() }.also { it[9] = 0 } }
+    /**
+     * The equalizer message: the bands for each ear ([right] the same as the left unless a balance sets it apart), the
+     * hearing profile echoed back switched off, and the curve each ear's limiter needs.
+     */
+    fun equalizerBody(raw: ByteArray, presetId: Int, tenths: IntArray, right: IntArray = tenths): ByteArray {
+        require(tenths.size == 10 && right.size == 10)
+        fun bandBytes(t: IntArray) = ByteArray(10) { (t[it].coerceIn(-120, 134) + 120).toByte() }
+        fun drcBytes(t: IntArray) = drc(t).let { values -> ByteArray(10) { (values[it] + 120).toByte() }.also { it[9] = 0 } }
+        val bands = bandBytes(tenths)
+        val rightBands = bandBytes(right)
+        val drc = drcBytes(tenths)
+        val rightDrc = drcBytes(right)
         val id = if (presetId == Equalizer.CUSTOM) CUSTOM else presetId
         val out = ArrayList<Byte>(93)
         out += id.toByte(); out += (id shr 8).toByte()
         out += raw[HEAR_ID_GENRE]; out += 0
-        out.addAll(bands.toList()); out.addAll(bands.toList())
+        out.addAll(bands.toList()); out.addAll(rightBands.toList())
         out += 0; out += 0
         out += 0 // the hearing profile off, so these bands are what plays
         for (i in HEAR_ID + 1 until HEAR_ID + 1 + 20) out += raw[i]
         for (i in 81 until 85) out += raw[i]
         out += raw[85]
         for (i in 86 until 106) out += raw[i]
-        out.addAll(drc.toList()); out.addAll(drc.toList())
+        out.addAll(drc.toList()); out.addAll(rightDrc.toList())
         out += 0
         return out.toByteArray()
     }
 
     /** Ten bands in tenths: the eight shown, then the two hidden ones kept as the earbuds last said. */
-    fun customTenths(raw: ByteArray, gains: List<Double>): IntArray {
-        val channel = if (raw[EQ_LEFT].u() == 0xFF) EQ_RIGHT else EQ_LEFT
+    fun customTenths(raw: ByteArray, gains: List<Double>, right: Boolean = false): IntArray {
+        val first = if (raw[EQ_LEFT].u() == 0xFF) EQ_RIGHT else EQ_LEFT
+        val channel = if (right && raw[EQ_RIGHT].u() != 0xFF) EQ_RIGHT else first
         return IntArray(10) { i ->
             if (i < 8) roundHalfAway(gains.getOrElse(i) { 0.0 } * 10).toInt() else raw[channel + i].u() - 120
         }

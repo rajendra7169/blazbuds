@@ -325,7 +325,7 @@ private fun SoundPanel(state: BudsState, change: (Change) -> Unit, goTab: (Tab) 
     Panel {
         SectionTitle("Sound", action = "Edit") { goTab(Tab.Sound) }
         Spacer(Modifier.height(4.dp))
-        EqCurve(eq.left)
+        EqCurve(com.blazify.buds.core.eq.Balance.curve(eq.left, eq.right))
         Spacer(Modifier.height(10.dp))
         com.blazify.buds.ui.blocks.FadedRow(palette.card) {
             // Your own sound first when it is the one playing.

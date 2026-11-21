@@ -146,6 +146,8 @@ data class Equalizer(
     val right: List<Double> = left,
     /** Whether the bands can be set one by one, or only a preset picked. */
     val custom: Boolean = true,
+    /** Whether each ear can have its own bands, which is what moves the sound towards one side (see Balance). */
+    val sides: Boolean = false,
 ) {
     val preset: EqPreset? get() = presets.firstOrNull { it.id == presetId }
 

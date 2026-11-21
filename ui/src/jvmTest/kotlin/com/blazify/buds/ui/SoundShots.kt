@@ -43,4 +43,15 @@ class SoundShots {
         shot(dir, "sound-tuned-offer") { EqualizerScreen(demo, {}) }
         shot(dir, "sound-tuned-on", theme = ThemeChoice.Light) { EqualizerScreen(custom(demo, tuned.gains), {}) }
     }
+
+    @Test
+    fun drawBalance() {
+        val dir = System.getenv("SHOTS_DIR")?.let(::File) ?: return
+        dir.mkdirs()
+        val demo = DemoBuds.sample()
+        val mine = listOf(3.0, 2.0, 0.5, -1.0, 0.0, 1.5, 2.5, 1.0)
+        val prefs = Prefs(MapSettings()).apply { saveSound("Evening", mine); saveSound("Gym", listOf(5.0, 4.0, 1.0, 0.0, 0.0, 1.0, 2.0, 3.0)) }
+        val (left, right) = com.blazify.buds.core.eq.Balance.split(mine, -2.5)
+        shot(dir, "sound-balance", height = 1700, prefs = prefs) { EqualizerScreen(custom(demo, left, right), {}) }
+    }
 }

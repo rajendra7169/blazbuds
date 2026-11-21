@@ -59,7 +59,7 @@ class DemoBuds(connected: Boolean = true) : Buds {
                 right = Battery(60),
                 case = Battery(100, charging = true),
                 sound = Sound(ListeningMode.NoiseCancelling),
-                equalizer = Equalizer(1, presets, FREQUENCIES, presets[1].gains),
+                equalizer = Equalizer(1, presets, FREQUENCIES, presets[1].gains, sides = true),
                 controls = TouchControls(
                     actions = mapOf(
                         (Ear.Left to Press.Single) to TouchAction.VolumeDown,

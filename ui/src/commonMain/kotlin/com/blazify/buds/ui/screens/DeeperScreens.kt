@@ -81,16 +81,24 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     val palette = LocalPalette.current
     val prefs = com.blazify.buds.ui.LocalPrefs.current
     val share = com.blazify.buds.ui.LocalShare.current
+    // On earbuds that take each ear's bands, a balance towards one side is the other ear's bands turned down: the
+    // curve is the louder ear's, and every curve sent keeps the balance.
+    val balance = if (eq.sides) com.blazify.buds.core.eq.Balance.of(eq.left, eq.right) else 0.0
+    val curve = if (eq.sides) com.blazify.buds.core.eq.Balance.curve(eq.left, eq.right) else eq.left
+    fun bands(gains: List<Double>, towards: Double = balance) {
+        if (!eq.sides || towards == 0.0) change(Change.Bands(gains))
+        else com.blazify.buds.core.eq.Balance.split(gains, towards).let { (l, r) -> change(Change.Bands(l, r)) }
+    }
     // The bands move under the finger and are sent once the finger lifts, so the earbuds aren't flooded.
-    var draft by remember { mutableStateOf(eq.left) }
-    LaunchedEffect(eq.left) { draft = eq.left }
+    var draft by remember { mutableStateOf(curve) }
+    LaunchedEffect(curve) { draft = curve }
     var naming by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<com.blazify.buds.ui.SavedSound?>(null) }
     // Built-in presets stay as they are; only the person's own sounds can be reshaped. The one being shaped is
     // remembered by name, as its bands change under the finger.
     var editing by remember { mutableStateOf<String?>(null) }
-    val matching = if (eq.preset == null) prefs.sounds.firstOrNull { same(it.gains, eq.left) } else null
+    val matching = if (eq.preset == null) prefs.sounds.firstOrNull { same(it.gains, curve) } else null
     LaunchedEffect(eq.preset, matching?.name) {
         if (eq.preset != null) editing = null else if (matching != null) editing = matching.name
     }
@@ -102,11 +110,11 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
 
     // A correction made from lab measurements of this very model, when the app has one for it.
     val tuned = remember(state.model, state.name, eq.frequencies, eq.custom) { com.blazify.buds.core.eq.Tuned.find(state) }
-    val tunedPlaying = tuned != null && eq.preset == null && com.blazify.buds.core.eq.Tuned.isPlaying(tuned, eq.left)
+    val tunedPlaying = tuned != null && eq.preset == null && com.blazify.buds.core.eq.Tuned.isPlaying(tuned, curve)
     if (tuned != null) {
         TunedCard(tuned, playing = tunedPlaying, ready = state.bothConnected) {
             editing = null
-            change(Change.Bands(tuned.gains))
+            bands(tuned.gains)
         }
     }
 
@@ -140,7 +148,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                     val flat = List(draft.size) { 0.0 }
                     draft = flat
                     prefs.saveSound(mine.name, flat)
-                    change(Change.Bands(flat))
+                    bands(flat)
                 }
                 IconButton(BudsIcons.Share, "Share ${mine.name}") { shareSound(mine.copy(gains = draft)) }
             }
@@ -153,9 +161,16 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
             onChange = { draft = it },
             onDone = {
                 mine?.let { prefs.saveSound(it.name, draft) }
-                change(Change.Bands(draft))
+                bands(draft)
             },
         )
+        if (eq.sides) {
+            Panel {
+                SectionTitle("Balance")
+                com.blazify.buds.ui.blocks.BalanceSlider(balance, enabled = state.bothConnected) { bands(draft, towards = it) }
+                Hint("Moves the sound towards one ear by turning the other ear down.", Modifier.padding(top = 6.dp))
+            }
+        }
         Spacer(Modifier.height(10.dp))
         // Two rows that scroll sideways: + first, then a shared code, then the person's sounds.
         val cards = buildList<@Composable () -> Unit> {
@@ -165,7 +180,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                 add {
                     SoundSquare(sound.name, gains = sound.gains, chosen = mine?.name == sound.name, onLongClick = { deleting = sound }) {
                         editing = sound.name
-                        change(Change.Bands(sound.gains))
+                        bands(sound.gains)
                     }
                 }
             }
@@ -195,7 +210,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                     while (prefs.sounds.any { it.name.equals(unique, ignoreCase = true) }) unique = "$base ${++n}"
                     prefs.saveSound(unique, draft)
                     editing = unique
-                    change(Change.Bands(draft))
+                    bands(draft)
                 }
                 naming = false
             },
@@ -228,7 +243,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
                 com.blazify.buds.ui.SavedSound.fromCode(text)?.let { sound ->
                     prefs.saveSound(sound.name, sound.gains)
                     editing = sound.name
-                    change(Change.Bands(sound.gains))
+                    bands(sound.gains)
                 }
                 importing = false
             },
