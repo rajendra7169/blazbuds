@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.swing)
     implementation(libs.settings)
+    testImplementation(libs.kotlin.test)
 }
 
 val appVersion = "1.2.0"

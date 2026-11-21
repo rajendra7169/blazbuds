@@ -281,23 +281,33 @@ private fun nameTheWindowClass() {
 }
 
 fun main(args: Array<String>) {
+    // `blazbuds battery` and the rest: asked of the running app, answered, and gone, before any window code.
+    if (Cli.wants(args)) kotlin.system.exitProcess(Cli.run(args))
     // One Blazbuds at a time: two would fight over the earbuds, which let only one app talk to them. Opened again,
     // it asks the one already running to show its window, and leaves.
     if (!OneCopy.claim(args)) return
+    Thread({ Cli.linkIntoPath() }, "terminal-link").apply { isDaemon = true }.start()
     nameTheWindowClass()
     app(args)
 }
 
 /**
  * Keeps Blazbuds to a single copy on the computer. The first copy listens on a small local port that only this
- * computer can reach; a second one finds it busy, sends "show" and quits, and the first brings its window up.
+ * computer can reach; a second one finds it busy, sends "show" and quits, and the first brings its window up. The
+ * command line asks its questions on the same port (see [Control]).
  */
 private object OneCopy {
-    private const val PORT = 47613
+    private val PORT = ControlPort.number
     private var server: java.net.ServerSocket? = null
 
     /** Raised when another start asked this copy to show itself. */
     val wake = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    /** Answers the command line once the earbuds hub exists. */
+    @Volatile
+    var control: Control? = null
+
+    private fun serve(peer: java.net.Socket) = ControlPort.serve(peer, control) { wake.value++ }
 
     fun claim(args: Array<String>): Boolean {
         if ("--demo" in args) return true
@@ -306,15 +316,9 @@ private object OneCopy {
             server = listening
             Thread({
                 while (!listening.isClosed) {
-                    runCatching {
-                        listening.accept().use { peer ->
-                            peer.soTimeout = 2_000
-                            val asked = peer.getInputStream().bufferedReader().readLine()
-                            // Says who it is, so a second start knows it found Blazbuds and not some other program.
-                            peer.getOutputStream().write("blazbuds\n".toByteArray())
-                            if (asked == "show") wake.value++
-                        }
-                    }
+                    val peer = runCatching { listening.accept() }.getOrNull() ?: continue
+                    // Each on its own thread: a change asked from the terminal may wait a few seconds for the earbuds.
+                    Thread({ runCatching { peer.use(::serve) } }, "one-copy-peer").apply { isDaemon = true }.start()
                 }
             }, "one-copy").apply { isDaemon = true }.start()
             return true
@@ -325,7 +329,7 @@ private object OneCopy {
                 socket.connect(java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), PORT), 1_000)
                 socket.soTimeout = 2_000
                 socket.getOutputStream().write((if ("--hidden" in args) "hello\n" else "show\n").toByteArray())
-                socket.getInputStream().bufferedReader().readLine() == "blazbuds"
+                socket.getInputStream().bufferedReader().readLine() == ControlPort.HELLO
             }
         }.getOrDefault(false)
         return !found
@@ -350,6 +354,8 @@ private fun app(args: Array<String>) = application {
     val buds = current
     val state = buds?.state?.collectAsState()?.value
     LaunchedEffect(hub) { hub?.reload() }
+    // The command line's answers come from this hub, and its changes run where the app's own taps do.
+    LaunchedEffect(hub) { if (hub != null) OneCopy.control = Control({ hub.current.value }, scope, prefs::lastCase) }
 
     // The tray stays while the window is closed, so the earbuds are one click away.
     val trayWorks = remember { java.awt.SystemTray.isSupported() }
