@@ -166,60 +166,80 @@ object ConnectPopup {
 }
 
 /**
- * Hears every Bluetooth connection, even with the app closed, and greets the person's own earbuds with the card when
- * they ask for it and allowed it.
+ * Hears every Bluetooth connection, even with the app closed. For the person's own earbuds it runs the automations
+ * set for connecting, then greets them: the card when it is allowed over other apps, else a notification with each
+ * battery and a way to allow the card.
  */
 class ConnectReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != BluetoothDevice.ACTION_ACL_CONNECTED) return
-        val store = Settings()
-        val on = store.getBoolean(Prefs.CONNECT_POPUP, true)
-        val allowed = ConnectPopup.allowed(context)
-        android.util.Log.i(TAG, "connected: popup on=$on, allowed over apps=$allowed, app in front=${ConnectPopup.appInFront}")
-        if (!on || ConnectPopup.appInFront) return
-        if (!allowed) {
-            // The card is on but the phone hasn't allowed it over other apps: say so once, with the way to allow it.
-            if (Remote.chosen()?.address.equals(intentDevice(intent)?.address, ignoreCase = true) && !store.getBoolean(NUDGED, false)) {
-                store.putBoolean(NUDGED, true)
-                nudge(context)
-            }
-            return
-        }
         val device = intentDevice(intent) ?: return
         // Only earbuds the app knows: the pair it was last using.
         val chosen = Remote.chosen() ?: return
         if (!chosen.address.equals(device.address, ignoreCase = true)) {
-            android.util.Log.i(TAG, "connected: not the chosen pair, no card")
+            android.util.Log.i(TAG, "connected: not the chosen pair")
             return
         }
-        android.util.Log.i(TAG, "connected: ${chosen.name}, card in a moment")
-        // A moment for the earbuds to settle before the card asks them anything.
-        Handler(Looper.getMainLooper()).postDelayed({ ConnectPopup.show(context, chosen.address, chosen.name) }, 1_200)
+        val store = Settings()
+        val on = store.getBoolean(Prefs.CONNECT_POPUP, true)
+        val allowed = ConnectPopup.allowed(context)
+        android.util.Log.i(TAG, "connected: ${chosen.name}, popup on=$on, allowed over apps=$allowed, app in front=${ConnectPopup.appInFront}")
+        val app = context.applicationContext
+        val pending = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            try {
+                // A moment for the earbuds to settle before anything asks them.
+                delay(1_200)
+                // While the app is open it runs these itself, on its own link.
+                if (Remote.live == null) {
+                    Automations.run(app, com.blazify.buds.ui.RuleBook().forConnect(System.currentTimeMillis()))
+                }
+                if (!on || ConnectPopup.appInFront) return@launch
+                if (allowed) {
+                    Handler(Looper.getMainLooper()).post { ConnectPopup.show(app, chosen.address, chosen.name) }
+                } else {
+                    val state = Remote.live?.state?.value?.takeIf { it.isReady } ?: Remote.battery(app)
+                    batteryNotice(app, state?.name?.ifBlank { null } ?: chosen.name, state)
+                }
+            } finally {
+                pending.finish()
+            }
+        }
     }
 }
 
 private const val TAG = "BlazbudsConnect"
-private const val NUDGED = "connect_popup_nudged"
 
 @Suppress("DEPRECATION")
 private fun intentDevice(intent: Intent): BluetoothDevice? =
     if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) else intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
 
-/** The one notice that the card needs a permission, opening the phone's page for it. */
-private fun nudge(context: Context) {
+/**
+ * The earbuds' batteries as a notification, as they connect, when the card can't show over other apps. It goes by
+ * itself after half a minute, and offers to allow the card.
+ */
+private fun batteryNotice(context: Context, name: String, state: BudsState?) {
     val manager = context.getSystemService(android.app.NotificationManager::class.java) ?: return
     val channel = "connect_card"
-    manager.createNotificationChannel(android.app.NotificationChannel(channel, "Connect card", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+    manager.createNotificationChannel(android.app.NotificationChannel(channel, "When your earbuds connect", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+    val parts = listOfNotNull(
+        state?.left?.percent?.takeIf { it >= 0 }?.let { "Left $it%" },
+        state?.right?.percent?.takeIf { it >= 0 }?.let { "Right $it%" },
+        state?.overall?.takeIf { state.left == null && state.right == null }?.percent?.takeIf { it >= 0 }?.let { "Earbuds $it%" },
+        state?.case?.percent?.takeIf { it > 0 }?.let { "Case $it%" },
+    )
+    val text = if (parts.isEmpty()) "Connected" else parts.joinToString("  ·  ")
+    val open = android.app.PendingIntent.getActivity(context, 8, Intent(context, MainActivity::class.java), android.app.PendingIntent.FLAG_IMMUTABLE)
     val allow = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + context.packageName))
-    val tap = android.app.PendingIntent.getActivity(context, 7, allow, android.app.PendingIntent.FLAG_IMMUTABLE)
-    val text = "Allow Blazbuds to show over other apps, and the case and each battery appear as you open the case."
+    val allowTap = android.app.PendingIntent.getActivity(context, 7, allow, android.app.PendingIntent.FLAG_IMMUTABLE)
     val notice = android.app.Notification.Builder(context, channel)
         .setSmallIcon(R.drawable.ic_tile)
-        .setContentTitle("See your battery as you open the case")
+        .setContentTitle(name)
         .setContentText(text)
-        .setStyle(android.app.Notification.BigTextStyle().bigText(text))
-        .setContentIntent(tap)
+        .setContentIntent(open)
         .setAutoCancel(true)
+        .setTimeoutAfter(30_000)
+        .addAction(android.app.Notification.Action.Builder(null, "Show as a card", allowTap).build())
         .build()
     runCatching { manager.notify(channel.hashCode(), notice) }
 }
