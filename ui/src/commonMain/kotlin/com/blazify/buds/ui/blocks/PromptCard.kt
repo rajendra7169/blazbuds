@@ -76,7 +76,8 @@ fun PromptCard(title: String, body: String, buttons: PromptButtons, onDismissReq
     // One slow clock for everything that moves in the picture: a full turn every six seconds.
     val clock = rememberInfiniteTransition(label = "promptArt")
     val tick by clock.animateFloat(0f, 1f, infiniteRepeatable(tween(6000, easing = LinearEasing), RepeatMode.Restart), label = "promptTime")
-    val time = if (still) 0.15f else tick
+    // Read only where the pictures are drawn, so the card itself isn't composed again on every frame.
+    val time = { if (still) 0.15f else tick }
     Dialog(onDismissRequest = onDismissRequest) {
         PromptCardLayout(
             title, body, buttons, time, art,
@@ -93,7 +94,12 @@ fun PromptCard(title: String, body: String, buttons: PromptButtons, onDismissReq
 
 /** The card itself, outside any window, so the screenshots can draw it on its own. */
 @Composable
-fun PromptCardLayout(title: String, body: String, buttons: PromptButtons, time: Float, art: DrawScope.(time: Float) -> Unit, modifier: Modifier = Modifier) {
+fun PromptCardLayout(title: String, body: String, buttons: PromptButtons, time: Float, art: DrawScope.(time: Float) -> Unit, modifier: Modifier = Modifier) =
+    PromptCardLayout(title, body, buttons, { time }, art, modifier)
+
+/** The card, with the pictures' clock read only as they are drawn. */
+@Composable
+private fun PromptCardLayout(title: String, body: String, buttons: PromptButtons, time: () -> Float, art: DrawScope.(time: Float) -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalPalette.current
     val glow = Teal.copy(alpha = if (palette.dark) 0.18f else 0.22f)
     val overflow = 46.dp
@@ -105,7 +111,7 @@ fun PromptCardLayout(title: String, body: String, buttons: PromptButtons, time: 
             // The sky the picture flies in: a teal glow with notes drifting in it.
             Canvas(Modifier.fillMaxWidth().height(84.dp)) {
                 drawRect(Brush.verticalGradient(listOf(glow, Color.Transparent)))
-                drawSkyNotes(time, if (palette.dark) Color.White else TealDeep)
+                drawSkyNotes(time(), if (palette.dark) Color.White else TealDeep)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 18.dp)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = palette.text)
@@ -118,7 +124,7 @@ fun PromptCardLayout(title: String, body: String, buttons: PromptButtons, time: 
                 }
             }
         }
-        Canvas(Modifier.size(132.dp)) { art(time) }
+        Canvas(Modifier.size(132.dp)) { art(time()) }
     }
 }
 
