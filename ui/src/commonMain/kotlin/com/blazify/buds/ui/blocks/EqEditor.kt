@@ -55,7 +55,9 @@ fun EqEditor(
     onDone: () -> Unit,
 ) {
     val palette = LocalPalette.current
-    val measurer = rememberTextMeasurer()
+    // Room for every label at once (the scale, up to ten bands and the bubble): with the usual eight, each frame of a
+    // drag laid all of them out again.
+    val measurer = rememberTextMeasurer(cacheSize = 24)
     var held by remember { mutableIntStateOf(-1) }
     val change by rememberUpdatedState(onChange)
     val done by rememberUpdatedState(onDone)
