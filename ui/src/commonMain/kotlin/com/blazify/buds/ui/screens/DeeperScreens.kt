@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import com.blazify.buds.ui.blocks.sideways
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -99,6 +100,16 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
     fun shareSound(sound: com.blazify.buds.ui.SavedSound) =
         share("My Blazbuds sound \"${sound.name}\". In Blazbuds, open Sound › Custom › Add a code and paste:\n${sound.code()}")
 
+    // A correction made from lab measurements of this very model, when the app has one for it.
+    val tuned = remember(state.model, state.name, eq.frequencies, eq.custom) { com.blazify.buds.core.eq.Tuned.find(state) }
+    val tunedPlaying = tuned != null && eq.preset == null && com.blazify.buds.core.eq.Tuned.isPlaying(tuned, eq.left)
+    if (tuned != null) {
+        TunedCard(tuned, playing = tunedPlaying, ready = state.bothConnected) {
+            editing = null
+            change(Change.Bands(tuned.gains))
+        }
+    }
+
     // Pairs that only have presets skip the switch and the curve.
     if (eq.custom) {
         TwoWay("Presets", "Custom", onSecond = custom) { custom = it }
@@ -113,7 +124,7 @@ fun EqualizerScreen(state: BudsState, change: (Change) -> Unit, back: (() -> Uni
         // Custom: the curve big, the person's own sounds underneath.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(mine?.name ?: "Custom", style = MaterialTheme.typography.titleLarge, color = palette.text)
+                Text(mine?.name ?: if (tunedPlaying) "Tuned for ${tuned!!.label}" else "Custom", style = MaterialTheme.typography.titleLarge, color = palette.text)
                 Text(
                     when {
                         !state.bothConnected -> "Take both earbuds out of the case to change it"
@@ -679,5 +690,43 @@ private fun EarPrintCard(print: com.blazify.buds.core.model.EarPrintState, ready
         } else {
             Icon(BudsIcons.Forward, null, tint = palette.text, modifier = Modifier.size(20.dp))
         }
+    }
+}
+
+/**
+ * "Tuned for" the model in hand: a correction from lab measurements of it, put on the earbuds as their own curve. Its
+ * shape drawn small, a line on what it is, and a tick while it plays.
+ */
+@Composable
+private fun TunedCard(tuned: com.blazify.buds.core.eq.TunedCurve, playing: Boolean, ready: Boolean, use: () -> Unit) {
+    val palette = LocalPalette.current
+    val shape = com.blazify.buds.ui.blocks.CardShape
+    Row(
+        Modifier.fillMaxWidth()
+            .background(if (playing) palette.accent.copy(alpha = if (palette.dark) 0.18f else 0.12f) else palette.card, shape)
+            .border(1.dp, if (playing) palette.accent.copy(alpha = 0.6f) else palette.line.copy(alpha = if (palette.dark) 0.6f else 1f), shape)
+            .semantics(mergeDescendants = true) { selected = playing }
+            .press(enabled = ready && !playing, onClick = use)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.size(64.dp).background(palette.raised, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+            EqCurve(tuned.gains, Modifier.height(40.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text("Tuned for ${tuned.label}", style = MaterialTheme.typography.titleMedium, color = palette.text)
+            Text(
+                when {
+                    playing -> "On: evens out their sound, from lab measurements of this model"
+                    !ready -> "Take both earbuds out of the case to use it"
+                    else -> "Evens out their sound, from lab measurements of this model"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = palette.muted,
+            )
+        }
+        if (playing) Icon(BudsIcons.Check, "On", tint = palette.accent, modifier = Modifier.size(22.dp))
+        else Choice("Use", false, onClick = { if (ready) use() })
     }
 }

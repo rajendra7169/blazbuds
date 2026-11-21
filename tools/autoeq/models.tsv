@@ -1,0 +1,47 @@
+# Models Blazbuds can send its own curve to, with the name AutoEq gives each one and its band layouts.
+# Columns, tab separated: label shown in the app | names the earbuds report (comma separated) | AutoEq name | layouts (+ separated)
+# Layouts are in refresh.py. A model AutoEq has no measurement of is left out of the table.
+Liberty 4 NC	A3947,Liberty 4 NC	Anker Soundcore Liberty 4 NC	soundcore
+Liberty 4	A3953,Liberty 4	Anker Soundcore Liberty 4	soundcore
+Liberty 4 Pro	A3954,Liberty 4 Pro	Anker Liberty 4 Pro	soundcore
+Liberty 5	A3957,Liberty 5	Anker Liberty 5	soundcore
+Liberty 3 Pro	A3952,Liberty 3 Pro	Anker Soundcore Liberty 3 Pro	soundcore
+Liberty 2 Pro	A3909,Liberty 2 Pro	Anker Soundcore Liberty 2 Pro	soundcore
+Liberty Air 2 Pro	A3951,Liberty Air 2 Pro	Anker Soundcore Liberty Air 2 Pro	soundcore
+Life A2 NC	A3931,Life A2 NC,Life Dot 2 NC	Anker Soundcore Life A2 NC	soundcore
+Life P3	A3939,Life P3	Anker Soundcore Life P3	soundcore
+Life Q30	A3028,Life Q30	Anker Soundcore Life Q30	soundcore
+Life Q35	A3027,Life Q35	Anker Soundcore Life Q35	soundcore
+Space A40	A3936,Space A40	Anker Soundcore Space A40	soundcore
+Space One	A3035,Space One	Anker Soundcore Space One	soundcore
+Space Q45	A3040,Space Q45	Anker Soundcore Space Q45	soundcore
+P40i	A3955,P40i	Anker Soundcore P40i	soundcore
+C30i	A3330,C30i	Anker Soundcore C30i	soundcore
+Galaxy Buds3	Galaxy Buds3	Samsung Galaxy Buds3	samsung
+Galaxy Buds3 Pro	Galaxy Buds3 Pro	Samsung Galaxy Buds3 Pro	samsung
+WH-1000XM3	WH-1000XM3	Sony WH-1000XM3	sony5+sony10
+WH-1000XM4	WH-1000XM4	Sony WH-1000XM4	sony5+sony10
+WH-1000XM5	WH-1000XM5	Sony WH-1000XM5	sony5+sony10
+WH-1000XM6	WH-1000XM6	Sony WH-1000XM6	sony5+sony10
+WF-1000XM3	WF-1000XM3	Sony WF-1000XM3	sony5+sony10
+WF-1000XM4	WF-1000XM4	Sony WF-1000XM4	sony5+sony10
+WF-1000XM5	WF-1000XM5	Sony WF-1000XM5	sony5+sony10
+LinkBuds	LinkBuds	Sony LinkBuds	sony5+sony10
+LinkBuds S	LinkBuds S	Sony LinkBuds S	sony5+sony10
+LinkBuds Fit	LinkBuds Fit	Sony LinkBuds Fit	sony5+sony10
+WF-C500	WF-C500	Sony WF-C500	sony5+sony10
+WF-C700N	WF-C700N	Sony WF-C700N	sony5+sony10
+WH-CH520	WH-CH520	Sony WH-CH520	sony5+sony10
+WH-CH710N	WH-CH710N	Sony WH-CH710N	sony5+sony10
+WH-CH720N	WH-CH720N	Sony WH-CH720N	sony5+sony10
+WH-XB900N	WH-XB900N	Sony WH-XB900N	sony5+sony10
+WH-XB910N	WH-XB910N	Sony WH-XB910N	sony5+sony10
+ULT WEAR	ULT WEAR	Sony ULT WEAR	sony5+sony10
+Ear (2)	Nothing Ear (2)	Nothing ear (2)	nothing8+nothing3
+Ear	Nothing Ear	Nothing ear	nothing8+nothing3
+Ear (a)	Nothing Ear (a)	Nothing ear (a)	nothing3
+Ear (stick)	Nothing Ear (stick)	Nothing ear (stick)	nothing8+nothing3wide
+CMF Buds Pro 2	CMF Buds Pro 2	CMF by Nothing Buds Pro 2	nothing3cmf
+OnePlus Buds Pro	OnePlus Buds Pro	OnePlus Buds Pro	melody6
+OnePlus Buds Pro 2	OnePlus Buds Pro 2	OnePlus Buds Pro 2	melody6
+OnePlus Buds 3	OnePlus Buds 3	OnePlus Buds 3	melody6
