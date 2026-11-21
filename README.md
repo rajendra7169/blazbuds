@@ -80,9 +80,24 @@ Missing yours? Use **Help › Request your earbuds** in the app.
 
 On Linux, install the downloaded package with `sudo apt install ./blazbuds_1.2.0_amd64.deb`. Android needs version 8 or later. The app tells you when a new version is out.
 
+## On a computer
+
+While Blazbuds runs (the tray is enough), a terminal can ask it too:
+
+```
+blazbuds status            Liberty 4 NC  L 80%  R 80%  case 60%  Noise cancelling
+blazbuds battery --json    the batteries as JSON
+blazbuds mode transparency anc, transparency or normal
+blazbuds scene focus       focus, commute, flight, talk or relax
+```
+
+On Linux the app adds the `blazbuds` command to `~/.local/bin` when that folder is on your PATH; otherwise use `/opt/blazbuds/bin/Blazbuds`.
+
+**Home Assistant:** Settings › Home Assistant connects to your MQTT broker (the Mosquitto add-on works) and your earbuds appear by themselves as a device with their batteries, whether they're connected, and the listening mode and scenes to change from your dashboards and automations.
+
 ## Private
 
-No ads, no account and no tracking. The app talks to your earbuds and goes online only to check for a new version, which you can turn off. Your settings stay on your device.
+No ads, no account and no tracking. The app talks to your earbuds and goes online only to check for a new version, which you can turn off, and to your own Home Assistant if you connect it. Your settings stay on your device.
 
 ## Licence
 
