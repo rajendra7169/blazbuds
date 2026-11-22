@@ -58,7 +58,7 @@ import com.blazify.buds.ui.theme.Motion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-const val VERSION = "1.2.0"
+const val VERSION = "1.3.0"
 
 private val TABS = listOf(
     NavItem("Home", BudsIcons.Home),

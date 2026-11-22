@@ -19,7 +19,7 @@ dependencies {
     testImplementation(libs.kotlin.test)
 }
 
-val appVersion = "1.2.0"
+val appVersion = "1.3.0"
 
 compose.desktop {
     application {

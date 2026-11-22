@@ -78,7 +78,7 @@ Missing yours? Use **Help › Request your earbuds** in the app.
   <img src="docs/buttons/iphone.png" width="260" alt="iPhone: coming soon">
 </p>
 
-On Linux, install the downloaded package with `sudo apt install ./blazbuds_1.2.0_amd64.deb`. Android needs version 8 or later. The app tells you when a new version is out.
+On Linux, install the downloaded package with `sudo apt install ./blazbuds_1.3.0_amd64.deb`. Android needs version 8 or later. The app tells you when a new version is out.
 
 ## On a computer
 

@@ -19,6 +19,29 @@ private data class Version(val number: String, val date: String, val groups: Lis
 
 private val CHANGES = listOf(
     Version(
+        "1.3.0", "November 2026",
+        listOf(
+            "Highlights" to listOf(
+                "Tuned for your earbuds: a correction made from lab measurements of your exact model, for 44 models",
+                "Automations: change the earbuds by themselves when they connect, at a time of day, or when the battery runs low",
+                "Shortcuts and Google Assistant: say \"Hey Google, open Noise cancelling on Blazbuds\"",
+            ),
+            "Sound" to listOf(
+                "Left and right balance on earbuds that take each ear's sound",
+                "A better editor: every band with its exact value, Undo, and Before and Now to compare by ear",
+                "Bring in an equalizer from other apps, or take yours out, as text",
+                "Share a sound as a QR code, and try sounds others made",
+            ),
+            "On a computer" to listOf(
+                "The blazbuds command: battery, mode, scene and preset from a terminal",
+                "Home Assistant: your earbuds' battery and modes there, off until you switch it on",
+            ),
+            "Smoother" to listOf(
+                "Popups, the pairing guide, the sound curve and the moving pictures draw with less work",
+            ),
+        ),
+    ),
+    Version(
         "1.2.0", "November 2026",
         listOf(
             "Highlights" to listOf(

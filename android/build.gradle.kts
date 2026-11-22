@@ -13,8 +13,8 @@ android {
         applicationId = "com.blazify.buds"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10200
-        versionName = "1.2.0"
+        versionCode = 10300
+        versionName = "1.3.0"
     }
 
     // The release key lives outside the repo; keystore.properties (never in git) says where. Without it, as on a
