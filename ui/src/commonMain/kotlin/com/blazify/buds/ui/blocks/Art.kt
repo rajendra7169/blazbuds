@@ -103,6 +103,8 @@ private fun DrawScope.speaker(body: Color, edge: Color, accent: Color) {
 /** Which picture the add art shows: headphones (0) or earbuds (1), changing by itself every few seconds. */
 @Composable
 fun rememberDeviceCycle(): Int {
+    // On iPhone the turn-taking showed as a blink every few seconds rather than a fade: the earbuds stay put there.
+    if (com.blazify.buds.ui.LocalLook.current == com.blazify.buds.ui.SystemLook.Ios) return 1
     var showing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
         while (true) {
@@ -159,6 +161,10 @@ fun AddArt(modifier: Modifier = Modifier, size: Dp = 120.dp, showing: Int = reme
 /** "Pair your headphones" or "Pair your earbuds", the last word changing with the add picture. */
 @Composable
 fun DeviceWord(prefix: String, showing: Int, style: androidx.compose.ui.text.TextStyle, color: Color) {
+    if (com.blazify.buds.ui.LocalLook.current == com.blazify.buds.ui.SystemLook.Ios) {
+        androidx.compose.material3.Text(prefix + "earbuds or headphones", style = style, color = color)
+        return
+    }
     androidx.compose.foundation.layout.Row {
         androidx.compose.material3.Text(prefix, style = style, color = color)
         androidx.compose.animation.AnimatedContent(

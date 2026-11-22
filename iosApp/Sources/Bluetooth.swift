@@ -137,8 +137,17 @@ final class Bluetooth: NSObject, BluetoothBridge, CBCentralManagerDelegate {
                 }
             }
         }
+        // Said once per change, so a report shows what the phone was asked and what it answered.
+        let said = found.isEmpty ? "none" : found.map { "\($0.0.name ?? "no name") (\($0.1))" }.joined(separator: ", ")
+        if said != lastFound {
+            lastFound = said
+            BudsLog.shared.add(line: "iPhone connected earbuds on a known control service: \(said)")
+        }
         return found
     }
+
+    /// What the last look found, so the log notes only changes.
+    private var lastFound = ""
 
     func link(for id: UUID) -> BleLink? { links[id] }
 
