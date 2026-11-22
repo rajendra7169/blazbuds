@@ -6,8 +6,9 @@ import BlazbudsKit
 /// Help › Bluetooth check: everything iOS reports about Bluetooth and the earbuds, as text to paste into a report.
 /// It lists the peripherals connected on each known service, opens each one the app isn't using to list its
 /// services and parts and note its first replies (asking a Soundcore pair for its state, which changes nothing),
-/// lists the accessories, and scans a few seconds for what is nearby. It runs on the owner's queue and ends within
-/// about fifteen seconds whatever happens.
+/// lists the accessories and the remembered earbuds, and scans a few seconds for what is nearby. Up to two earbuds
+/// the scan finds (by name, or by a control service either byte order) are then connected and looked at the same
+/// way. It runs on the owner's queue and ends within about half a minute whatever happens.
 final class BluetoothCheck: NSObject, CBPeripheralDelegate {
     private let owner: Bluetooth
     private let device: String
@@ -29,6 +30,9 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
     /// What the scan saw, by peripheral.
     private var nearby: [UUID: String] = [:]
     private var scanning = false
+    /// Earbuds the scan found, to connect and look at once it ends.
+    private var found: [CBPeripheral] = []
+    private var looked = Set<UUID>()
 
     /// The Soundcore "send me everything" request, which only reads.
     private static let soundcoreState = Data([0x08, 0xEE, 0x00, 0x00, 0x00, 0x01, 0x01, 0x0A, 0x00, 0x02])
@@ -47,6 +51,7 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
         let declared = Bundle.main.object(forInfoDictionaryKey: "UISupportedExternalAccessoryProtocols") as? [String] ?? []
         lines.append("App: \(Bundle.main.bundleIdentifier ?? "?") · accessory protocols it can open: \(declared.isEmpty ? "none (inside LiveContainer?)" : declared.joined(separator: ", "))")
         lines.append(contentsOf: accessoryLines)
+        if central.state == .poweredOn { lines.append(contentsOf: owner.rememberedLines()) }
         guard central.state == .poweredOn else {
             lines.append("Bluetooth isn't on and allowed, so nothing more can be seen.")
             finish()
@@ -74,7 +79,7 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
         owner.scan(by: self)
         owner.queue.asyncAfter(deadline: .now() + 6) { [self] in endScan() }
         // Whatever happens, the report comes back.
-        owner.queue.asyncAfter(deadline: .now() + 16) { [self] in
+        owner.queue.asyncAfter(deadline: .now() + 30) { [self] in
             if !finished { lines.append("(the check ran out of time here)") }
             endScan()
             endProbe()
@@ -109,6 +114,7 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
             return
         }
         let peripheral = queueToProbe.removeFirst()
+        looked.insert(peripheral.identifier)
         lines.append("")
         lines.append("\(peripheral.name ?? "no name") [\(short(peripheral.identifier))], \(describe(peripheral.state)):")
         if let link = owner.link(for: peripheral.identifier) {
@@ -126,15 +132,19 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
         let number = probeNumber
         owner.probe(peripheral, by: self)
         peripheral.delegate = self
-        if peripheral.state == .connected {
+        let wasConnected = peripheral.state == .connected
+        if wasConnected {
             peripheral.discoverServices(nil)
         } else {
+            currentLines.append("  connecting…")
+            BudsLog.shared.add(line: "Bluetooth check: connecting \(peripheral.name ?? "no name") [\(short(peripheral.identifier))]")
             owner.central.connect(peripheral, options: nil)
         }
-        // Each one gets a few seconds.
-        owner.queue.asyncAfter(deadline: .now() + 5) { [self] in
+        // Each one gets a few seconds, a few more when it has to connect first.
+        let allowed: Double = wasConnected ? 5 : 8
+        owner.queue.asyncAfter(deadline: .now() + allowed) { [self] in
             if probeNumber == number && current != nil {
-                currentLines.append("  (no more within 5 s)")
+                currentLines.append("  (no more within \(Int(allowed)) s)")
                 endProbe()
                 probeNext()
             }
@@ -143,6 +153,7 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
 
     func connected(_ peripheral: CBPeripheral) {
         guard peripheral === current else { return }
+        currentLines.append("  connected")
         peripheral.discoverServices(nil)
     }
 
@@ -180,7 +191,10 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
 
     /// Listens on the control services' notify parts, then asks a Soundcore pair for its state.
     private func listen(_ peripheral: CBPeripheral) {
-        let control = (peripheral.services ?? []).filter { Routes.route(of: $0.uuid) != nil && Routes.route(of: $0.uuid) != Routes.fastPair.name }
+        // Known control services, read either byte order, and any service holding Soundcore's 7777 and 8888.
+        let control = (peripheral.services ?? []).filter {
+            (Routes.route(of: $0.uuid) != nil && Routes.route(of: $0.uuid) != Routes.fastPair.name) || Routes.soundcoreParts($0)
+        }
         guard !control.isEmpty else {
             currentLines.append("  no control service the app knows")
             endProbe()
@@ -199,11 +213,11 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
         let number = probeNumber
         owner.queue.asyncAfter(deadline: .now() + 0.6) { [self] in
             guard probeNumber == number, current === peripheral else { return }
-            let soundcore = control.first { Routes.route(of: $0.uuid) == Routes.soundcore.name }
-            if let write = soundcore?.characteristics?.first(where: { Routes.full($0.uuid).hasPrefix("00007777") }) {
+            let parts = control.flatMap { $0.characteristics ?? [] }
+            if let write = parts.first(where: { Routes.isPart($0, "7777") }) {
                 let type: CBCharacteristicWriteType = write.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
                 peripheral.writeValue(BluetoothCheck.soundcoreState, for: write, type: type)
-                currentLines.append("  sent the state request: \(Routes.hex(BluetoothCheck.soundcoreState))")
+                currentLines.append("  sent the state request to \(Routes.full(write.uuid).prefix(8)): \(Routes.hex(BluetoothCheck.soundcoreState))")
             }
         }
         owner.queue.asyncAfter(deadline: .now() + 3) { [self] in
@@ -247,9 +261,15 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
     // MARK: The scan
 
     func discovered(_ peripheral: CBPeripheral, advertisement: [String: Any], rssi: NSNumber) {
-        guard nearby.count < 25 else { return }
         let name = (advertisement[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name
-        let services = (advertisement[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []).map { $0.uuidString }
+        let advertised = Routes.advertised(advertisement)
+        // Earbuds by name or by a control service, either byte order: looked at more closely once the scan ends.
+        if let route = Routes.match(name: name, services: advertised), Routes.isSure(route), found.count < 2,
+           !found.contains(where: { $0.identifier == peripheral.identifier }) {
+            found.append(peripheral)
+        }
+        guard nearby.count < 25 else { return }
+        let services = advertised.map { $0.uuidString }
         // Unnamed devices with no services are mostly phones and tags around; they say nothing useful.
         guard name != nil || !services.isEmpty else { return }
         nearby[peripheral.identifier] = "\(name ?? "no name") [\(short(peripheral.identifier))] \(rssi) dBm\(services.isEmpty ? "" : " · " + services.joined(separator: ", "))"
@@ -259,7 +279,13 @@ final class BluetoothCheck: NSObject, CBPeripheralDelegate {
         guard scanning else { return }
         scanning = false
         owner.scan(by: nil)
-        if current == nil && queueToProbe.isEmpty { finish() }
+        let more = found.filter { !looked.contains($0.identifier) && !queueToProbe.contains($0) }
+        if !more.isEmpty {
+            lines.append("")
+            lines.append("Found over Bluetooth LE, looked at next: \(more.map { "\($0.name ?? "no name") [\(short($0.identifier))]" }.joined(separator: ", "))")
+            queueToProbe.append(contentsOf: more)
+        }
+        if current == nil { probeNext() }
     }
 
     private func finish() {

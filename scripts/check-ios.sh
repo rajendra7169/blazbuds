@@ -8,7 +8,8 @@
 #    the Kotlin framework (iosApp/checks/stubs). They carry Apple's signatures for what the app uses, so a wrong
 #    label or type, or a call between the app's own files that doesn't fit, shows up here. They can't prove Apple's
 #    side: optional delegate methods, for one, aren't checked. Only Xcode on the cloud Mac is the final word.
-# 4. The names the Swift side calls on the Kotlin framework are checked against the Kotlin sources.
+# 4. The finder's matching rules (Routes.swift) run against a small fake CoreBluetooth.
+# 5. The names the Swift side calls on the Kotlin framework are checked against the Kotlin sources.
 #
 # The Swift toolchain (once, ~2.8 GB, no root needed):
 #   curl -LO https://download.swift.org/swift-6.1-release/ubuntu2404/swift-6.1-RELEASE/swift-6.1-RELEASE-ubuntu24.04.tar.gz
@@ -60,6 +61,13 @@ if [ $built -eq 1 ] && "$SWIFTC" -swift-version 5 -typecheck -I "$MODS" "${SOURC
 else
     status=1
 fi
+
+echo
+echo "Running the finder's matching rules…"
+sed 's/^import CoreBluetooth//' iosApp/Sources/Routes.swift > "$MODS/Routes.swift"
+if "$SWIFTC" -module-name RoutesTest iosApp/checks/routes-test/FakeCoreBluetooth.swift "$MODS/Routes.swift" \
+    iosApp/checks/routes-test/main.swift -o "$MODS/routes-test" && "$MODS/routes-test" | tee "$MODS/routes.txt" | grep -v "^ok" ; then :; fi
+if [ -s "$MODS/routes.txt" ] && ! grep -q "^FAIL" "$MODS/routes.txt"; then echo "  ok ($(grep -c "^ok" "$MODS/routes.txt") rules)"; else status=1; fi
 
 echo
 echo "Checking the Kotlin names Swift calls…"

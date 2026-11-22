@@ -44,15 +44,93 @@ enum Routes {
         }
     }
 
-    /// Which route a service belongs to, if any.
+    /// The forms a UUID can take, full and upper case: as given, and with its bytes the other way round, as some
+    /// earbuds send it (the Liberty 4 NC advertises its 014ef5da service as DAF54E01).
+    static func forms(_ uuid: CBUUID) -> [String] {
+        let id = full(uuid)
+        if id.hasSuffix(base) {
+            let head = String(id.prefix(8))
+            let short = head.hasPrefix("0000") ? String(head.suffix(4)) : head
+            let swapped = swapBytes(short)
+            return [id, (swapped.count == 4 ? "0000" + swapped : swapped) + base]
+        }
+        let hex = id.replacingOccurrences(of: "-", with: "")
+        guard hex.count == 32 else { return [id] }
+        let swapped = Array(swapBytes(hex))
+        let dashed = [0 ..< 8, 8 ..< 12, 12 ..< 16, 16 ..< 20, 20 ..< 32].map { String(swapped[$0]) }.joined(separator: "-")
+        return [id, dashed]
+    }
+
+    /// Hex text with its bytes in the other order.
+    static func swapBytes(_ hex: String) -> String {
+        let digits = Array(hex)
+        return stride(from: 0, to: digits.count - 1, by: 2).reversed().map { String(digits[$0 ..< $0 + 2]) }.joined()
+    }
+
+    /// Which route a service belongs to, if any, read either way round.
     static func route(of service: CBUUID) -> String? {
-        let id = full(service)
-        if id.hasSuffix("F5DA" + base) { return soundcore.name }
-        for route in [nothing, melody, jieli, honor, sony, fastPair] where route.services.contains(where: { full($0) == id }) {
-            return route.name
+        for id in forms(service) {
+            if id.hasSuffix("F5DA" + base) { return soundcore.name }
+            for route in [nothing, melody, jieli, honor, sony, fastPair] where route.services.contains(where: { full($0) == id }) {
+                return route.name
+            }
         }
         return nil
     }
+
+    /// Whether a characteristic is the 16-bit one given ("7777"), read either way round.
+    static func isPart(_ characteristic: CBCharacteristic, _ short: String) -> Bool {
+        forms(characteristic.uuid).contains("0000" + short + base)
+    }
+
+    /// A service holding Soundcore's write 7777 and notify 8888, whatever the service itself is called.
+    static func soundcoreParts(_ service: CBService) -> Bool {
+        let all = service.characteristics ?? []
+        return all.contains { isPart($0, "7777") } && all.contains { isPart($0, "8888") }
+    }
+
+    // MARK: Earbuds seen over Bluetooth LE
+
+    /// Name starts that are surely earbuds or headphones, so a scan can stop waiting once one shows.
+    private static let earbudNames = [
+        "soundcore", "liberty", "nothing", "ear (", "cmf ", "oneplus", "nord buds", "oppo enco", "realme", "ultima",
+        "earbuds x", "honor", "huawei", "freebuds", "wf-", "wh-", "linkbuds",
+    ]
+
+    static func looksLikeEarbuds(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        return earbudNames.contains { lower.hasPrefix($0) || lower.contains(" " + $0) }
+    }
+
+    /// The name without the " LE" some earbuds add to their Bluetooth LE side ("soundcore Liberty 4 NC LE").
+    static func cleanName(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        for tail in [" LE", "-LE", "_LE", " (LE)"] where trimmed.hasSuffix(tail) {
+            return String(trimmed.dropLast(tail.count)).trimmingCharacters(in: .whitespaces)
+        }
+        return trimmed
+    }
+
+    /// Every service UUID an advertisement mentions.
+    static func advertised(_ advertisement: [String: Any]) -> [CBUUID] {
+        var all = advertisement[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
+        all += advertisement[CBAdvertisementDataOverflowServiceUUIDsKey] as? [CBUUID] ?? []
+        all += advertisement[CBAdvertisementDataSolicitedServiceUUIDsKey] as? [CBUUID] ?? []
+        all += (advertisement[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data] ?? [:]).keys
+        return all
+    }
+
+    /// How a peripheral seen in a scan would be reached: the route of a control service it advertises (either byte
+    /// order), "scan" for a name that is surely earbuds, "fastpair" for Fast Pair alone; nil for anything else.
+    static func match(name: String?, services: [CBUUID]) -> String? {
+        let routes = services.compactMap { route(of: $0) }
+        if let control = routes.first(where: { $0 != fastPair.name }) { return control }
+        if let name = name, looksLikeEarbuds(name) { return "scan" }
+        return routes.isEmpty ? nil : fastPair.name
+    }
+
+    /// Whether a scan match is surely earbuds, so waiting for one can stop.
+    static func isSure(_ route: String) -> Bool { route != fastPair.name }
 
     /// The control service to use among those a peripheral offers, best first; Fast Pair never controls anything.
     static func pick(_ services: [CBService]) -> (service: CBService, route: String)? {
@@ -75,8 +153,8 @@ enum Routes {
     /// The characteristic to write the earbuds' messages to and the one their answers come on.
     static func pickCharacteristics(_ all: [CBCharacteristic]) -> (write: CBCharacteristic, notify: CBCharacteristic)? {
         for pair in knownPairs {
-            let write = all.first { full($0.uuid).hasPrefix(pair.write) }
-            let notify = all.first { full($0.uuid).hasPrefix(pair.notify) }
+            let write = all.first { forms($0.uuid).contains { $0.hasPrefix(pair.write) } }
+            let notify = all.first { forms($0.uuid).contains { $0.hasPrefix(pair.notify) } }
             if let write = write, let notify = notify { return (write, notify) }
         }
         let canWrite = all.filter { $0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse) }

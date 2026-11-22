@@ -52,6 +52,9 @@ public let CBCentralManagerRestoredStatePeripheralsKey: String = "kCBRestoredPer
 public let CBCentralManagerScanOptionAllowDuplicatesKey: String = "kCBScanOptionAllowDuplicates"
 public let CBAdvertisementDataLocalNameKey: String = "kCBAdvDataLocalName"
 public let CBAdvertisementDataServiceUUIDsKey: String = "kCBAdvDataServiceUUIDs"
+public let CBAdvertisementDataOverflowServiceUUIDsKey: String = "kCBAdvDataOverflowServiceUUIDs"
+public let CBAdvertisementDataSolicitedServiceUUIDsKey: String = "kCBAdvDataSolicitedServiceUUIDs"
+public let CBAdvertisementDataServiceDataKey: String = "kCBAdvDataServiceData"
 
 open class CBUUID: NSObject {
     public init(string theString: String) {}

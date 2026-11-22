@@ -56,8 +56,9 @@ class IosPlatform(private val bridge: BluetoothBridge) : Platform {
         routes = routes + found.associate { it.first to it.third }
         return found
             .map { (id, name, route) -> Device(name, id, connected = true) to route }
-            // Found only through Fast Pair, which many devices offer: listed when the app knows them by name.
-            .filter { (device, route) -> route != "fastpair" || Catalog.model(device).support != Support.Basic }
+            // Found only through Fast Pair, which many devices offer, or seen over Bluetooth LE by a name alone:
+            // listed when the app knows them by name.
+            .filter { (device, route) -> (route != "fastpair" && route != "scan") || Catalog.model(device).support != Support.Basic }
             .map { it.first }
     }
 
