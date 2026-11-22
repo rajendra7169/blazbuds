@@ -183,7 +183,7 @@ private fun CheckPanel(check: suspend () -> String, result: String?, done: (Stri
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            "Earbuds missing or not connecting? Connect them, close the brand's own app, then run this. It takes about fifteen seconds.",
+            "Earbuds missing or not connecting? Close the brand's own app, have them connected (or, the first time on an iPhone, in pairing mode), then run this. It takes up to half a minute.",
             style = MaterialTheme.typography.bodyMedium, color = palette.muted,
         )
         Spacer(Modifier.height(8.dp))

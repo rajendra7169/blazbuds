@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -103,7 +104,14 @@ fun MyDevicesScreen(
             Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AddArt(size = 140.dp)
                 Text("No devices yet", style = MaterialTheme.typography.titleLarge, color = palette.text)
-                Hint("Earbuds and headphones that connect to this device appear here by themselves.", Modifier.padding(horizontal = 24.dp))
+                if (com.blazify.buds.ui.LocalLook.current == com.blazify.buds.ui.SystemLook.Ios) {
+                    // An iPhone reaches the earbuds' controls only once it has met them in pairing mode.
+                    Hint(IPHONE_FIRST_TIME, Modifier.padding(horizontal = 24.dp))
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    Choice("Look again", false, icon = BudsIcons.Refresh) { scope.launch { reload() } }
+                } else {
+                    Hint("Earbuds and headphones that connect to this device appear here by themselves.", Modifier.padding(horizontal = 24.dp))
+                }
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -273,6 +281,18 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
         }
         BrandPicker(which) { which = it }
         val brand = PAIRING[which]
+        if (look == com.blazify.buds.ui.SystemLook.Ios) {
+            Panel {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(BudsIcons.Bluetooth, null, tint = palette.accent, modifier = Modifier.size(24.dp))
+                    Text("First time on iPhone", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(IPHONE_FIRST_TIME, style = MaterialTheme.typography.bodyMedium, color = palette.muted)
+                Spacer(Modifier.height(4.dp))
+                Hint("After that Blazbuds finds them by itself whenever they're connected.")
+            }
+        }
         Panel {
             Text(if (brand.models.isEmpty()) "Any earbuds or headphones" else brand.name, style = MaterialTheme.typography.titleMedium, color = palette.text)
             if (brand.models.isNotEmpty()) Text(brand.models, style = MaterialTheme.typography.bodySmall, color = palette.muted)
@@ -302,7 +322,7 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
             }
         }
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Choice("I've paired them", false, icon = BudsIcons.Refresh, onClick = lookAgain)
+            Choice(if (look == com.blazify.buds.ui.SystemLook.Ios) "Look again" else "I've paired them", false, icon = BudsIcons.Refresh, onClick = lookAgain)
         }
     }
 }
@@ -311,6 +331,10 @@ fun AddDeviceScreen(openSettings: (() -> Unit)?, lookAgain: () -> Unit, back: ()
 private class PairBrand(val name: String, val models: String, val can: String, val steps: List<String>)
 
 private const val PICK = "Pick them in your Bluetooth settings, then come back here."
+
+/** The iPhone meets the earbuds' controls over Bluetooth LE, which many earbuds only offer in pairing mode. */
+private const val IPHONE_FIRST_TIME =
+    "First time on iPhone: open the case and hold its button until the light flashes (about 3 seconds), then tap Look again."
 
 /** The brands the app knows well, which double as the list of what it works with; "Not sure" last, for anything. */
 private val PAIRING = listOf(
