@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/android.png" width="260" alt="Download for Android: the APK"></a>
   <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/linux.png" width="260" alt="Download for Linux: the DEB package"></a>
-  <img src="docs/buttons/iphone.png" width="260" alt="iPhone: coming soon">
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/iphone.png" width="260" alt="Download for iPhone: the IPA to sideload"></a>
 </p>
 
 <p align="center">
@@ -75,10 +75,12 @@ Missing yours? Use **Help › Request your earbuds** in the app.
 <p align="center">
   <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/android.png" width="260" alt="Download for Android: the APK"></a>
   <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/linux.png" width="260" alt="Download for Linux: the DEB package"></a>
-  <img src="docs/buttons/iphone.png" width="260" alt="iPhone: coming soon">
+  <a href="https://github.com/rajendra7169/blazbuds/releases/latest"><img src="docs/buttons/iphone.png" width="260" alt="Download for iPhone: the IPA to sideload"></a>
 </p>
 
 On Linux, install the downloaded package with `sudo apt install ./blazbuds_1.3.0_amd64.deb`. Android needs version 8 or later. The app tells you when a new version is out.
+
+On iPhone (iOS 17 or later), install the `.ipa` with SideStore, AltStore or LiveContainer. The first time, put the earbuds in the case, open the lid and hold the case button about 3 seconds until the light flashes, then tap **Look again**; after that Blazbuds finds them by itself. Close the brand's own app first, since only one app can control the earbuds at a time. Samsung's Galaxy Buds2 and newer can't be controlled from an iPhone.
 
 ## On a computer
 
