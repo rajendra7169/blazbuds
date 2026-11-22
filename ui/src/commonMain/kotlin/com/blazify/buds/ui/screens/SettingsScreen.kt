@@ -137,64 +137,67 @@ private fun UpdatesPanel(openChangelog: () -> Unit) {
     var installProblem by remember { mutableStateOf<String?>(null) }
     Panel {
         SectionTitle("Updates")
-        SwitchRow(BudsIcons.Refresh, "Look for new versions", prefs.checkUpdates, { prefs.checkUpdates(it) }, detail = "Asks GitHub now and then; nothing about you is sent", color = Hue.Green)
-        val update = prefs.knownUpdate
-        if (update != null) {
-            Spacer(Modifier.height(8.dp))
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(palette.accent.copy(alpha = 0.12f)).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("Blazbuds ${update.version} is out", style = MaterialTheme.typography.titleSmall, color = palette.text)
-                com.blazify.buds.ui.ReleaseNotesView(update.notes, limit = 6)
-                val file = update.fileFor(look)
-                val selfInstall = installer?.canInstall(update) == true
-                if (installing) {
-                    val done = fetched
-                    androidx.compose.material3.LinearProgressIndicator(
-                        progress = { done ?: 0f },
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)),
-                        color = palette.accent,
-                        trackColor = palette.accent.copy(alpha = 0.2f),
-                    )
-                    Hint(if (done == null) "Downloading…" else "Downloading… ${(done * 100).toInt()}%")
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (selfInstall && installer != null) {
-                            Choice("Install", true, icon = BudsIcons.Download) {
-                                installing = true
-                                installProblem = null
-                                scope.launch {
-                                    // Returns only when something stopped it; on success the app closes and reopens new.
-                                    installProblem = installer.install(update) { fetched = it }
-                                    installing = false
-                                    fetched = null
+        // iPhone copies are built and installed by hand, so there is nothing for them to look for yet.
+        if (look != com.blazify.buds.ui.SystemLook.Ios) {
+            SwitchRow(BudsIcons.Refresh, "Look for new versions", prefs.checkUpdates, { prefs.checkUpdates(it) }, detail = "Asks GitHub now and then; nothing about you is sent", color = Hue.Green)
+            val update = prefs.knownUpdate
+            if (update != null) {
+                Spacer(Modifier.height(8.dp))
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(palette.accent.copy(alpha = 0.12f)).padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Blazbuds ${update.version} is out", style = MaterialTheme.typography.titleSmall, color = palette.text)
+                    com.blazify.buds.ui.ReleaseNotesView(update.notes, limit = 6)
+                    val file = update.fileFor(look)
+                    val selfInstall = installer?.canInstall(update) == true
+                    if (installing) {
+                        val done = fetched
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { done ?: 0f },
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)),
+                            color = palette.accent,
+                            trackColor = palette.accent.copy(alpha = 0.2f),
+                        )
+                        Hint(if (done == null) "Downloading…" else "Downloading… ${(done * 100).toInt()}%")
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (selfInstall && installer != null) {
+                                Choice("Install", true, icon = BudsIcons.Download) {
+                                    installing = true
+                                    installProblem = null
+                                    scope.launch {
+                                        // Returns only when something stopped it; on success the app closes and reopens new.
+                                        installProblem = installer.install(update) { fetched = it }
+                                        installing = false
+                                        fetched = null
+                                    }
                                 }
+                            } else if (file != null) {
+                                Choice("Download", true, icon = BudsIcons.Download) { uri.openUri(file) }
                             }
-                        } else if (file != null) {
-                            Choice("Download", true, icon = BudsIcons.Download) { uri.openUri(file) }
+                            Choice("Release page", false, icon = BudsIcons.OpenLink) { uri.openUri(update.page) }
                         }
-                        Choice("Release page", false, icon = BudsIcons.OpenLink) { uri.openUri(update.page) }
+                        if (selfInstall) Hint("Blazbuds closes, your computer asks for your password, and the new version opens.")
                     }
-                    if (selfInstall) Hint("Blazbuds closes, your computer asks for your password, and the new version opens.")
+                    installProblem?.let { Hint(it) }
+                    if (file == null && !selfInstall) Hint("Get it the same way you got this version.")
                 }
-                installProblem?.let { Hint(it) }
-                if (file == null && !selfInstall) Hint("Get it the same way you got this version.")
-            }
-        } else if (prefs.checkUpdates) {
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(result ?: "You have version $VERSION.", style = MaterialTheme.typography.bodyMedium, color = palette.muted, modifier = Modifier.weight(1f))
-                Choice(if (checking) "Checking…" else "Check now", false, icon = BudsIcons.Refresh) {
-                    if (checking) return@Choice
-                    checking = true
-                    scope.launch {
-                        val found = Updates.latest()
-                        checking = false
-                        result = when {
-                            found == null -> "Couldn't reach GitHub. Try again later."
-                            Updates.isNewer(found.version) -> { prefs.foundUpdate(found); null }
-                            else -> "You have the newest version, $VERSION."
+            } else if (prefs.checkUpdates) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(result ?: "You have version $VERSION.", style = MaterialTheme.typography.bodyMedium, color = palette.muted, modifier = Modifier.weight(1f))
+                    Choice(if (checking) "Checking…" else "Check now", false, icon = BudsIcons.Refresh) {
+                        if (checking) return@Choice
+                        checking = true
+                        scope.launch {
+                            val found = Updates.latest()
+                            checking = false
+                            result = when {
+                                found == null -> "Couldn't reach GitHub. Try again later."
+                                Updates.isNewer(found.version) -> { prefs.foundUpdate(found); null }
+                                else -> "You have the newest version, $VERSION."
+                            }
                         }
                     }
                 }
