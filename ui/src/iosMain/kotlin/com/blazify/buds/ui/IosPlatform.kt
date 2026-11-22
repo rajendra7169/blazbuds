@@ -15,6 +15,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import platform.AVFAudio.AVAudioPlayer
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
@@ -22,6 +25,8 @@ import platform.AVFAudio.setActive
 import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIApplication
 import platform.UIKit.UIViewController
+import platform.UIKit.UIWindow
+import platform.UIKit.UIWindowScene
 import platform.UserNotifications.UNAuthorizationOptionAlert
 import platform.UserNotifications.UNAuthorizationOptionSound
 import platform.UserNotifications.UNMutableNotificationContent
@@ -63,7 +68,8 @@ class IosPlatform(private val bridge: BluetoothBridge) : Platform {
         val route = routes[id].orEmpty()
         val model = Catalog.model(device)
         val open: suspend () -> Connection = { link(id, "") }
-        val basic = { BasicBuds(device.name, scope) { (id in routesNow()) to null }.also { it.start() } }
+        // iOS tells apps no battery for earbuds it can't control, only whether they are connected.
+        val basic = { BasicBuds(device.name, scope) { withContext(Dispatchers.IO) { id in routesNow() } to null }.also { it.start() } }
         return when (model.family) {
             Family.Soundcore -> model.soundcore?.let { soundcore ->
                 com.blazify.buds.core.soundcore.generic.GenericSoundcoreBuds(
@@ -177,8 +183,11 @@ class IosPlatform(private val bridge: BluetoothBridge) : Platform {
     }
 
     private fun topController(): UIViewController? {
-        @Suppress("DEPRECATION")
-        var top = UIApplication.sharedApplication.keyWindow?.rootViewController ?: return null
+        val window = UIApplication.sharedApplication.connectedScenes
+            .mapNotNull { it as? UIWindowScene }
+            .flatMap { scene -> scene.windows.mapNotNull { it as? UIWindow } }
+            .let { windows -> windows.firstOrNull { it.isKeyWindow() } ?: windows.firstOrNull() }
+        var top = window?.rootViewController ?: return null
         while (true) top = top.presentedViewController ?: break
         return top
     }
