@@ -226,7 +226,9 @@ object DesktopPlatform : Platform {
 
     override fun bluetoothSettings() {
         if (windows) {
-            runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI("ms-settings:bluetooth")) }
+            // Windows' own shell opens Settings at Bluetooth. Java's "browse" handed the same address to the web
+            // browser, which is what people saw instead of the Bluetooth page.
+            runCatching { ProcessBuilder("explorer.exe", "ms-settings:bluetooth").start() }
                 .recoverCatching { ProcessBuilder("cmd", "/c", "start", "", "ms-settings:bluetooth").start() }
             return
         }
