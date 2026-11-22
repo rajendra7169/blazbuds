@@ -403,6 +403,7 @@ private fun app(args: Array<String>) = application {
             androidx.compose.runtime.CompositionLocalProvider(com.blazify.buds.ui.blocks.LocalArrows provides true, androidx.compose.ui.platform.LocalUriHandler provides LinkOpener) {
                 androidx.compose.runtime.CompositionLocalProvider(
                     com.blazify.buds.ui.screens.LocalSettingsExtras provides { if (homeAssistant != null) HomeAssistantPanel(haSettings, homeAssistant) },
+                    com.blazify.buds.ui.LocalUpdateInstaller provides SelfUpdate,
                 ) {
                     if (hub != null) BudsApp(hub, prefs, watchUpdates = false) else BudsApp(demoBuds!!, prefs)
                 }
