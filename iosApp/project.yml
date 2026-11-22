@@ -1,0 +1,84 @@
+# XcodeGen spec for the iPhone app. There is no Mac here to make an .xcodeproj by hand, so the cloud build runs
+# `xcodegen generate` to turn this into a real project before compiling. Edit this file, never the generated project.
+#
+# The screens are the shared Kotlin/Compose ones (the `ui` module), built by Gradle into BlazbudsKit.framework while
+# Xcode builds; the Swift sources here only do Bluetooth and host those screens.
+name: Blazbuds
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+targets:
+  Blazbuds:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    preBuildScripts:
+      # Gradle builds the Kotlin framework for the configuration and architecture Xcode is building, and copies the
+      # shared module's pictures and font (compose-resources) into the app.
+      - name: Build the shared screens (Kotlin)
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          if [ -z "$JAVA_HOME" ] && [ -x /usr/libexec/java_home ]; then
+            export JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home)"
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :ui:embedAndSignAppleFrameworkForXcode --console=plain
+    info:
+      path: Sources/Generated-Info.plist
+      properties:
+        CFBundleDisplayName: Blazbuds
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSRequiresIPhoneOS: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # Scrolling and animations at 120 frames a second on iPhones whose screens go that fast; Compose also
+        # expects this key to be there.
+        CADisableMinimumFrameDurationOnPhone: true
+        NSBluetoothAlwaysUsageDescription: "Blazbuds talks to your earbuds over Bluetooth to show their battery and change their settings."
+        UIBackgroundModes:
+          # Keeps the link to the earbuds while the app is in the background, so their changes and battery arrive.
+          - bluetooth-central
+          # Sony and Bose earbuds are reached as accessories.
+          - external-accessory
+        # The accessory protocols Sony and Bose earbuds speak. iOS opens only the ones listed here; inside another app
+        # (LiveContainer) that app's own list counts instead, so these need Blazbuds installed as its own app.
+        UISupportedExternalAccessoryProtocols:
+          - jp.co.sony.songpal.mdr.link
+          - jp.co.sony.songpal.mdr.link2
+          - com.bose.bmap
+          - com.bose.bmap2
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.blazify.buds
+        PRODUCT_NAME: Blazbuds
+        MARKETING_VERSION: "1.3.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Swift 5 language mode: the newest Xcode would otherwise apply Swift 6's strict concurrency checks to the
+        # Bluetooth code, which keeps to one queue of its own.
+        SWIFT_VERSION: "5.0"
+        SWIFT_STRICT_CONCURRENCY: minimal
+        # Where Gradle puts the framework for the configuration and SDK being built.
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/../ui/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        # The Kotlin framework is static: linked in, not embedded. It needs the C++ runtime.
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "BlazbudsKit"
+          - "-lc++"
+        # Gradle reads and writes outside the sandbox Xcode gives build scripts.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO

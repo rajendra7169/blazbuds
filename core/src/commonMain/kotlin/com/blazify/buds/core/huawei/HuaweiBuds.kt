@@ -1,5 +1,6 @@
 package com.blazify.buds.core.huawei
 
+import com.blazify.buds.core.hex2
 import com.blazify.buds.core.link.Connection
 import com.blazify.buds.core.link.LinkException
 import com.blazify.buds.core.model.Battery
@@ -67,7 +68,7 @@ class HuaweiBuds(
 
     /** Dual-connect: on or off, and the devices the earbuds remember, by their place in the earbuds' list. */
     private var twoDevices: Boolean? = null
-    private val hosts = sortedMapOf<Int, Host>()
+    private val hosts = mutableMapOf<Int, Host>()
 
     /**
      * Honor Choice earbuds keep their settings as numbered values in groups (EQ, taps, holds, switches), read with
@@ -252,7 +253,7 @@ class HuaweiBuds(
     /** Dual-connect as the Device tab shows it; nothing until the earbuds say whether they have it. */
     private fun publishHosts() {
         val on = twoDevices ?: return
-        flow.update { it.copy(multipoint = Multipoint(on, hosts.values.toList())) }
+        flow.update { it.copy(multipoint = Multipoint(on, hosts.entries.sortedBy { it.key }.map { it.value })) }
     }
 
     /** Asks for the remembered devices again, starting the list afresh. */
@@ -504,7 +505,7 @@ class HuaweiBuds(
             val mac = packet.field(4)?.takeIf { it.size == 6 } ?: return null
             val index = packet.field(3)?.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) } ?: return null
             val state = packet.field(5)?.firstOrNull()?.toInt()?.and(0xFF) ?: 0
-            val address = mac.joinToString(":") { "%02X".format(it) }
+            val address = mac.joinToString(":") { it.hex2().uppercase() }
             val name = packet.field(9)?.decodeToString()?.trim()?.takeIf { it.isNotEmpty() } ?: address
             return index to Host(name, address, connected = state > 0, playing = state == 9)
         }

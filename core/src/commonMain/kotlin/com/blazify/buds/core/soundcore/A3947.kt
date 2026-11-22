@@ -1,5 +1,6 @@
 package com.blazify.buds.core.soundcore
 
+import com.blazify.buds.core.hex2
 import com.blazify.buds.core.model.AutoPowerOff
 import com.blazify.buds.core.model.Battery
 import com.blazify.buds.core.model.BudsState
@@ -456,7 +457,7 @@ object A3947 {
             val length = body[at].u()
             if (length < 8 || at + length > body.size) break
             val connected = body[at + 1].toInt() == 1
-            val mac = (0 until 6).map { body[at + 2 + it] }.reversed().joinToString(":") { "%02X".format(it) }
+            val mac = (0 until 6).map { body[at + 2 + it] }.reversed().joinToString(":") { it.hex2().uppercase() }
             val name = body.copyOfRange(at + 8, at + length).takeWhile { it.toInt() != 0 }.toByteArray().decodeToString()
             hosts += Host(name.ifBlank { mac }, mac, connected)
             at += length

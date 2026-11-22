@@ -18,6 +18,14 @@ kotlin {
     // Linux, Windows and macOS.
     jvm()
 
+    // The iPhone app: the same screens, linked into the Xcode app as one framework.
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "BlazbudsKit"
+            isStatic = true
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             api(project(":core"))

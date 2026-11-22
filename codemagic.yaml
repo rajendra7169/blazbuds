@@ -1,0 +1,78 @@
+# Codemagic build for the iPhone app: an UNSIGNED .ipa built on a rented Mac. SideStore, LiveContainer or another
+# signer signs it on the phone afterwards with a free Apple ID.
+#
+# It runs on Codemagic's machines only when started from Codemagic, never as a GitHub workflow.
+workflows:
+  ios-unsigned:
+    name: Blazbuds iOS (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      java: 21
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.konan
+    scripts:
+      # Builds the shared Kotlin framework once on its own, so a Kotlin mistake shows here in a few readable lines
+      # rather than deep in Xcode's log. Xcode's own build step finds it ready and only copies it in.
+      - name: Build the shared screens (Kotlin framework)
+        script: ./gradlew :ui:linkReleaseFrameworkIosArm64 --console=plain
+
+      - name: Install XcodeGen
+        script: brew install xcodegen
+
+      - name: Generate the Xcode project
+        script: cd iosApp && xcodegen generate
+
+      - name: Build unsigned .app
+        script: |
+          # The full log goes to a file and only the diagnostics reach the console, because xcodebuild's command echo
+          # buries the errors.
+          set -o pipefail
+          cd iosApp
+          xcodebuild \
+            -project Blazbuds.xcodeproj \
+            -scheme Blazbuds \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build > "$CM_BUILD_DIR/xcodebuild.log" 2>&1
+          status=$?
+          if [ $status -ne 0 ]; then
+            echo "======================= ERRORS ======================="
+            grep -n -A 2 -E "(error|warning): |^e: " "$CM_BUILD_DIR/xcodebuild.log" \
+              | grep -v "^.*note: " | head -120 \
+              || echo "(no diagnostics found; see the xcodebuild.log artifact)"
+            echo "======================================================"
+          fi
+          exit $status
+
+      - name: Check the app carries the shared pictures and font
+        script: |
+          APP=iosApp/build/Build/Products/Release-iphoneos/Blazbuds.app
+          if [ -d "$APP/compose-resources" ]; then
+            find "$APP/compose-resources" -type f | head -5
+            echo "compose-resources: $(find "$APP/compose-resources" -type f | wc -l) files"
+          else
+            echo "WARNING: $APP/compose-resources is missing; the app would show no pictures or its own font."
+            ls "$APP"
+          fi
+
+      - name: Fix __LINKEDIT so third-party signing survives
+        script: python3 iosApp/scripts/fix_linkedit.py iosApp/build/Build/Products/Release-iphoneos/Blazbuds.app/Blazbuds
+
+      - name: Package into an .ipa
+        script: |
+          cd iosApp/build/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -R Blazbuds.app Payload/
+          zip -qr "$CM_BUILD_DIR/Blazbuds.ipa" Payload
+    artifacts:
+      - Blazbuds.ipa
+      # Kept whatever happens, so a failure can be read in full rather than through a console that truncates.
+      - xcodebuild.log

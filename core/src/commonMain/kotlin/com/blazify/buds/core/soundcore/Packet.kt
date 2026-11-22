@@ -1,5 +1,7 @@
 package com.blazify.buds.core.soundcore
 
+import com.blazify.buds.core.hex2
+
 /**
  * One message between the app and Soundcore earbuds.
  *
@@ -14,7 +16,7 @@ class Packet(val command: Int, val body: ByteArray = ByteArray(0)) {
     companion object {
         fun command(first: Int, second: Int): Int = ((first and 0xFF) shl 8) or (second and 0xFF)
 
-        fun commandName(command: Int): String = "%02x %02x".format(command shr 8, command and 0xFF)
+        fun commandName(command: Int): String = "${(command shr 8).hex2()} ${(command and 0xFF).hex2()}"
     }
 }
 
@@ -88,7 +90,7 @@ object PacketCodec {
     }
 }
 
-fun ByteArray.toHex(): String = joinToString(" ") { "%02x".format(it) }
+fun ByteArray.toHex(): String = joinToString(" ") { it.hex2() }
 
 fun hex(text: String): ByteArray =
     text.filter { !it.isWhitespace() }.chunked(2).map { it.toInt(16).toByte() }.toByteArray()

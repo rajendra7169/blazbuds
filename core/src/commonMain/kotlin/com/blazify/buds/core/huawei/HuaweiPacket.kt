@@ -1,5 +1,7 @@
 package com.blazify.buds.core.huawei
 
+import com.blazify.buds.core.hex2
+
 /**
  * One message in the protocol Huawei and Honor earbuds share: `5A`, a length, `00`, a service and command byte, then
  * typed fields (type, length, value), and a CRC-16 (XMODEM) of all that. Asking for something sends the field types
@@ -13,7 +15,7 @@ data class HuaweiPacket(val service: Int, val command: Int, val fields: Map<Int,
     val failed: Boolean get() = ERROR in fields
 
     override fun toString(): String =
-        "Huawei(%02x %02x, %s)".format(service, command, fields.entries.joinToString { (t, v) -> "$t=" + v.joinToString(" ") { "%02x".format(it) } })
+        "Huawei(${service.hex2()} ${command.hex2()}, ${fields.entries.joinToString { (t, v) -> "$t=" + v.joinToString(" ") { it.hex2() } }})"
 
     companion object {
         const val ERROR = 127

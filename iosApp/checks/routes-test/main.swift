@@ -1,0 +1,17 @@
+// Runs the finder's matching rules (iosApp/Sources/Routes.swift) on Linux: the UUID forms either byte order, names, routes.
+func check(_ ok: Bool, _ what: String) { print(ok ? "ok  " : "FAIL", what) }
+check(Routes.forms(CBUUID(string: "DAF54E01")).contains("014EF5DA" + Routes.base), "DAF54E01 read back as 014EF5DA")
+check(Routes.route(of: CBUUID(string: "DAF54E01")) == "soundcore", "DAF54E01 is Soundcore")
+check(Routes.route(of: CBUUID(string: "014EF5DA-0000-1000-8000-00805F9B34FB")) == "soundcore", "014ef5da is Soundcore")
+check(Routes.route(of: CBUUID(string: "FD90")) == "nothing", "FD90 Nothing")
+check(Routes.route(of: CBUUID(string: "90FD")) == "nothing", "90FD Nothing reversed")
+check(Routes.route(of: CBUUID(string: "1800")) == nil, "1800 nothing")
+check(Routes.route(of: CBUUID(string: "5B833E20-6BC7-4802-8E9A-723CECA4BD8F")) == "sony", "Sony")
+check(Routes.forms(CBUUID(string: "5B833E20-6BC7-4802-8E9A-723CECA4BD8F"))[1] == "8FBDA4EC-3C72-9A8E-0248-C76B203E835B", "128-bit reversed")
+check(Routes.cleanName("soundcore Liberty 4 NC LE") == "soundcore Liberty 4 NC", "strip LE")
+check(Routes.match(name: "soundcore Liberty 4 NC LE", services: [CBUUID(string: "DAF54E01")]) == "soundcore", "match by service")
+check(Routes.match(name: "soundcore Liberty 4 NC LE", services: []) == "scan", "match by name")
+check(Routes.match(name: "Living Room", services: [CBUUID(string: "FE2C")]) == "fastpair", "fast pair only")
+check(Routes.match(name: "Nest Hub", services: []) == nil, "Nest Hub ignored")
+let c = CBCharacteristic(); c.uuid = CBUUID(string: "7777")
+check(Routes.isPart(c, "7777"), "7777 part")
