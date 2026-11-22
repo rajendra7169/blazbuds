@@ -1,5 +1,7 @@
 package com.blazify.buds.core.jieli
 
+import com.blazify.buds.core.hex2
+
 /**
  * One message in JieLi's RCSP protocol: `FE DC BA`, a kind (a command wanting an answer, an answer, or news the
  * earbuds send unasked), what it's about, a two-byte length, the body, and `EF`. A command's body starts with a
@@ -9,7 +11,7 @@ data class Rcsp(val kind: Int, val opcode: Int, val body: ByteArray) {
     val isAnswer get() = kind and 0x80 == 0 && kind and 0x40 == 0
     val isNews get() = kind == NEWS
 
-    override fun toString(): String = "Rcsp(%02x %02x, %s)".format(kind, opcode, body.joinToString(" ") { "%02x".format(it) })
+    override fun toString(): String = "Rcsp(${kind.hex2()} ${opcode.hex2()}, ${body.joinToString(" ") { it.hex2() }})"
 
     companion object {
         const val COMMAND = 0xC0

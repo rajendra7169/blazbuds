@@ -1,5 +1,7 @@
 package com.blazify.buds.core.samsung
 
+import com.blazify.buds.core.hex2
+
 /**
  * One message on a Galaxy Buds control channel: a start byte, a two-byte header with the size, the message id, its
  * payload, a CRC-16 (XMODEM, little-endian) of the id and payload, and an end byte. The Buds+ and later use `FD … DD`
@@ -9,7 +11,7 @@ package com.blazify.buds.core.samsung
  * Adapted from GalaxyBudsClient's SppMessage (Tim Schneeberger, GPL-3.0).
  */
 class SamsungMessage(val id: Int, val payload: ByteArray = ByteArray(0)) {
-    override fun toString(): String = "Samsung(%02x: %s)".format(id, payload.joinToString(" ") { "%02x".format(it) })
+    override fun toString(): String = "Samsung(${id.hex2()}: ${payload.joinToString(" ") { it.hex2() }})"
 
     companion object {
         const val SOM = 0xFD
