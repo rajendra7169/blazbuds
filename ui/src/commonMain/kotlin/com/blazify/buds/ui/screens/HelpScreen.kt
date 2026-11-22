@@ -30,6 +30,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import com.blazify.buds.core.Logbook
 import com.blazify.buds.core.model.BudsState
@@ -59,9 +62,11 @@ private val WISHES = listOf("Battery", "Noise cancelling", "Equalizer", "Touch c
 
 /** Help: answers to what goes wrong most, a way to report anything else, and a way to ask for more earbuds. */
 @Composable
-fun SupportScreen(state: BudsState?, version: String, back: () -> Unit) {
+fun SupportScreen(state: BudsState?, version: String, back: () -> Unit, check: (suspend () -> String)? = null) {
     val palette = LocalPalette.current
     var open by remember { mutableIntStateOf(-1) }
+    // The last Bluetooth check, which Copy everything carries too.
+    var checked by remember { mutableStateOf<String?>(null) }
     PlaceFrame("Help", back) {
         Panel(padding = 8.dp) {
             QUESTIONS.forEachIndexed { i, (question, answer) ->
@@ -76,13 +81,14 @@ fun SupportScreen(state: BudsState?, version: String, back: () -> Unit) {
                 }
             }
         }
-        ReportPanel(state, version)
+        if (check != null) CheckPanel(check, checked) { checked = it }
+        ReportPanel(state, version, checked)
         RequestPanel(state, version)
     }
 }
 
 /** The details any report needs: the app, the system, the earbuds and what they said lately. Nothing personal. */
-private fun details(state: BudsState?, version: String, look: String, withLog: Boolean): String = buildString {
+private fun details(state: BudsState?, version: String, look: String, withLog: Boolean, check: String? = null): String = buildString {
     appendLine("Blazbuds $version on $look")
     appendLine("Earbuds: ${state?.name ?: "none"} (${state?.model?.ifEmpty { "model unknown" } ?: "none"}) · firmware ${state?.firmware ?: "?"}")
     appendLine("Link: ${state?.link ?: "none"} · ready: ${state?.isReady}")
@@ -93,6 +99,11 @@ private fun details(state: BudsState?, version: String, look: String, withLog: B
         appendLine()
         appendLine("Log (${log.size} lines):")
         log.forEach { appendLine(it) }
+        if (check != null) {
+            appendLine()
+            appendLine("Bluetooth check:")
+            appendLine(check)
+        }
     }
 }
 
@@ -110,7 +121,7 @@ private fun issueUrl(title: String, body: String, label: String, form: String): 
 }
 
 @Composable
-private fun ReportPanel(state: BudsState?, version: String) {
+private fun ReportPanel(state: BudsState?, version: String, check: String?) {
     val palette = LocalPalette.current
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
@@ -131,7 +142,7 @@ private fun ReportPanel(state: BudsState?, version: String) {
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(if (copied == 2) "Copied" else "Copy everything", copied == 2, icon = if (copied == 2) BudsIcons.Check else BudsIcons.Copy) {
-                clipboard.setText(AnnotatedString(details(state, version, look, withLog = true)))
+                clipboard.setText(AnnotatedString(details(state, version, look, withLog = true, check = check)))
                 copied = 2
             }
             Choice(if (copied == 1) "Copied" else "Just the summary", copied == 1, icon = if (copied == 1) BudsIcons.Check else BudsIcons.Copy) {
@@ -146,6 +157,63 @@ private fun ReportPanel(state: BudsState?, version: String) {
             val body = "**What happened**\n\n\n**What you expected**\n\n\n**Details** (paste what Blazbuds copied here)\n\n" +
                 details(state, version, look, withLog = false)
             uri.openUri(issueUrl("Problem: ", body, "bug", "problem.md"))
+        }
+    }
+}
+
+/**
+ * What the system reports about Bluetooth and the earbuds connected now, for when they don't show up or won't
+ * connect: run it, then copy it into a report.
+ */
+@Composable
+private fun CheckPanel(check: suspend () -> String, result: String?, done: (String) -> Unit) {
+    val palette = LocalPalette.current
+    @Suppress("DEPRECATION")
+    val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    var running by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    Panel {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HueDot(BudsIcons.Bluetooth, Hue.Blue)
+            Column(Modifier.weight(1f)) {
+                Text("Bluetooth check", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                Text("What this device sees of your earbuds", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Earbuds missing or not connecting? Connect them, close the brand's own app, then run this. It takes about fifteen seconds.",
+            style = MaterialTheme.typography.bodyMedium, color = palette.muted,
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice(if (running) "Checking…" else "Run the check", running, icon = BudsIcons.Bluetooth) {
+                if (running) return@Choice
+                running = true
+                copied = false
+                scope.launch {
+                    done(runCatching { check() }.getOrElse { "The check stopped: ${it.message}" })
+                    running = false
+                }
+            }
+            if (result != null && !running) {
+                Choice(if (copied) "Copied" else "Copy", copied, icon = if (copied) BudsIcons.Check else BudsIcons.Copy) {
+                    clipboard.setText(AnnotatedString(result))
+                    copied = true
+                }
+            }
+        }
+        if (result != null) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                result,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = palette.text,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(palette.raised).padding(10.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Hint("Copy everything, under Report a problem, carries this too.")
         }
     }
 }

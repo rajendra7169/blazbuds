@@ -74,6 +74,15 @@ interface Platform {
 
     /** The automations changed: a phone plans its next wake-up for the time rules again. */
     fun rulesChanged() {}
+
+    /**
+     * Whether this platform can look over what its Bluetooth reports, for Help. The iPhone lists no paired devices
+     * and reaches earbuds only through the services they offer, so when something fails there this says why.
+     */
+    val hasBluetoothCheck: Boolean get() = false
+
+    /** What the Bluetooth check found, as text to paste into a report. */
+    suspend fun bluetoothCheck(): String = ""
 }
 
 /** One row of the earbuds list. */
@@ -295,6 +304,9 @@ class Hub(private val platform: Platform, private val scope: CoroutineScope, pri
     fun rulesChanged() = platform.rulesChanged()
 
     val canOpenSettings: Boolean get() = platform.hasBluetoothSettings
+
+    /** The Bluetooth check for Help, where the platform has one. */
+    val bluetoothCheck: (suspend () -> String)? get() = if (platform.hasBluetoothCheck) ({ platform.bluetoothCheck() }) else null
 
     val chosenAddress: String? get() = address
 

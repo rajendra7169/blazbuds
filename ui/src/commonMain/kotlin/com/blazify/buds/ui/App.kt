@@ -224,7 +224,7 @@ fun BudsApp(hub: Hub, prefs: Prefs = remember { Prefs() }, start: Place? = Place
                         Place.Find -> if (state != null) FindScreen(state, { l, r -> hub.findSound(l, r) }, close)
                         Place.Fit -> if (now != null) FitTestScreen(now, close)
                         Place.EarPrint -> if (now != null && state != null) EarPrintScreen(state, { c -> scope.launch { now.apply(c) } }, close)
-                        Place.Support -> SupportScreen(state, VERSION, close)
+                        Place.Support -> SupportScreen(state, VERSION, close, check = hub.bluetoothCheck)
                         Place.Automations -> hub.rules?.let { book ->
                             @OptIn(kotlin.time.ExperimentalTime::class)
                             AutomationsScreen(book, now = { kotlin.time.Clock.System.now().toEpochMilliseconds() }, changed = { hub.rulesChanged() }, back = close)
